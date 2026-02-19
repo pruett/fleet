@@ -1,0 +1,1 @@
+- always install the lastest version of packages in package.json (e.g. bun add <dependency>@latest)
