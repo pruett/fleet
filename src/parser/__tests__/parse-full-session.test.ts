@@ -36,6 +36,9 @@ const toolCallCycleFixtureContent = readFileSync(toolCallCycleFixturePath, "utf-
 const subagentSpawnFixturePath = join(import.meta.dir, "fixtures", "subagent-spawn.jsonl");
 const subagentSpawnFixtureContent = readFileSync(subagentSpawnFixturePath, "utf-8");
 
+const multiTurnFixturePath = join(import.meta.dir, "fixtures", "multi-turn-session.jsonl");
+const multiTurnFixtureContent = readFileSync(multiTurnFixturePath, "utf-8");
+
 // ============================================================
 // Unit 2: Tracer Bullet — Minimal End-to-End
 // ============================================================
@@ -2226,5 +2229,242 @@ describe("enrichSession — duplicate progress-agent messages for same agentId",
     expect(session.subagents[0].agentId).toBe("agent-dedup");
     expect(session.subagents[0].stats).not.toBeNull();
     expect(session.subagents[0].stats!.totalDurationMs).toBe(1500);
+  });
+});
+
+// ============================================================
+// Unit 14: Integration — Multi-Turn Session
+// ============================================================
+
+// 3-turn session exercising all 7 enrichments:
+//   Turn 0: simple text response
+//   Turn 1: 2 Bash tool calls (1 success, 1 error) + 1 Task subagent + text response
+//   Turn 2: multi-block response (thinking + text sharing messageId)
+
+describe("Integration — multi-turn session: turns", () => {
+  const session = parseFullSession(multiTurnFixtureContent);
+
+  it("produces exactly 3 turns", () => {
+    expect(session.turns).toHaveLength(3);
+  });
+
+  it("turn 0 has correct prompt and duration", () => {
+    expect(session.turns[0].promptText).toBe("Explain the architecture");
+    expect(session.turns[0].durationMs).toBe(2000);
+  });
+
+  it("turn 1 has correct prompt and duration", () => {
+    expect(session.turns[1].promptText).toBe("Fix the bug and research the API");
+    expect(session.turns[1].durationMs).toBe(5000);
+  });
+
+  it("turn 2 has correct prompt and duration", () => {
+    expect(session.turns[2].promptText).toBe("Summarize findings");
+    expect(session.turns[2].durationMs).toBe(3000);
+  });
+});
+
+describe("Integration — multi-turn session: response counts per turn", () => {
+  const session = parseFullSession(multiTurnFixtureContent);
+
+  it("produces 6 total responses", () => {
+    expect(session.responses).toHaveLength(6);
+  });
+
+  it("turn 0 has 1 response", () => {
+    expect(session.turns[0].responseCount).toBe(1);
+  });
+
+  it("turn 1 has 4 responses", () => {
+    expect(session.turns[1].responseCount).toBe(4);
+  });
+
+  it("turn 2 has 1 response (2 blocks merged)", () => {
+    expect(session.turns[2].responseCount).toBe(1);
+  });
+
+  it("multi-block response has 2 blocks (thinking + text)", () => {
+    const resp006 = session.responses.find((r) => r.messageId === "msg-int-006")!;
+    expect(resp006.blocks).toHaveLength(2);
+    expect(resp006.blocks[0].type).toBe("thinking");
+    expect(resp006.blocks[1].type).toBe("text");
+  });
+});
+
+describe("Integration — multi-turn session: tool pairing across turns", () => {
+  const session = parseFullSession(multiTurnFixtureContent);
+
+  it("produces 3 paired tool calls", () => {
+    expect(session.toolCalls).toHaveLength(3);
+  });
+
+  it("all tool calls are in turn 1", () => {
+    for (const tc of session.toolCalls) {
+      expect(tc.turnIndex).toBe(1);
+    }
+  });
+
+  it("Bash success pairing is correct", () => {
+    const bash1 = session.toolCalls.find((tc) => tc.toolUseId === "toolu_bash_001")!;
+    expect(bash1.toolName).toBe("Bash");
+    expect(bash1.toolResultBlock).not.toBeNull();
+    expect(bash1.toolResultBlock!.isError).toBe(false);
+    expect(bash1.toolResultBlock!.content).toBe("file1.ts\nfile2.ts");
+  });
+
+  it("Bash error pairing is correct", () => {
+    const bash2 = session.toolCalls.find((tc) => tc.toolUseId === "toolu_bash_002")!;
+    expect(bash2.toolName).toBe("Bash");
+    expect(bash2.toolResultBlock).not.toBeNull();
+    expect(bash2.toolResultBlock!.isError).toBe(true);
+    expect(bash2.toolResultBlock!.content).toBe("Error: file not found");
+  });
+
+  it("Task tool call is paired with result", () => {
+    const task = session.toolCalls.find((tc) => tc.toolUseId === "toolu_task_001")!;
+    expect(task.toolName).toBe("Task");
+    expect(task.toolResultBlock).not.toBeNull();
+    expect(task.toolResultBlock!.isError).toBe(false);
+  });
+
+  it("turn toolUseCount is correct", () => {
+    expect(session.turns[0].toolUseCount).toBe(0);
+    expect(session.turns[1].toolUseCount).toBe(3);
+    expect(session.turns[2].toolUseCount).toBe(0);
+  });
+});
+
+describe("Integration — multi-turn session: aggregate totals", () => {
+  const session = parseFullSession(multiTurnFixtureContent);
+
+  it("sums input tokens across all responses (deduplicated by messageId)", () => {
+    // msg-int-001:100 + 002:200 + 003:250 + 004:300 + 005:400 + 006:500 = 1750
+    expect(session.totals.inputTokens).toBe(1750);
+  });
+
+  it("sums output tokens across all responses (last block per messageId)", () => {
+    // msg-int-001:50 + 002:30 + 003:20 + 004:40 + 005:80 + 006:100 = 320
+    expect(session.totals.outputTokens).toBe(320);
+  });
+
+  it("totalTokens is input + output", () => {
+    expect(session.totals.totalTokens).toBe(2070);
+  });
+
+  it("toolUseCount matches total tool calls", () => {
+    expect(session.totals.toolUseCount).toBe(3);
+  });
+
+  it("estimatedCostUsd is correct for all-sonnet session", () => {
+    // input: 1750/1M * $3 = $0.00525
+    // output: 320/1M * $15 = $0.0048
+    // total: $0.01005
+    expect(session.totals.estimatedCostUsd).toBeCloseTo(0.01005, 6);
+  });
+});
+
+describe("Integration — multi-turn session: tool stats", () => {
+  const session = parseFullSession(multiTurnFixtureContent);
+
+  it("produces 2 tool stat entries", () => {
+    expect(session.toolStats).toHaveLength(2);
+    const names = session.toolStats.map((s) => s.toolName).sort();
+    expect(names).toEqual(["Bash", "Task"]);
+  });
+
+  it("Bash has 2 calls and 1 error", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    expect(bash.callCount).toBe(2);
+    expect(bash.errorCount).toBe(1);
+    expect(bash.errorSamples).toHaveLength(1);
+    expect(bash.errorSamples[0].toolUseId).toBe("toolu_bash_002");
+    expect(bash.errorSamples[0].errorText).toBe("Error: file not found");
+    expect(bash.errorSamples[0].turnIndex).toBe(1);
+  });
+
+  it("Task has 1 call and 0 errors", () => {
+    const task = session.toolStats.find((s) => s.toolName === "Task")!;
+    expect(task.callCount).toBe(1);
+    expect(task.errorCount).toBe(0);
+    expect(task.errorSamples).toEqual([]);
+  });
+});
+
+describe("Integration — multi-turn session: subagent references", () => {
+  const session = parseFullSession(multiTurnFixtureContent);
+
+  it("produces 1 subagent reference", () => {
+    expect(session.subagents).toHaveLength(1);
+  });
+
+  it("has correct agentId, prompt, and parentToolUseID", () => {
+    const sub = session.subagents[0];
+    expect(sub.agentId).toBe("agent-int-001");
+    expect(sub.prompt).toBe("Research the API");
+    expect(sub.parentToolUseID).toBe("toolu_task_001");
+  });
+
+  it("has completed stats from toolUseResult", () => {
+    const stats = session.subagents[0].stats;
+    expect(stats).not.toBeNull();
+    expect(stats!.totalDurationMs).toBe(4000);
+    expect(stats!.totalTokens).toBe(1500);
+    expect(stats!.totalToolUseCount).toBe(3);
+  });
+});
+
+describe("Integration — multi-turn session: context snapshots", () => {
+  const session = parseFullSession(multiTurnFixtureContent);
+
+  it("produces 6 context snapshots (all non-synthetic)", () => {
+    expect(session.contextSnapshots).toHaveLength(6);
+  });
+
+  it("snapshots have correct messageIds in order", () => {
+    const ids = session.contextSnapshots.map((s) => s.messageId);
+    expect(ids).toEqual([
+      "msg-int-001",
+      "msg-int-002",
+      "msg-int-003",
+      "msg-int-004",
+      "msg-int-005",
+      "msg-int-006",
+    ]);
+  });
+
+  it("snapshots have correct turnIndex assignments", () => {
+    expect(session.contextSnapshots[0].turnIndex).toBe(0);
+    expect(session.contextSnapshots[1].turnIndex).toBe(1);
+    expect(session.contextSnapshots[2].turnIndex).toBe(1);
+    expect(session.contextSnapshots[3].turnIndex).toBe(1);
+    expect(session.contextSnapshots[4].turnIndex).toBe(1);
+    expect(session.contextSnapshots[5].turnIndex).toBe(2);
+  });
+
+  it("cumulative tokens accumulate correctly", () => {
+    // After msg-int-001: 100 in, 50 out
+    expect(session.contextSnapshots[0].cumulativeInputTokens).toBe(100);
+    expect(session.contextSnapshots[0].cumulativeOutputTokens).toBe(50);
+    // After msg-int-002: +200 in, +30 out
+    expect(session.contextSnapshots[1].cumulativeInputTokens).toBe(300);
+    expect(session.contextSnapshots[1].cumulativeOutputTokens).toBe(80);
+    // After msg-int-003: +250 in, +20 out
+    expect(session.contextSnapshots[2].cumulativeInputTokens).toBe(550);
+    expect(session.contextSnapshots[2].cumulativeOutputTokens).toBe(100);
+    // After msg-int-004: +300 in, +40 out
+    expect(session.contextSnapshots[3].cumulativeInputTokens).toBe(850);
+    expect(session.contextSnapshots[3].cumulativeOutputTokens).toBe(140);
+    // After msg-int-005: +400 in, +80 out
+    expect(session.contextSnapshots[4].cumulativeInputTokens).toBe(1250);
+    expect(session.contextSnapshots[4].cumulativeOutputTokens).toBe(220);
+    // After msg-int-006: +500 in, +100 out (from last block)
+    expect(session.contextSnapshots[5].cumulativeInputTokens).toBe(1750);
+    expect(session.contextSnapshots[5].cumulativeOutputTokens).toBe(320);
+  });
+
+  it("final snapshot cumulative totals match aggregate totals", () => {
+    const last = session.contextSnapshots[5];
+    expect(last.cumulativeInputTokens).toBe(session.totals.inputTokens);
+    expect(last.cumulativeOutputTokens).toBe(session.totals.outputTokens);
   });
 });

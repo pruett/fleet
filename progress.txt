@@ -228,3 +228,25 @@ Files changed:
 - src/parser/__tests__/fixtures/subagent-spawn.jsonl (new — subagent spawn cycle fixture)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 13 tests)
 - plans/transcript-parser.md (updated — Unit 13 checked off)
+
+## Unit 14 — Integration: Multi-Turn Session ✅
+
+- Created `multi-turn-session.jsonl` fixture (18 lines, 3 turns) exercising all 7 enrichments:
+  - Turn 0: simple text response (1 response)
+  - Turn 1: 2 Bash tool calls (1 success, 1 error) + 1 Task subagent spawn + text response (4 responses)
+  - Turn 2: multi-block response with thinking + text sharing messageId (1 response, 2 blocks)
+- 31 new tests across 7 describe blocks verifying:
+  - 3 turns with correct prompts and durations
+  - Response counts per turn (1, 4, 1) and multi-block merging
+  - Tool pairing across turns (3 tool calls, all in turn 1, success + error + subagent)
+  - Aggregate totals: 1750 input, 320 output, 2070 total tokens, $0.01005 cost
+  - Tool stats: Bash (2 calls, 1 error with sample), Task (1 call, 0 errors)
+  - Subagent reference: agent-int-001 with completed stats
+  - Context snapshots: 6 cumulative snapshots with correct turnIndex and accumulation
+- **Milestone: enrichSession is complete — all 7 enrichments working together**
+- 278 tests passing (31 new + 247 prior), typecheck clean
+
+Files changed:
+- src/parser/__tests__/fixtures/multi-turn-session.jsonl (new — 3-turn integration fixture)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 14 integration tests)
+- plans/transcript-parser.md (updated — Unit 14 checked off)
