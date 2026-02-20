@@ -66,3 +66,14 @@ Files changed:
 - src/parser/__tests__/helpers.ts (updated — added makeToolResultItem, makeUserToolResult)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 3 tests)
 - plans/transcript-parser.md (updated — Unit 3 checked off)
+
+## Unit 4 — parseLine: Assistant Block Variants ✅
+
+- Verified `parseLine` already handles thinking and tool_use content blocks generically via Zod's ContentBlockSchema discriminated union — no code changes needed in parse-line.ts
+- Verified `isSynthetic` flag already maps from `isApiErrorMessage ?? false`
+- Added 13 new tests covering: thinking block extraction (kind, thinking text, signature, common fields, usage), tool_use block extraction (kind, id, name, input, common fields), synthetic flag (isApiErrorMessage: true → isSynthetic: true), default isSynthetic false when absent, empty content array → malformed
+- 96 tests passing (13 new + 83 prior), typecheck clean
+
+Files changed:
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 4 tests)
+- plans/transcript-parser.md (updated — Unit 4 checked off)

@@ -10,6 +10,8 @@ import {
   makeToolResultItem,
   makeAssistantRecord,
   makeTextBlock,
+  makeThinkingBlock,
+  makeToolUseBlock,
   makeTurnDuration,
   toLine,
 } from "./helpers";
@@ -259,5 +261,143 @@ describe("parseLine — user tool result with multiple results", () => {
     expect(msg!.results[0].isError).toBe(false);
     expect(msg!.results[1].toolUseId).toBe("toolu_002");
     expect(msg!.results[1].isError).toBe(true);
+  });
+});
+
+// ============================================================
+// Unit 4: parseLine — Assistant Block Variants
+// ============================================================
+
+describe("parseLine — assistant thinking block", () => {
+  const thinking = makeThinkingBlock("Let me think about this...", "sig-think-001");
+  const record = makeAssistantRecord(thinking, {
+    uuid: "uuid-asst-think",
+    parentUuid: "uuid-user-001",
+  });
+  // Override message id for this test
+  (record.message as Record<string, unknown>).id = "msg-think-001";
+  const msg = parseLine(toLine(record), 7);
+
+  it("returns kind assistant-block", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("assistant-block");
+  });
+
+  it("extracts thinking content block with type, thinking text, and signature", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.contentBlock.type).toBe("thinking");
+    if (msg!.contentBlock.type === "thinking") {
+      expect(msg!.contentBlock.thinking).toBe("Let me think about this...");
+      expect(msg!.contentBlock.signature).toBe("sig-think-001");
+    }
+  });
+
+  it("preserves common fields and metadata", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.uuid).toBe("uuid-asst-think");
+    expect(msg!.messageId).toBe("msg-think-001");
+    expect(msg!.model).toBe("claude-sonnet-4-20250514");
+    expect(msg!.isSynthetic).toBe(false);
+    expect(msg!.lineIndex).toBe(7);
+  });
+
+  it("includes usage data", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.usage.input_tokens).toBe(10);
+    expect(msg!.usage.output_tokens).toBe(20);
+  });
+});
+
+describe("parseLine — assistant tool_use block", () => {
+  const toolUse = makeToolUseBlock("Read", { file_path: "/src/index.ts" }, "toolu_read_001");
+  const record = makeAssistantRecord(toolUse, {
+    uuid: "uuid-asst-tool",
+    parentUuid: "uuid-user-001",
+  });
+  (record.message as Record<string, unknown>).id = "msg-tool-001";
+  const msg = parseLine(toLine(record), 8);
+
+  it("returns kind assistant-block", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("assistant-block");
+  });
+
+  it("extracts tool_use content block with id, name, and input", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.contentBlock.type).toBe("tool_use");
+    if (msg!.contentBlock.type === "tool_use") {
+      expect(msg!.contentBlock.id).toBe("toolu_read_001");
+      expect(msg!.contentBlock.name).toBe("Read");
+      expect(msg!.contentBlock.input).toEqual({ file_path: "/src/index.ts" });
+    }
+  });
+
+  it("preserves common fields and metadata", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.uuid).toBe("uuid-asst-tool");
+    expect(msg!.messageId).toBe("msg-tool-001");
+    expect(msg!.isSynthetic).toBe(false);
+    expect(msg!.lineIndex).toBe(8);
+  });
+});
+
+describe("parseLine — synthetic assistant record (isApiErrorMessage: true)", () => {
+  const textBlock = makeTextBlock("An error occurred while processing your request.");
+  const record = makeAssistantRecord(textBlock, {
+    uuid: "uuid-asst-synthetic",
+    isApiErrorMessage: true,
+  });
+  (record.message as Record<string, unknown>).id = "msg-synthetic-001";
+  const msg = parseLine(toLine(record), 12);
+
+  it("returns kind assistant-block", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("assistant-block");
+  });
+
+  it("sets isSynthetic to true", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.isSynthetic).toBe(true);
+  });
+
+  it("still extracts content block normally", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.contentBlock.type).toBe("text");
+    if (msg!.contentBlock.type === "text") {
+      expect(msg!.contentBlock.text).toBe("An error occurred while processing your request.");
+    }
+  });
+
+  it("preserves messageId and model", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.messageId).toBe("msg-synthetic-001");
+    expect(msg!.model).toBe("claude-sonnet-4-20250514");
+  });
+});
+
+describe("parseLine — assistant with isApiErrorMessage absent defaults to false", () => {
+  const textBlock = makeTextBlock("Normal response");
+  const record = makeAssistantRecord(textBlock);
+  const msg = parseLine(toLine(record), 0);
+
+  it("defaults isSynthetic to false when isApiErrorMessage is not set", () => {
+    if (msg!.kind !== "assistant-block") throw new Error("wrong kind");
+    expect(msg!.isSynthetic).toBe(false);
+  });
+});
+
+describe("parseLine — assistant with empty content array", () => {
+  const record = {
+    ...makeAssistantRecord(makeTextBlock("placeholder")),
+  };
+  // Override content to be empty array
+  (record.message as Record<string, unknown>).content = [];
+  const msg = parseLine(toLine(record), 0);
+
+  it("returns malformed when content array is empty", () => {
+    expect(msg).not.toBeNull();
+    // Zod validation should reject empty content array since min 1 item expected,
+    // or our code handles it as malformed
+    expect(msg!.kind).toBe("malformed");
   });
 });

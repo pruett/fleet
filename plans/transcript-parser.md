@@ -94,10 +94,10 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Extract `results[]` (toolUseId, content, isError) and `toolUseResult` metadata
 - [x] Tests: happy path, `is_error: true`, `toolUseResult` with `agentId`
 
-### Unit 4 — parseLine: Assistant Block Variants
-- [ ] Handle `thinking` and `tool_use` content blocks in assistant records
-- [ ] Handle synthetic assistant records (`isApiErrorMessage: true`)
-- [ ] Tests: thinking block extraction, tool_use field extraction, synthetic flag
+### Unit 4 — parseLine: Assistant Block Variants ✅
+- [x] Handle `thinking` and `tool_use` content blocks in assistant records
+- [x] Handle synthetic assistant records (`isApiErrorMessage: true`)
+- [x] Tests: thinking block extraction, tool_use field extraction, synthetic flag
 
 ### Unit 5 — parseLine: System Subtypes
 - [ ] Handle `api_error` → `SystemApiErrorMessage` (error, retryInMs, retryAttempt, maxRetries)
