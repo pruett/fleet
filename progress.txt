@@ -1,0 +1,14 @@
+## Unit 0 — Project Scaffolding ✅
+
+- Created `package.json` (name: fleet, type: module, test/typecheck scripts)
+- Installed zod@4.3.6, typescript@5.9.3, @types/bun@1.3.9
+- Created `tsconfig.json` (strict, esnext, bundler moduleResolution, Bun types)
+- Created placeholder `src/parser/index.ts`
+- Created smoke test `src/parser/__tests__/smoke.test.ts` (2 tests: import check + sanity)
+- Verified: `bun test` passes (2/2), `bun run typecheck` passes (0 errors)
+
+Files changed:
+- package.json (new)
+- tsconfig.json (new)
+- src/parser/index.ts (new)
+- src/parser/__tests__/smoke.test.ts (new)

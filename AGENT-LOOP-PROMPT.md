@@ -1,4 +1,4 @@
-1. Study @plans/transcript-parser-plan.md
+1. Study @plans/transcript-parser.md
 2. Review @progress.txt
 3. Find the highest-priority task and implement it.
 4. Run type checks, tests, linting, and formatting (if applicable). Do NOT commit if any fail. Fix issues first.

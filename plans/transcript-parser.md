@@ -34,13 +34,13 @@ src/
 
 ## Implementation Checklist
 
-### Unit 0 — Project Scaffolding
-- [ ] Create `package.json` (name: `fleet`, type: `module`, scripts: `test` → `bun test`, `typecheck` → `tsc --noEmit`)
-- [ ] `bun add zod`
-- [ ] Create `tsconfig.json` (strict, `moduleResolution: "bundler"`, `target: "esnext"`, Bun types)
-- [ ] Create placeholder `src/parser/index.ts`
-- [ ] Create smoke test `src/parser/__tests__/smoke.test.ts`
-- [ ] **Verify:** `bun test` passes, `bun run typecheck` passes
+### Unit 0 — Project Scaffolding ✅
+- [x] Create `package.json` (name: `fleet`, type: `module`, scripts: `test` → `bun test`, `typecheck` → `tsc --noEmit`)
+- [x] `bun add zod`
+- [x] Create `tsconfig.json` (strict, `moduleResolution: "bundler"`, `target: "esnext"`, Bun types)
+- [x] Create placeholder `src/parser/index.ts`
+- [x] Create smoke test `src/parser/__tests__/smoke.test.ts`
+- [x] **Verify:** `bun test` passes, `bun run typecheck` passes
 
 ### Unit 1 — Zod Schemas + Inferred Types
 Zod schemas are the **single source of truth** for all data shapes. TypeScript types are derived via `z.infer<>` — no manual interface duplication.
