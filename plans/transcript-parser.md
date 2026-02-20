@@ -154,9 +154,9 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 ### Unit 15 — parseFullSession: Edge Cases ✅
 - [x] Tests: empty string → empty session, blank lines only, malformed lines mixed with valid, no human prompt → 0 turns, meta-only prompts → 0 turns, single snapshot line, very long lines
 
-### Unit 16 — parseLine: Comprehensive Unit Tests
-- [ ] Dedicated `parse-line.test.ts` with one `describe` block per message kind (12 blocks)
-- [ ] Tests: happy-path all fields, missing optional fields default correctly, minimal valid input
+### Unit 16 — parseLine: Comprehensive Unit Tests ✅
+- [x] Dedicated `parse-line.test.ts` with one `describe` block per message kind (12 blocks)
+- [x] Tests: happy-path all fields, missing optional fields default correctly, minimal valid input
 
 ### Unit 17 — Public API and Exports
 - [ ] Wire up `src/parser/index.ts` to export all functions and types

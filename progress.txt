@@ -266,3 +266,27 @@ Files changed:
 Files changed:
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 15 edge case tests)
 - plans/transcript-parser.md (updated — Unit 15 checked off)
+
+## Unit 16 — parseLine: Comprehensive Unit Tests ✅
+
+- Created dedicated `parse-line.test.ts` with 12 describe blocks (one per message kind)
+- 66 new tests covering all 12 parseLine output kinds:
+  - file-history-snapshot: all fields, minimal input, missing required fields (messageId, snapshot, isSnapshotUpdate)
+  - user-prompt: all fields, isMeta defaults false, null parentUuid, empty text, missing required fields
+  - user-tool-result: all fields with toolUseResult metadata, missing toolUseResult defaults null, is_error defaults false, complex content objects
+  - assistant-block (text): all fields with cache tokens, cache tokens default undefined, isSynthetic defaults false, isApiErrorMessage → isSynthetic, empty content → malformed
+  - assistant-block (thinking): thinking text and signature extraction, empty thinking text
+  - assistant-block (tool_use): id/name/input extraction, empty input object, complex nested input
+  - system-turn-duration: all fields, durationMs 0, missing parentUuid/durationMs → malformed
+  - system-api-error: all fields, helper defaults, missing error/retryInMs → malformed
+  - system-local-command: content extraction, empty content, missing content → malformed, unknown subtype → malformed with name
+  - progress-agent: all fields, helper defaults for parentToolUseID, missing agentId/prompt → malformed
+  - progress-bash: all fields, helper defaults, empty output, missing output/elapsedTimeSeconds → malformed
+  - progress-hook: all fields, empty strings, missing hookEvent/command → malformed, unknown data type → malformed with name
+  - queue-operation: all fields, missing content defaults undefined, empty content, missing operation → malformed
+  - malformed: invalid JSON, Zod validation failure, unknown type, empty/whitespace → null, JSON primitives/arrays → malformed, never throws for varied inputs
+- 366 tests passing (66 new + 300 prior), typecheck clean
+
+Files changed:
+- src/parser/__tests__/parse-line.test.ts (new — dedicated parseLine comprehensive unit tests)
+- plans/transcript-parser.md (updated — Unit 16 checked off)
