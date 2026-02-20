@@ -158,3 +158,18 @@ Files changed:
 - src/parser/__tests__/fixtures/tool-call-cycle.jsonl (new — tool call cycle fixture)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 9 tests)
 - plans/transcript-parser.md (updated — Unit 9 checked off)
+
+## Unit 10 — enrichSession: Token Aggregation + Cost ✅
+
+- Created `pricing.ts` with model pricing table covering all Claude model families: Opus (4.5+/legacy), Sonnet, Haiku (4.5/3.5/3). Uses ordered prefix matching on model IDs — unknown models → cost 0.
+- `lookupPricing(model)` returns pricing tier or null; `computeCost(input, output, cacheWrite, cacheRead, model)` computes estimated USD cost.
+- Updated `enrichSession` to compute `estimatedCostUsd` per-response using `computeCost`, supporting mixed models within the same session.
+- Token deduplication by messageId was already handled by response reconstitution (Unit 8) — verified with explicit test.
+- 26 new tests across 7 describe blocks: prefix matching (12 model variants + unknown), computeCost (6 cases: known model, opus 4.6, unknown → 0, cache write, cache read, all four components), enrichSession integration (deduplication, cost summation, unknown model → 0, cache token costs, mixed models per-response pricing).
+- 214 tests passing (26 new + 188 prior), typecheck clean
+
+Files changed:
+- src/parser/pricing.ts (new — model pricing table with lookupPricing and computeCost)
+- src/parser/enrich-session.ts (updated — import computeCost, compute estimatedCostUsd per-response)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 10 tests + pricing imports)
+- plans/transcript-parser.md (updated — Unit 10 checked off)

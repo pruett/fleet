@@ -4,6 +4,7 @@ import { join } from "path";
 import { parseLine } from "../parse-line";
 import { enrichSession } from "../enrich-session";
 import { parseFullSession } from "../parse-full-session";
+import { lookupPricing, computeCost } from "../pricing";
 import {
   makeFileHistorySnapshot,
   makeUserPrompt,
@@ -1315,5 +1316,335 @@ describe("enrichSession — multiple tool calls across turns", () => {
 
   it("toolUseCount in totals reflects all tool calls", () => {
     expect(session.totals.toolUseCount).toBe(3);
+  });
+});
+
+// ============================================================
+// Unit 10: enrichSession — Token Aggregation + Cost
+// ============================================================
+
+describe("lookupPricing — model prefix matching", () => {
+  it("matches claude-sonnet-4-20250514", () => {
+    const p = lookupPricing("claude-sonnet-4-20250514");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(3);
+    expect(p!.outputPerMTok).toBe(15);
+  });
+
+  it("matches claude-opus-4-6", () => {
+    const p = lookupPricing("claude-opus-4-6");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(5);
+    expect(p!.outputPerMTok).toBe(25);
+  });
+
+  it("matches claude-opus-4-5-20250101", () => {
+    const p = lookupPricing("claude-opus-4-5-20250101");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(5);
+  });
+
+  it("matches claude-opus-4-20250514 (legacy pricing)", () => {
+    const p = lookupPricing("claude-opus-4-20250514");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(15);
+    expect(p!.outputPerMTok).toBe(75);
+  });
+
+  it("matches claude-opus-4-1-20250514 (legacy pricing)", () => {
+    const p = lookupPricing("claude-opus-4-1-20250514");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(15);
+  });
+
+  it("matches claude-opus-3-20240229", () => {
+    const p = lookupPricing("claude-opus-3-20240229");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(15);
+  });
+
+  it("matches claude-haiku-4-5-20251001", () => {
+    const p = lookupPricing("claude-haiku-4-5-20251001");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(1);
+    expect(p!.outputPerMTok).toBe(5);
+  });
+
+  it("matches claude-haiku-3-5-20241022", () => {
+    const p = lookupPricing("claude-haiku-3-5-20241022");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(0.8);
+    expect(p!.outputPerMTok).toBe(4);
+  });
+
+  it("matches claude-haiku-3-20240307", () => {
+    const p = lookupPricing("claude-haiku-3-20240307");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(0.25);
+    expect(p!.outputPerMTok).toBe(1.25);
+  });
+
+  it("matches claude-sonnet-4-6-20250514", () => {
+    const p = lookupPricing("claude-sonnet-4-6-20250514");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(3);
+  });
+
+  it("matches claude-sonnet-3-7-20250219", () => {
+    const p = lookupPricing("claude-sonnet-3-7-20250219");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(3);
+  });
+
+  it("returns null for unknown model", () => {
+    expect(lookupPricing("gpt-4o")).toBeNull();
+    expect(lookupPricing("<synthetic>")).toBeNull();
+    expect(lookupPricing("unknown-model")).toBeNull();
+  });
+});
+
+describe("computeCost — cost calculation", () => {
+  it("computes cost for sonnet with known token counts", () => {
+    // 1000 input tokens at $3/MTok = $0.003
+    // 500 output tokens at $15/MTok = $0.0075
+    const cost = computeCost(1000, 500, 0, 0, "claude-sonnet-4-20250514");
+    expect(cost).toBeCloseTo(0.0105, 6);
+  });
+
+  it("computes cost for opus 4.6", () => {
+    // 1M input at $5 + 1M output at $25 = $30
+    const cost = computeCost(1_000_000, 1_000_000, 0, 0, "claude-opus-4-6");
+    expect(cost).toBeCloseTo(30, 6);
+  });
+
+  it("returns 0 for unknown model", () => {
+    expect(computeCost(1_000_000, 1_000_000, 0, 0, "<synthetic>")).toBe(0);
+    expect(computeCost(1_000_000, 1_000_000, 0, 0, "unknown")).toBe(0);
+  });
+
+  it("includes cache write cost", () => {
+    // 100k cache write at $3.75/MTok = $0.375
+    const cost = computeCost(0, 0, 100_000, 0, "claude-sonnet-4-20250514");
+    expect(cost).toBeCloseTo(0.375, 6);
+  });
+
+  it("includes cache read cost", () => {
+    // 100k cache read at $0.30/MTok = $0.03
+    const cost = computeCost(0, 0, 0, 100_000, "claude-sonnet-4-20250514");
+    expect(cost).toBeCloseTo(0.03, 6);
+  });
+
+  it("sums all four cost components", () => {
+    // 10k input at $3/MTok = $0.03
+    // 5k output at $15/MTok = $0.075
+    // 20k cache write at $3.75/MTok = $0.075
+    // 50k cache read at $0.30/MTok = $0.015
+    const cost = computeCost(10_000, 5_000, 20_000, 50_000, "claude-sonnet-4-20250514");
+    expect(cost).toBeCloseTo(0.195, 6);
+  });
+});
+
+describe("enrichSession — token deduplication by messageId", () => {
+  // Two blocks sharing the same messageId — usage should come from last block only (not summed)
+  const lines = [
+    toLine(makeUserPrompt("dedup test")),
+    toLine(makeAssistantRecord(makeThinkingBlock("thinking..."), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-dedup-001",
+        type: "message",
+        role: "assistant",
+        content: [makeThinkingBlock("thinking...")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 100, output_tokens: 10 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("answer"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-dedup-001",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("answer")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 100, output_tokens: 50 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 500)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("creates 1 response from 2 blocks with same messageId", () => {
+    expect(session.responses).toHaveLength(1);
+    expect(session.responses[0].messageId).toBe("msg-dedup-001");
+  });
+
+  it("takes token usage from last block only (not summed)", () => {
+    expect(session.totals.inputTokens).toBe(100); // not 200
+    expect(session.totals.outputTokens).toBe(50); // not 60
+    expect(session.totals.totalTokens).toBe(150);
+  });
+});
+
+describe("enrichSession — cost summation across responses", () => {
+  const lines = [
+    toLine(makeUserPrompt("cost test")),
+    toLine(makeAssistantRecord(makeTextBlock("response 1"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-cost-A",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("response 1")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 1000, output_tokens: 500 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("response 2"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-cost-B",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("response 2")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 2000, output_tokens: 1000 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 1000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("sums tokens across both responses", () => {
+    expect(session.totals.inputTokens).toBe(3000);
+    expect(session.totals.outputTokens).toBe(1500);
+    expect(session.totals.totalTokens).toBe(4500);
+  });
+
+  it("computes cost for known sonnet model", () => {
+    // Response A: 1k input * $3/MTok + 500 output * $15/MTok = $0.003 + $0.0075 = $0.0105
+    // Response B: 2k input * $3/MTok + 1k output * $15/MTok = $0.006 + $0.015 = $0.021
+    // Total: $0.0315
+    expect(session.totals.estimatedCostUsd).toBeCloseTo(0.0315, 6);
+  });
+});
+
+describe("enrichSession — unknown model → cost 0", () => {
+  const lines = [
+    toLine(makeUserPrompt("synthetic test")),
+    toLine(makeAssistantRecord(makeTextBlock("error message"), {
+      isApiErrorMessage: true,
+      message: {
+        model: "<synthetic>",
+        id: "msg-synth-cost",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("error message")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 0, output_tokens: 0 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-001", 100)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("returns estimatedCostUsd of 0 for unknown model", () => {
+    expect(session.totals.estimatedCostUsd).toBe(0);
+  });
+});
+
+describe("enrichSession — cache token aggregation in cost", () => {
+  const lines = [
+    toLine(makeUserPrompt("cache test")),
+    toLine(makeAssistantRecord(makeTextBlock("cached response"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-cache-cost",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("cached response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: {
+          input_tokens: 10_000,
+          output_tokens: 5_000,
+          cache_creation_input_tokens: 20_000,
+          cache_read_input_tokens: 50_000,
+        },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-001", 500)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("includes cache tokens in totals", () => {
+    expect(session.totals.cacheCreationInputTokens).toBe(20_000);
+    expect(session.totals.cacheReadInputTokens).toBe(50_000);
+  });
+
+  it("includes cache token costs in estimatedCostUsd", () => {
+    // input: 10k * $3/MTok = $0.03
+    // output: 5k * $15/MTok = $0.075
+    // cache write: 20k * $3.75/MTok = $0.075
+    // cache read: 50k * $0.30/MTok = $0.015
+    // Total: $0.195
+    expect(session.totals.estimatedCostUsd).toBeCloseTo(0.195, 6);
+  });
+});
+
+describe("enrichSession — cost with mixed models", () => {
+  const lines = [
+    toLine(makeUserPrompt("mixed models")),
+    toLine(makeAssistantRecord(makeTextBlock("sonnet response"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-mixed-A",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("sonnet response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 1_000_000, output_tokens: 100_000 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("opus response"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-opus-4-6",
+        id: "msg-mixed-B",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("opus response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 1_000_000, output_tokens: 100_000 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 2000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("computes per-model cost and sums correctly", () => {
+    // Sonnet: 1M * $3 + 100k * $15 = $3 + $1.5 = $4.5
+    // Opus 4.6: 1M * $5 + 100k * $25 = $5 + $2.5 = $7.5
+    // Total: $12
+    expect(session.totals.estimatedCostUsd).toBeCloseTo(12, 6);
   });
 });

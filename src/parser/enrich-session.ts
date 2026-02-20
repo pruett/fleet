@@ -7,6 +7,7 @@ import type {
   TokenTotals,
   EnrichedSession,
 } from "./types";
+import { computeCost } from "./pricing";
 
 /**
  * Build cross-message structures from a flat list of parsed messages.
@@ -126,12 +127,19 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
   let outputTokens = 0;
   let cacheCreationInputTokens = 0;
   let cacheReadInputTokens = 0;
+  let estimatedCostUsd = 0;
 
   for (const response of responses) {
-    inputTokens += response.usage.input_tokens;
-    outputTokens += response.usage.output_tokens;
-    cacheCreationInputTokens += response.usage.cache_creation_input_tokens ?? 0;
-    cacheReadInputTokens += response.usage.cache_read_input_tokens ?? 0;
+    const rInput = response.usage.input_tokens;
+    const rOutput = response.usage.output_tokens;
+    const rCacheWrite = response.usage.cache_creation_input_tokens ?? 0;
+    const rCacheRead = response.usage.cache_read_input_tokens ?? 0;
+
+    inputTokens += rInput;
+    outputTokens += rOutput;
+    cacheCreationInputTokens += rCacheWrite;
+    cacheReadInputTokens += rCacheRead;
+    estimatedCostUsd += computeCost(rInput, rOutput, rCacheWrite, rCacheRead, response.model);
   }
 
   const totals: TokenTotals = {
@@ -140,7 +148,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     cacheCreationInputTokens,
     cacheReadInputTokens,
     totalTokens: inputTokens + outputTokens,
-    estimatedCostUsd: 0,
+    estimatedCostUsd,
     toolUseCount: toolCalls.length,
   };
 
