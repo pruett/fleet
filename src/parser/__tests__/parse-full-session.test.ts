@@ -6,6 +6,8 @@ import { parseFullSession } from "../parse-full-session";
 import {
   makeFileHistorySnapshot,
   makeUserPrompt,
+  makeUserToolResult,
+  makeToolResultItem,
   makeAssistantRecord,
   makeTextBlock,
   makeTurnDuration,
@@ -157,5 +159,105 @@ describe("parseFullSession — edge cases", () => {
     const session = parseFullSession(content);
     // blank lines become null and are filtered
     expect(session.messages).toHaveLength(4);
+  });
+});
+
+// ============================================================
+// Unit 3: parseLine — User Tool Result
+// ============================================================
+
+describe("parseLine — user tool result (happy path)", () => {
+  const record = makeUserToolResult([
+    makeToolResultItem("toolu_001", "file contents here"),
+  ]);
+  const msg = parseLine(toLine(record), 5);
+
+  it("returns kind user-tool-result", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("user-tool-result");
+  });
+
+  it("extracts common fields", () => {
+    if (msg!.kind !== "user-tool-result") throw new Error("wrong kind");
+    expect(msg!.uuid).toBe("uuid-toolresult-001");
+    expect(msg!.parentUuid).toBe("uuid-asst-001");
+    expect(msg!.sessionId).toBe("session-001");
+    expect(msg!.timestamp).toBe("2026-02-18T15:09:10.006Z");
+  });
+
+  it("extracts results with mapped field names", () => {
+    if (msg!.kind !== "user-tool-result") throw new Error("wrong kind");
+    expect(msg!.results).toHaveLength(1);
+    expect(msg!.results[0].toolUseId).toBe("toolu_001");
+    expect(msg!.results[0].content).toBe("file contents here");
+    expect(msg!.results[0].isError).toBe(false);
+  });
+
+  it("sets toolUseResult to null when absent", () => {
+    if (msg!.kind !== "user-tool-result") throw new Error("wrong kind");
+    expect(msg!.toolUseResult).toBeNull();
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "user-tool-result") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(5);
+  });
+});
+
+describe("parseLine — user tool result with is_error: true", () => {
+  const record = makeUserToolResult([
+    makeToolResultItem("toolu_err", "Error: file not found", true),
+  ]);
+  const msg = parseLine(toLine(record), 0);
+
+  it("maps is_error to isError", () => {
+    if (msg!.kind !== "user-tool-result") throw new Error("wrong kind");
+    expect(msg!.results[0].isError).toBe(true);
+    expect(msg!.results[0].content).toBe("Error: file not found");
+  });
+});
+
+describe("parseLine — user tool result with toolUseResult (agentId)", () => {
+  const record = makeUserToolResult(
+    [makeToolResultItem("toolu_agent", "subagent completed")],
+    {
+      toolUseResult: {
+        status: "completed",
+        prompt: "Search the codebase for X",
+        agentId: "a748733",
+        totalDurationMs: 61098,
+        totalTokens: 68154,
+        totalToolUseCount: 35,
+      },
+    },
+  );
+  const msg = parseLine(toLine(record), 10);
+
+  it("passes through toolUseResult metadata", () => {
+    if (msg!.kind !== "user-tool-result") throw new Error("wrong kind");
+    expect(msg!.toolUseResult).not.toBeNull();
+    expect(msg!.toolUseResult!.agentId).toBe("a748733");
+    expect(msg!.toolUseResult!.prompt).toBe("Search the codebase for X");
+    expect(msg!.toolUseResult!.totalDurationMs).toBe(61098);
+    expect(msg!.toolUseResult!.totalTokens).toBe(68154);
+    expect(msg!.toolUseResult!.totalToolUseCount).toBe(35);
+    expect(msg!.toolUseResult!.status).toBe("completed");
+  });
+});
+
+describe("parseLine — user tool result with multiple results", () => {
+  const record = makeUserToolResult([
+    makeToolResultItem("toolu_001", "result 1"),
+    makeToolResultItem("toolu_002", "result 2", true),
+  ]);
+  const msg = parseLine(toLine(record), 0);
+
+  it("extracts all results", () => {
+    if (msg!.kind !== "user-tool-result") throw new Error("wrong kind");
+    expect(msg!.results).toHaveLength(2);
+    expect(msg!.results[0].toolUseId).toBe("toolu_001");
+    expect(msg!.results[0].isError).toBe(false);
+    expect(msg!.results[1].toolUseId).toBe("toolu_002");
+    expect(msg!.results[1].isError).toBe(true);
   });
 });

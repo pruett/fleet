@@ -66,11 +66,19 @@ export function parseLine(line: string, lineIndex: number): ParsedMessage | null
           lineIndex,
         };
       }
-      // Array content = tool result (handled in Unit 3)
+      // Array content = tool result
       return {
-        kind: "malformed",
-        raw: trimmed,
-        error: "User tool result parsing not yet implemented",
+        kind: "user-tool-result",
+        uuid: record.uuid,
+        parentUuid: record.parentUuid,
+        sessionId: record.sessionId,
+        timestamp: record.timestamp,
+        results: content.map((item) => ({
+          toolUseId: item.tool_use_id,
+          content: item.content,
+          isError: item.is_error ?? false,
+        })),
+        toolUseResult: record.toolUseResult ?? null,
         lineIndex,
       };
     }

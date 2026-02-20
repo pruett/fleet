@@ -78,6 +78,31 @@ export function makeTurnDuration(parentUuid: string, durationMs: number) {
   };
 }
 
+export function makeToolResultItem(
+  toolUseId: string,
+  content: unknown = "tool output",
+  isError = false,
+) {
+  return {
+    type: "tool_result" as const,
+    tool_use_id: toolUseId,
+    content,
+    is_error: isError,
+  };
+}
+
+export function makeUserToolResult(
+  results: Array<{ type: "tool_result"; tool_use_id: string; content: unknown; is_error: boolean }>,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    ...makeCommonFields({ uuid: "uuid-toolresult-001", parentUuid: "uuid-asst-001" }),
+    type: "user" as const,
+    message: { role: "user" as const, content: results },
+    ...overrides,
+  };
+}
+
 /** Serialize a record to a JSONL line */
 export function toLine(record: Record<string, unknown>): string {
   return JSON.stringify(record);

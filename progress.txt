@@ -51,3 +51,18 @@ Files changed:
 - src/parser/__tests__/fixtures/minimal-session.jsonl (new)
 - src/parser/__tests__/parse-full-session.test.ts (new)
 - plans/transcript-parser.md (updated — Unit 2 checked off)
+
+## Unit 3 — parseLine: User Tool Result ✅
+
+- Updated `parseLine` to handle `user` records with array content → `UserToolResultMessage`
+- Maps raw `tool_use_id` / `is_error` fields to camelCase `toolUseId` / `isError`
+- Passes through `toolUseResult` metadata (agentId, stats) when present, defaults to `null`
+- Added `makeToolResultItem` and `makeUserToolResult` fixture builders to helpers.ts
+- 8 new tests: happy path (common fields, results extraction, null toolUseResult, lineIndex), is_error: true, toolUseResult with agentId metadata, multiple results
+- 83 tests passing (8 new + 75 prior), typecheck clean
+
+Files changed:
+- src/parser/parse-line.ts (updated — user array content handler)
+- src/parser/__tests__/helpers.ts (updated — added makeToolResultItem, makeUserToolResult)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 3 tests)
+- plans/transcript-parser.md (updated — Unit 3 checked off)

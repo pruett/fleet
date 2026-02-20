@@ -89,10 +89,10 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
   - Empty enrichments for unimplemented features
 - [x] **Verify:** `bun test` passes end-to-end
 
-### Unit 3 — parseLine: User Tool Result
-- [ ] Handle `user` with array content → `UserToolResultMessage`
-- [ ] Extract `results[]` (toolUseId, content, isError) and `toolUseResult` metadata
-- [ ] Tests: happy path, `is_error: true`, `toolUseResult` with `agentId`
+### Unit 3 — parseLine: User Tool Result ✅
+- [x] Handle `user` with array content → `UserToolResultMessage`
+- [x] Extract `results[]` (toolUseId, content, isError) and `toolUseResult` metadata
+- [x] Tests: happy path, `is_error: true`, `toolUseResult` with `agentId`
 
 ### Unit 4 — parseLine: Assistant Block Variants
 - [ ] Handle `thinking` and `tool_use` content blocks in assistant records
