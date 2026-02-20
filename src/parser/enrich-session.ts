@@ -3,6 +3,7 @@ import type {
   AssistantBlockMessage,
   Turn,
   ReconstitutedResponse,
+  PairedToolCall,
   TokenTotals,
   EnrichedSession,
 } from "./types";
@@ -10,8 +11,8 @@ import type {
 /**
  * Build cross-message structures from a flat list of parsed messages.
  *
- * Enrichment ordering: turns → response reconstitution → token aggregation.
- * Tool pairing, tool stats, subagent refs, and context snapshots return empty stubs
+ * Enrichment ordering: turns → response reconstitution → tool pairing → token aggregation.
+ * Tool stats, subagent refs, and context snapshots return empty stubs
  * until their respective units are implemented.
  */
 export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
@@ -78,6 +79,48 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     }
   }
 
+  // Third pass: tool call pairing — match tool_use blocks with tool_result items
+  const toolCalls: PairedToolCall[] = [];
+  const toolCallMap = new Map<string, PairedToolCall>();
+
+  for (const msg of messages) {
+    if (msg.kind === "assistant-block" && msg.contentBlock.type === "tool_use") {
+      const block = msg.contentBlock;
+      const paired: PairedToolCall = {
+        toolUseId: block.id,
+        toolName: block.name,
+        input: block.input as Record<string, unknown>,
+        toolUseBlock: block,
+        toolResultBlock: null,
+        turnIndex: lineToTurn.get(msg.lineIndex) ?? 0,
+      };
+      toolCalls.push(paired);
+      toolCallMap.set(block.id, paired);
+    }
+  }
+
+  for (const msg of messages) {
+    if (msg.kind === "user-tool-result") {
+      for (const result of msg.results) {
+        const paired = toolCallMap.get(result.toolUseId);
+        if (paired) {
+          paired.toolResultBlock = {
+            toolUseId: result.toolUseId,
+            content: result.content,
+            isError: result.isError,
+          };
+        }
+      }
+    }
+  }
+
+  // Update turn toolUseCount
+  for (const tc of toolCalls) {
+    if (tc.turnIndex < turns.length) {
+      turns[tc.turnIndex].toolUseCount++;
+    }
+  }
+
   // Token totals from responses (already deduplicated by messageId)
   let inputTokens = 0;
   let outputTokens = 0;
@@ -98,14 +141,14 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     cacheReadInputTokens,
     totalTokens: inputTokens + outputTokens,
     estimatedCostUsd: 0,
-    toolUseCount: 0,
+    toolUseCount: toolCalls.length,
   };
 
   return {
     messages,
     turns,
     responses,
-    toolCalls: [],
+    toolCalls,
     totals,
     toolStats: [],
     subagents: [],

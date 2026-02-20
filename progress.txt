@@ -139,3 +139,22 @@ Files changed:
 - src/parser/__tests__/fixtures/multi-block-response.jsonl (new — 3-block response fixture)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 8 tests + enrichSession import)
 - plans/transcript-parser.md (updated — Unit 8 checked off)
+
+## Unit 9 — enrichSession: Tool Call Pairing ✅
+
+- Added tool call pairing to `enrichSession`: iterates assistant-block messages for `tool_use` content blocks, builds a map by toolUseId, then matches with `user-tool-result` results to populate `toolResultBlock`
+- Unmatched tool_use blocks get `toolResultBlock: null`
+- Updates `toolUseCount` on both individual `Turn` objects and `TokenTotals`
+- Created `tool-call-cycle.jsonl` fixture (6 lines: snapshot, user prompt, assistant tool_use, user tool_result, assistant text, turn_duration)
+- 19 new tests across 4 describe blocks:
+  - Tool call cycle fixture: successful pairing (toolUseId, toolName, input, toolUseBlock, toolResultBlock, turnIndex, toolUseCount in totals and turn, correct responses)
+  - Error tool result pairing: isError: true propagation
+  - Unmatched tool_use: toolResultBlock is null, still counted in toolUseCount
+  - Multiple tool calls across turns: 3 tool calls across 2 turns, correct turnIndex assignments, per-turn toolUseCount
+- 188 tests passing (19 new + 169 prior), typecheck clean
+
+Files changed:
+- src/parser/enrich-session.ts (updated — tool call pairing logic, PairedToolCall import)
+- src/parser/__tests__/fixtures/tool-call-cycle.jsonl (new — tool call cycle fixture)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 9 tests)
+- plans/transcript-parser.md (updated — Unit 9 checked off)

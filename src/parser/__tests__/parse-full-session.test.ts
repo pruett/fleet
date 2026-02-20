@@ -29,6 +29,9 @@ const fixtureContent = readFileSync(fixturePath, "utf-8");
 const multiBlockFixturePath = join(import.meta.dir, "fixtures", "multi-block-response.jsonl");
 const multiBlockFixtureContent = readFileSync(multiBlockFixturePath, "utf-8");
 
+const toolCallCycleFixturePath = join(import.meta.dir, "fixtures", "tool-call-cycle.jsonl");
+const toolCallCycleFixtureContent = readFileSync(toolCallCycleFixturePath, "utf-8");
+
 // ============================================================
 // Unit 2: Tracer Bullet — Minimal End-to-End
 // ============================================================
@@ -150,8 +153,12 @@ describe("parseFullSession — minimal session", () => {
     expect(session.turns[0].responseCount).toBe(1);
   });
 
-  it("returns empty enrichments for unimplemented features", () => {
+  it("returns empty toolCalls when no tool_use blocks exist", () => {
     expect(session.toolCalls).toEqual([]);
+    expect(session.totals.toolUseCount).toBe(0);
+  });
+
+  it("returns empty enrichments for unimplemented features", () => {
     expect(session.toolStats).toEqual([]);
     expect(session.subagents).toEqual([]);
     expect(session.contextSnapshots).toEqual([]);
@@ -1095,5 +1102,218 @@ describe("enrichSession — synthetic response handling", () => {
     // Use the minimal fixture (already tested above) to verify the default
     const minimalSession = parseFullSession(fixtureContent);
     expect(minimalSession.responses[0].isSynthetic).toBe(false);
+  });
+});
+
+// ============================================================
+// Unit 9: enrichSession — Tool Call Pairing
+// ============================================================
+
+describe("enrichSession — tool call cycle fixture (successful pairing)", () => {
+  const session = parseFullSession(toolCallCycleFixtureContent);
+
+  it("produces 1 paired tool call", () => {
+    expect(session.toolCalls).toHaveLength(1);
+  });
+
+  it("pairs tool_use with tool_result by toolUseId", () => {
+    const tc = session.toolCalls[0];
+    expect(tc.toolUseId).toBe("toolu_bash_001");
+    expect(tc.toolName).toBe("Bash");
+    expect(tc.input).toEqual({ command: "ls" });
+  });
+
+  it("includes the original tool_use content block", () => {
+    const tc = session.toolCalls[0];
+    expect(tc.toolUseBlock.type).toBe("tool_use");
+    if (tc.toolUseBlock.type === "tool_use") {
+      expect(tc.toolUseBlock.id).toBe("toolu_bash_001");
+      expect(tc.toolUseBlock.name).toBe("Bash");
+    }
+  });
+
+  it("includes the matched tool_result block", () => {
+    const tc = session.toolCalls[0];
+    expect(tc.toolResultBlock).not.toBeNull();
+    expect(tc.toolResultBlock!.toolUseId).toBe("toolu_bash_001");
+    expect(tc.toolResultBlock!.content).toBe("file1.ts\nfile2.ts\npackage.json");
+    expect(tc.toolResultBlock!.isError).toBe(false);
+  });
+
+  it("assigns correct turnIndex", () => {
+    expect(session.toolCalls[0].turnIndex).toBe(0);
+  });
+
+  it("updates toolUseCount in totals", () => {
+    expect(session.totals.toolUseCount).toBe(1);
+  });
+
+  it("updates toolUseCount on the turn", () => {
+    expect(session.turns[0].toolUseCount).toBe(1);
+  });
+
+  it("still produces correct responses", () => {
+    expect(session.responses).toHaveLength(2);
+    expect(session.responses.map((r) => r.messageId).sort()).toEqual(["msg-resp-001", "msg-resp-002"]);
+  });
+});
+
+describe("enrichSession — error tool result pairing", () => {
+  const lines = [
+    toLine(makeUserPrompt("Run dangerous command")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "rm -rf /" }, "toolu_err_001"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-err-resp",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "rm -rf /" }, "toolu_err_001")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 20 },
+      },
+    })),
+    toLine(makeUserToolResult(
+      [makeToolResultItem("toolu_err_001", "Error: permission denied", true)],
+    )),
+    toLine(makeTurnDuration("uuid-asst-001", 500)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("pairs error tool result with isError: true", () => {
+    expect(session.toolCalls).toHaveLength(1);
+    const tc = session.toolCalls[0];
+    expect(tc.toolResultBlock).not.toBeNull();
+    expect(tc.toolResultBlock!.isError).toBe(true);
+    expect(tc.toolResultBlock!.content).toBe("Error: permission denied");
+  });
+
+  it("preserves toolUseId on error pairing", () => {
+    expect(session.toolCalls[0].toolUseId).toBe("toolu_err_001");
+    expect(session.toolCalls[0].toolName).toBe("Bash");
+  });
+});
+
+describe("enrichSession — unmatched tool_use → toolResultBlock: null", () => {
+  // tool_use block with no corresponding tool_result
+  const lines = [
+    toLine(makeUserPrompt("Do something")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Read", { file_path: "/tmp/test" }, "toolu_unmatched_001"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-unmatched",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Read", { file_path: "/tmp/test" }, "toolu_unmatched_001")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-001", 200)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("creates a paired tool call with null toolResultBlock", () => {
+    expect(session.toolCalls).toHaveLength(1);
+    const tc = session.toolCalls[0];
+    expect(tc.toolUseId).toBe("toolu_unmatched_001");
+    expect(tc.toolName).toBe("Read");
+    expect(tc.toolResultBlock).toBeNull();
+  });
+
+  it("still counts unmatched tool_use in toolUseCount", () => {
+    expect(session.totals.toolUseCount).toBe(1);
+    expect(session.turns[0].toolUseCount).toBe(1);
+  });
+});
+
+describe("enrichSession — multiple tool calls across turns", () => {
+  const lines = [
+    // Turn 0
+    toLine(makeUserPrompt("First task")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_t0_001"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-t0-resp",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_t0_001")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_t0_001", "output1")])),
+    toLine(makeAssistantRecord(makeToolUseBlock("Read", { file_path: "/a" }, "toolu_t0_002"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-t0-resp2",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Read", { file_path: "/a" }, "toolu_t0_002")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 60, output_tokens: 15 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_t0_002", "file contents")])),
+    toLine(makeTurnDuration("uuid-asst-002", 1000)),
+    // Turn 1
+    toLine(makeUserPrompt("Second task", { uuid: "uuid-user-002", parentUuid: null })),
+    toLine(makeAssistantRecord(makeToolUseBlock("Write", { file_path: "/b" }, "toolu_t1_001"), {
+      uuid: "uuid-asst-003",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-t1-resp",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Write", { file_path: "/b" }, "toolu_t1_001")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 70, output_tokens: 20 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_t1_001", "written")])),
+    toLine(makeTurnDuration("uuid-asst-003", 800)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("produces 3 paired tool calls total", () => {
+    expect(session.toolCalls).toHaveLength(3);
+  });
+
+  it("assigns turn 0 tool calls to turnIndex 0", () => {
+    const t0Calls = session.toolCalls.filter((tc) => tc.turnIndex === 0);
+    expect(t0Calls).toHaveLength(2);
+    expect(t0Calls.map((tc) => tc.toolName).sort()).toEqual(["Bash", "Read"]);
+  });
+
+  it("assigns turn 1 tool call to turnIndex 1", () => {
+    const t1Calls = session.toolCalls.filter((tc) => tc.turnIndex === 1);
+    expect(t1Calls).toHaveLength(1);
+    expect(t1Calls[0].toolName).toBe("Write");
+  });
+
+  it("all tool calls are successfully paired", () => {
+    for (const tc of session.toolCalls) {
+      expect(tc.toolResultBlock).not.toBeNull();
+    }
+  });
+
+  it("updates toolUseCount per turn", () => {
+    expect(session.turns[0].toolUseCount).toBe(2);
+    expect(session.turns[1].toolUseCount).toBe(1);
+  });
+
+  it("toolUseCount in totals reflects all tool calls", () => {
+    expect(session.totals.toolUseCount).toBe(3);
   });
 });

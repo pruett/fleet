@@ -122,10 +122,10 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Create fixture with 3-block response (thinking, text, tool_use sharing same messageId)
 - [x] Tests: 3 blocks → 1 response, 2 different messageIds → 2 responses, usage from last block, synthetic handling
 
-### Unit 9 — enrichSession: Tool Call Pairing
-- [ ] Match `tool_use` blocks with `tool_result` items by toolUseId
-- [ ] Create fixture with tool call cycle (prompt → tool_use → tool_result → text → turn_duration)
-- [ ] Tests: successful pairing, error pairing, unmatched tool_use → `toolResultBlock: null`, correct turnIndex, toolUseCount in totals
+### Unit 9 — enrichSession: Tool Call Pairing ✅
+- [x] Match `tool_use` blocks with `tool_result` items by toolUseId
+- [x] Create fixture with tool call cycle (prompt → tool_use → tool_result → text → turn_duration)
+- [x] Tests: successful pairing, error pairing, unmatched tool_use → `toolResultBlock: null`, correct turnIndex, toolUseCount in totals
 
 ### Unit 10 — enrichSession: Token Aggregation + Cost
 - [ ] Deduplicate tokens by messageId (keep last block per response)
