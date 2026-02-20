@@ -12,3 +12,24 @@ Files changed:
 - tsconfig.json (new)
 - src/parser/index.ts (new)
 - src/parser/__tests__/smoke.test.ts (new)
+
+## Unit 1 — Zod Schemas + Inferred Types ✅
+
+- Defined all raw JSONL record schemas in `schemas.ts`: CommonFieldsSchema, TokenUsageSchema, ContentBlockSchema (text/thinking/tool_use), FileHistorySnapshotRecordSchema, UserRecordSchema, AssistantRecordSchema, SystemRecordSchema (.passthrough() for subtype variants), ProgressRecordSchema (.passthrough() for data variants), QueueOperationRecordSchema
+- Defined RawRecordSchema as top-level `z.discriminatedUnion("type", [...])` over all 6 record types
+- Defined system/progress subtype schemas for precise validation in parseLine: SystemTurnDuration, SystemApiError, SystemLocalCommand, ProgressAgent, ProgressBash, ProgressHook
+- Defined all 12 parsed message schemas with `kind` discriminator: file-history-snapshot, user-prompt, user-tool-result, assistant-block, system-turn-duration, system-api-error, system-local-command, progress-agent, progress-bash, progress-hook, queue-operation, malformed
+- Defined ParsedMessageSchema as `z.discriminatedUnion("kind", [...])`
+- Created `types.ts` with z.infer types for all parsed messages + manual enrichment interfaces: Turn, ReconstitutedResponse, PairedToolCall, TokenTotals, ToolStat, SubagentRef, ContextSnapshot, EnrichedSession
+- 57 tests passing (55 schema tests + 2 smoke tests), typecheck clean
+
+Files changed:
+- src/parser/schemas.ts (new)
+- src/parser/types.ts (new)
+- src/parser/__tests__/schemas.test.ts (new)
+- plans/transcript-parser.md (updated — Unit 1 checked off)
+
+Learnings:
+- Zod v4 (`zod@4.3.6`): `import { z } from "zod"` gives the v4 classic API (re-exported from `./v4/classic/external.js`)
+- `.extend()` and `.passthrough()` work in Zod v4 classic and are compatible with `z.discriminatedUnion`
+- SystemRecordSchema and ProgressRecordSchema use `.passthrough()` to preserve variant-specific fields through the top-level discriminated union; subtype-specific schemas handle precise validation

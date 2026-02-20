@@ -42,36 +42,36 @@ src/
 - [x] Create smoke test `src/parser/__tests__/smoke.test.ts`
 - [x] **Verify:** `bun test` passes, `bun run typecheck` passes
 
-### Unit 1 — Zod Schemas + Inferred Types
+### Unit 1 — Zod Schemas + Inferred Types ✅
 Zod schemas are the **single source of truth** for all data shapes. TypeScript types are derived via `z.infer<>` — no manual interface duplication.
 
 **`src/parser/schemas.ts`** — Raw JSONL record schemas (what arrives from disk):
-- [ ] Define `CommonFieldsSchema` — `z.object({ uuid: z.string(), parentUuid: z.string().nullable(), sessionId: z.string(), timestamp: z.string() })`
-- [ ] Define a `RawRecordSchema` — a top-level discriminated union (`z.discriminatedUnion("type", [...])`) over the 6 raw JSONL record types:
+- [x] Define `CommonFieldsSchema` — `z.object({ uuid: z.string(), parentUuid: z.string().nullable(), sessionId: z.string(), timestamp: z.string() })`
+- [x] Define a `RawRecordSchema` — a top-level discriminated union (`z.discriminatedUnion("type", [...])`) over the 6 raw JSONL record types:
   - `FileHistorySnapshotRecordSchema` — `type: "file-history-snapshot"`, snapshot, isSnapshotUpdate
   - `UserRecordSchema` — `type: "user"`, message with content (string | array via `z.union`)
   - `AssistantRecordSchema` — `type: "assistant"`, message with id, model, content blocks, usage
   - `SystemRecordSchema` — `type: "system"`, subtype discriminator, variant fields
   - `ProgressRecordSchema` — `type: "progress"`, data with nested type discriminator
   - `QueueOperationRecordSchema` — `type: "queue-operation"`, operation, content
-- [ ] Define `ContentBlockSchema` — `z.discriminatedUnion("type", [TextBlockSchema, ThinkingBlockSchema, ToolUseBlockSchema])`
-- [ ] Define `TokenUsageSchema` — input_tokens, output_tokens, cache tokens
+- [x] Define `ContentBlockSchema` — `z.discriminatedUnion("type", [TextBlockSchema, ThinkingBlockSchema, ToolUseBlockSchema])`
+- [x] Define `TokenUsageSchema` — input_tokens, output_tokens, cache tokens
 
 **`src/parser/schemas.ts`** — Parsed message schemas (what `parseLine` outputs):
-- [ ] Define schemas for all 12 parsed message kinds, each with a `kind` literal discriminator
-- [ ] Define `ParsedMessageSchema` as `z.discriminatedUnion("kind", [...])`
+- [x] Define schemas for all 12 parsed message kinds, each with a `kind` literal discriminator
+- [x] Define `ParsedMessageSchema` as `z.discriminatedUnion("kind", [...])`
 
 **`src/parser/types.ts`** — Inferred types + enrichment types:
-- [ ] Export `type ParsedMessage = z.infer<typeof ParsedMessageSchema>` and each variant type
-- [ ] Define enrichment output types manually (not Zod — these are internal structures, not validated from external input): `Turn`, `ReconstitutedResponse`, `PairedToolCall`, `TokenTotals`, `ToolStat`, `SubagentRef`, `ContextSnapshot`, `EnrichedSession`
+- [x] Export `type ParsedMessage = z.infer<typeof ParsedMessageSchema>` and each variant type
+- [x] Define enrichment output types manually (not Zod — these are internal structures, not validated from external input): `Turn`, `ReconstitutedResponse`, `PairedToolCall`, `TokenTotals`, `ToolStat`, `SubagentRef`, `ContextSnapshot`, `EnrichedSession`
 
 **`src/parser/__tests__/schemas.test.ts`** — Schema validation tests:
-- [ ] Test: each raw record schema **accepts** a valid record and returns typed data
-- [ ] Test: each raw record schema **rejects** a record with missing required fields (Zod error)
-- [ ] Test: each raw record schema **rejects** a record with wrong field types
-- [ ] Test: `ContentBlockSchema` accepts text, thinking, tool_use; rejects unknown type
-- [ ] Test: `RawRecordSchema` discriminates correctly on the `type` field
-- [ ] **Verify:** `bun run typecheck` passes, `bun test` passes
+- [x] Test: each raw record schema **accepts** a valid record and returns typed data
+- [x] Test: each raw record schema **rejects** a record with missing required fields (Zod error)
+- [x] Test: each raw record schema **rejects** a record with wrong field types
+- [x] Test: `ContentBlockSchema` accepts text, thinking, tool_use; rejects unknown type
+- [x] Test: `RawRecordSchema` discriminates correctly on the `type` field
+- [x] **Verify:** `bun run typecheck` passes, `bun test` passes
 
 ### Unit 2 — TRACER BULLET: Minimal End-to-End
 **First priority. Exercises the full pipeline with the simplest real session.**
