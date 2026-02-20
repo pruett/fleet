@@ -1,0 +1,84 @@
+/**
+ * Fixture builder functions for creating raw JSONL records and content blocks.
+ * Used by tests to programmatically construct valid (and intentionally invalid) test data.
+ */
+
+export function makeCommonFields(overrides: Record<string, unknown> = {}) {
+  return {
+    uuid: "uuid-user-001",
+    parentUuid: null as string | null,
+    sessionId: "session-001",
+    timestamp: "2026-02-18T15:09:10.006Z",
+    ...overrides,
+  };
+}
+
+export function makeFileHistorySnapshot(overrides: Record<string, unknown> = {}) {
+  return {
+    type: "file-history-snapshot" as const,
+    messageId: "msg-001",
+    snapshot: {
+      messageId: "msg-001",
+      trackedFileBackups: {},
+      timestamp: "2026-02-18T15:09:10.000Z",
+    },
+    isSnapshotUpdate: false,
+    ...overrides,
+  };
+}
+
+export function makeUserPrompt(text: string, overrides: Record<string, unknown> = {}) {
+  return {
+    ...makeCommonFields(),
+    type: "user" as const,
+    message: { role: "user" as const, content: text },
+    ...overrides,
+  };
+}
+
+export function makeTextBlock(text: string) {
+  return { type: "text" as const, text };
+}
+
+export function makeThinkingBlock(thinking: string, signature = "sig-001") {
+  return { type: "thinking" as const, thinking, signature };
+}
+
+export function makeToolUseBlock(name: string, input: Record<string, unknown>, id = "toolu_001") {
+  return { type: "tool_use" as const, id, name, input };
+}
+
+export function makeAssistantRecord(
+  contentBlock: Record<string, unknown>,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    ...makeCommonFields({ uuid: "uuid-asst-001", parentUuid: "uuid-user-001" }),
+    type: "assistant" as const,
+    message: {
+      model: "claude-sonnet-4-20250514",
+      id: "msg-resp-001",
+      type: "message" as const,
+      role: "assistant" as const,
+      content: [contentBlock],
+      stop_reason: null,
+      stop_sequence: null,
+      usage: { input_tokens: 10, output_tokens: 20 },
+    },
+    ...overrides,
+  };
+}
+
+export function makeTurnDuration(parentUuid: string, durationMs: number) {
+  return {
+    type: "system" as const,
+    subtype: "turn_duration" as const,
+    parentUuid,
+    durationMs,
+  };
+}
+
+/** Serialize a record to a JSONL line */
+export function toLine(record: Record<string, unknown>): string {
+  return JSON.stringify(record);
+}

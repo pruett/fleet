@@ -33,3 +33,21 @@ Learnings:
 - Zod v4 (`zod@4.3.6`): `import { z } from "zod"` gives the v4 classic API (re-exported from `./v4/classic/external.js`)
 - `.extend()` and `.passthrough()` work in Zod v4 classic and are compatible with `z.discriminatedUnion`
 - SystemRecordSchema and ProgressRecordSchema use `.passthrough()` to preserve variant-specific fields through the top-level discriminated union; subtype-specific schemas handle precise validation
+
+## Unit 2 — TRACER BULLET: Minimal End-to-End ✅
+
+- Created `minimal-session.jsonl` fixture (4 lines: file-history-snapshot, user prompt, assistant text, system turn_duration)
+- Created `helpers.ts` with fixture builder functions: makeCommonFields, makeFileHistorySnapshot, makeUserPrompt, makeTextBlock, makeThinkingBlock, makeToolUseBlock, makeAssistantRecord, makeTurnDuration, toLine
+- Implemented `parseLine` in `parse-line.ts`: validates via RawRecordSchema.safeParse(), handles 4 record types (file-history-snapshot, user string content, assistant, system turn_duration). Empty/blank → null, invalid JSON → MalformedRecord, Zod validation failure → MalformedRecord. Never throws. Unimplemented types (user tool result, progress, queue-operation) return MalformedRecord with descriptive error.
+- Implemented `enrichSession` in `enrich-session.ts`: two-pass approach — first pass builds turns from user-prompt messages and assigns turn_duration, second pass groups assistant blocks by messageId into ReconstitutedResponses. Token totals aggregated from deduplicated responses. Empty stubs for toolCalls, toolStats, subagents, contextSnapshots.
+- Implemented `parseFullSession` in `parse-full-session.ts`: splits on newline, maps through parseLine, filters nulls, passes to enrichSession
+- 75 tests passing (18 new + 57 prior), typecheck clean
+
+Files changed:
+- src/parser/parse-line.ts (new)
+- src/parser/enrich-session.ts (new)
+- src/parser/parse-full-session.ts (new)
+- src/parser/__tests__/helpers.ts (new)
+- src/parser/__tests__/fixtures/minimal-session.jsonl (new)
+- src/parser/__tests__/parse-full-session.test.ts (new)
+- plans/transcript-parser.md (updated — Unit 2 checked off)

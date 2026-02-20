@@ -73,21 +73,21 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Test: `RawRecordSchema` discriminates correctly on the `type` field
 - [x] **Verify:** `bun run typecheck` passes, `bun test` passes
 
-### Unit 2 — TRACER BULLET: Minimal End-to-End
+### Unit 2 — TRACER BULLET: Minimal End-to-End ✅
 **First priority. Exercises the full pipeline with the simplest real session.**
 
-- [ ] Create fixture `minimal-session.jsonl` (4 lines: file-history-snapshot, user prompt, assistant text, turn_duration)
-- [ ] Create test helper `helpers.ts` with fixture builder functions (`makeUserPrompt`, `makeAssistantBlock`, etc.)
-- [ ] Implement `parseLine` with 4 handlers: file-history-snapshot, user (string content), assistant (text block), system (turn_duration). Uses Zod `.safeParse()` to validate each line — on `success: false`, returns `MalformedRecord` with Zod error details. Invalid JSON / blank → `null` / `MalformedRecord`.
-- [ ] Implement `enrichSession` with: turn construction, single-block response reconstitution, basic token totals. Return empty stubs for toolCalls, toolStats, subagents, contextSnapshots.
-- [ ] Implement `parseFullSession` — split on `\n`, filter empty, map through `parseLine`, filter null, pass to `enrichSession`.
-- [ ] Tests:
+- [x] Create fixture `minimal-session.jsonl` (4 lines: file-history-snapshot, user prompt, assistant text, turn_duration)
+- [x] Create test helper `helpers.ts` with fixture builder functions (`makeUserPrompt`, `makeAssistantBlock`, etc.)
+- [x] Implement `parseLine` with 4 handlers: file-history-snapshot, user (string content), assistant (text block), system (turn_duration). Uses Zod `.safeParse()` to validate each line — on `success: false`, returns `MalformedRecord` with Zod error details. Invalid JSON / blank → `null` / `MalformedRecord`.
+- [x] Implement `enrichSession` with: turn construction, single-block response reconstitution, basic token totals. Return empty stubs for toolCalls, toolStats, subagents, contextSnapshots.
+- [x] Implement `parseFullSession` — split on `\n`, filter empty, map through `parseLine`, filter null, pass to `enrichSession`.
+- [x] Tests:
   - Parses all 4 lines with correct `kind` values
   - Constructs exactly 1 turn with correct prompt text and durationMs
   - Reconstitutes 1 response with 1 text block and correct messageId
   - Computes basic token totals (inputTokens: 10, outputTokens: 20)
   - Empty enrichments for unimplemented features
-- [ ] **Verify:** `bun test` passes end-to-end
+- [x] **Verify:** `bun test` passes end-to-end
 
 ### Unit 3 — parseLine: User Tool Result
 - [ ] Handle `user` with array content → `UserToolResultMessage`
