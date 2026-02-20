@@ -173,3 +173,19 @@ Files changed:
 - src/parser/enrich-session.ts (updated — import computeCost, compute estimatedCostUsd per-response)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 10 tests + pricing imports)
 - plans/transcript-parser.md (updated — Unit 10 checked off)
+
+## Unit 11 — enrichSession: Tool Statistics ✅
+
+- Added tool statistics computation to `enrichSession`: iterates paired tool calls, groups by `toolName`, counts calls and errors, collects error samples with `toolUseId`, `errorText` (stringified content), and `turnIndex`
+- Replaced `toolStats: []` stub with computed `toolStats` array from `toolStatMap`
+- 8 new tests across 4 describe blocks:
+  - Mixed success/error calls: 2 tools (Bash 3 calls/2 errors, Read 1 call/0 errors), correct grouping, error samples with correct fields, empty errorSamples for error-free tools
+  - Error samples turnIndex: errors across 2 turns get correct turnIndex (0 and 1)
+  - No tool calls: minimal fixture → empty toolStats
+  - Unmatched tool_use: counted in stats with 0 errors
+- 222 tests passing (8 new + 214 prior), typecheck clean
+
+Files changed:
+- src/parser/enrich-session.ts (updated — tool statistics computation from paired tool calls)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 11 tests)
+- plans/transcript-parser.md (updated — Unit 11 checked off)

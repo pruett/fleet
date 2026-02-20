@@ -5,6 +5,7 @@ import type {
   ReconstitutedResponse,
   PairedToolCall,
   TokenTotals,
+  ToolStat,
   EnrichedSession,
 } from "./types";
 import { computeCost } from "./pricing";
@@ -12,8 +13,8 @@ import { computeCost } from "./pricing";
 /**
  * Build cross-message structures from a flat list of parsed messages.
  *
- * Enrichment ordering: turns → response reconstitution → tool pairing → token aggregation.
- * Tool stats, subagent refs, and context snapshots return empty stubs
+ * Enrichment ordering: turns → response reconstitution → tool pairing → token aggregation → tool stats.
+ * Subagent refs and context snapshots return empty stubs
  * until their respective units are implemented.
  */
 export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
@@ -152,13 +153,33 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     toolUseCount: toolCalls.length,
   };
 
+  // Tool statistics: count calls, errors, and collect error samples per tool name
+  const toolStatMap = new Map<string, ToolStat>();
+  for (const tc of toolCalls) {
+    let stat = toolStatMap.get(tc.toolName);
+    if (!stat) {
+      stat = { toolName: tc.toolName, callCount: 0, errorCount: 0, errorSamples: [] };
+      toolStatMap.set(tc.toolName, stat);
+    }
+    stat.callCount++;
+    if (tc.toolResultBlock?.isError) {
+      stat.errorCount++;
+      stat.errorSamples.push({
+        toolUseId: tc.toolUseId,
+        errorText: String(tc.toolResultBlock.content),
+        turnIndex: tc.turnIndex,
+      });
+    }
+  }
+  const toolStats = Array.from(toolStatMap.values());
+
   return {
     messages,
     turns,
     responses,
     toolCalls,
     totals,
-    toolStats: [],
+    toolStats,
     subagents: [],
     contextSnapshots: [],
   };

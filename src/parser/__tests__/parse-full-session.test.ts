@@ -1648,3 +1648,197 @@ describe("enrichSession — cost with mixed models", () => {
     expect(session.totals.estimatedCostUsd).toBeCloseTo(12, 6);
   });
 });
+
+// ============================================================
+// Unit 11: enrichSession — Tool Statistics
+// ============================================================
+
+describe("enrichSession — tool stats with mixed success/error calls", () => {
+  const lines = [
+    toLine(makeUserPrompt("tool stats test")),
+    // Bash success
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_bash_s1"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-ts-1",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_bash_s1")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_bash_s1", "file1.ts")])),
+    // Bash error
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "rm /root" }, "toolu_bash_e1"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-ts-2",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "rm /root" }, "toolu_bash_e1")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_bash_e1", "Error: permission denied", true)])),
+    // Read success
+    toLine(makeAssistantRecord(makeToolUseBlock("Read", { file_path: "/a.ts" }, "toolu_read_s1"), {
+      uuid: "uuid-asst-003",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-ts-3",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Read", { file_path: "/a.ts" }, "toolu_read_s1")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_read_s1", "contents")])),
+    // Bash error again
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "cat /secret" }, "toolu_bash_e2"), {
+      uuid: "uuid-asst-004",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-ts-4",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "cat /secret" }, "toolu_bash_e2")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_bash_e2", "Error: access denied", true)])),
+    toLine(makeTurnDuration("uuid-asst-004", 2000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("produces tool stats grouped by tool name", () => {
+    expect(session.toolStats).toHaveLength(2);
+    const names = session.toolStats.map((s) => s.toolName).sort();
+    expect(names).toEqual(["Bash", "Read"]);
+  });
+
+  it("counts total calls per tool", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    const read = session.toolStats.find((s) => s.toolName === "Read")!;
+    expect(bash.callCount).toBe(3);
+    expect(read.callCount).toBe(1);
+  });
+
+  it("counts errors per tool", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    const read = session.toolStats.find((s) => s.toolName === "Read")!;
+    expect(bash.errorCount).toBe(2);
+    expect(read.errorCount).toBe(0);
+  });
+
+  it("collects error samples with correct fields", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    expect(bash.errorSamples).toHaveLength(2);
+    expect(bash.errorSamples[0].toolUseId).toBe("toolu_bash_e1");
+    expect(bash.errorSamples[0].errorText).toBe("Error: permission denied");
+    expect(bash.errorSamples[1].toolUseId).toBe("toolu_bash_e2");
+    expect(bash.errorSamples[1].errorText).toBe("Error: access denied");
+  });
+
+  it("has empty errorSamples for tools with no errors", () => {
+    const read = session.toolStats.find((s) => s.toolName === "Read")!;
+    expect(read.errorSamples).toEqual([]);
+  });
+});
+
+describe("enrichSession — tool stats error samples have correct turnIndex", () => {
+  const lines = [
+    // Turn 0
+    toLine(makeUserPrompt("first turn")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "fail1" }, "toolu_t0_err"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-ti-1",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "fail1" }, "toolu_t0_err")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_t0_err", "Error: turn 0 failure", true)])),
+    toLine(makeTurnDuration("uuid-asst-001", 500)),
+    // Turn 1
+    toLine(makeUserPrompt("second turn", { uuid: "uuid-user-002", parentUuid: null })),
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "fail2" }, "toolu_t1_err"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-ti-2",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "fail2" }, "toolu_t1_err")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_t1_err", "Error: turn 1 failure", true)])),
+    toLine(makeTurnDuration("uuid-asst-002", 500)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("assigns correct turnIndex to error samples across turns", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    expect(bash.errorSamples).toHaveLength(2);
+    expect(bash.errorSamples[0].turnIndex).toBe(0);
+    expect(bash.errorSamples[1].turnIndex).toBe(1);
+  });
+});
+
+describe("enrichSession — tool stats with no tool calls", () => {
+  const session = parseFullSession(fixtureContent);
+
+  it("returns empty toolStats when there are no tool calls", () => {
+    expect(session.toolStats).toEqual([]);
+  });
+});
+
+describe("enrichSession — tool stats with unmatched tool_use (no result)", () => {
+  const lines = [
+    toLine(makeUserPrompt("unmatched test")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Write", { file_path: "/x" }, "toolu_unmatched"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-unm",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Write", { file_path: "/x" }, "toolu_unmatched")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-001", 200)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("counts unmatched tool call in tool stats", () => {
+    expect(session.toolStats).toHaveLength(1);
+    const write = session.toolStats[0];
+    expect(write.toolName).toBe("Write");
+    expect(write.callCount).toBe(1);
+    expect(write.errorCount).toBe(0);
+    expect(write.errorSamples).toEqual([]);
+  });
+});

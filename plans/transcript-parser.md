@@ -133,9 +133,9 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Create `pricing.ts` with model pricing table
 - [x] Tests: deduplication, summation, cost for known models, unknown model → cost 0, cache token aggregation
 
-### Unit 11 — enrichSession: Tool Statistics
-- [ ] Count calls, errors, errorSamples per tool name from paired tool calls
-- [ ] Tests: mixed success/error counts, error text extraction, correct turnIndex on samples
+### Unit 11 — enrichSession: Tool Statistics ✅
+- [x] Count calls, errors, errorSamples per tool name from paired tool calls
+- [x] Tests: mixed success/error counts, error text extraction, correct turnIndex on samples
 
 ### Unit 12 — enrichSession: Context Snapshots
 - [ ] After each non-synthetic response, record cumulative token snapshot
