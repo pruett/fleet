@@ -6,6 +6,7 @@ import type {
   PairedToolCall,
   TokenTotals,
   ToolStat,
+  ContextSnapshot,
   EnrichedSession,
 } from "./types";
 import { computeCost } from "./pricing";
@@ -13,9 +14,8 @@ import { computeCost } from "./pricing";
 /**
  * Build cross-message structures from a flat list of parsed messages.
  *
- * Enrichment ordering: turns → response reconstitution → tool pairing → token aggregation → tool stats.
- * Subagent refs and context snapshots return empty stubs
- * until their respective units are implemented.
+ * Enrichment ordering: turns → response reconstitution → tool pairing → token aggregation → tool stats → context snapshots.
+ * Subagent refs return empty stubs until their respective unit is implemented.
  */
 export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
   const turns: Turn[] = [];
@@ -173,6 +173,23 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
   }
   const toolStats = Array.from(toolStatMap.values());
 
+  // Context snapshots: cumulative token totals after each non-synthetic response
+  const contextSnapshots: ContextSnapshot[] = [];
+  let cumulativeInput = 0;
+  let cumulativeOutput = 0;
+
+  for (const response of responses) {
+    if (response.isSynthetic) continue;
+    cumulativeInput += response.usage.input_tokens;
+    cumulativeOutput += response.usage.output_tokens;
+    contextSnapshots.push({
+      messageId: response.messageId,
+      turnIndex: response.turnIndex,
+      cumulativeInputTokens: cumulativeInput,
+      cumulativeOutputTokens: cumulativeOutput,
+    });
+  }
+
   return {
     messages,
     turns,
@@ -181,6 +198,6 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     totals,
     toolStats,
     subagents: [],
-    contextSnapshots: [],
+    contextSnapshots,
   };
 }

@@ -137,9 +137,9 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Count calls, errors, errorSamples per tool name from paired tool calls
 - [x] Tests: mixed success/error counts, error text extraction, correct turnIndex on samples
 
-### Unit 12 — enrichSession: Context Snapshots
-- [ ] After each non-synthetic response, record cumulative token snapshot
-- [ ] Tests: correct count (skip synthetic), cumulative output sum, correct messageId/turnIndex
+### Unit 12 — enrichSession: Context Snapshots ✅
+- [x] After each non-synthetic response, record cumulative token snapshot
+- [x] Tests: correct count (skip synthetic), cumulative output sum, correct messageId/turnIndex
 
 ### Unit 13 — enrichSession: Subagent References
 - [ ] Correlate Task tool_use blocks + progress-agent messages + tool results with `toolUseResult.agentId`

@@ -162,7 +162,6 @@ describe("parseFullSession — minimal session", () => {
   it("returns empty enrichments for unimplemented features", () => {
     expect(session.toolStats).toEqual([]);
     expect(session.subagents).toEqual([]);
-    expect(session.contextSnapshots).toEqual([]);
   });
 });
 
@@ -1840,5 +1839,213 @@ describe("enrichSession — tool stats with unmatched tool_use (no result)", () 
     expect(write.callCount).toBe(1);
     expect(write.errorCount).toBe(0);
     expect(write.errorSamples).toEqual([]);
+  });
+});
+
+// ============================================================
+// Unit 12: enrichSession — Context Snapshots
+// ============================================================
+
+describe("enrichSession — context snapshots with multiple responses", () => {
+  const lines = [
+    toLine(makeUserPrompt("snapshot test")),
+    toLine(makeAssistantRecord(makeTextBlock("response 1"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-snap-A",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("response 1")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 100, output_tokens: 30 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("response 2"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-snap-B",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("response 2")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 200, output_tokens: 50 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 1000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("creates one snapshot per non-synthetic response", () => {
+    expect(session.contextSnapshots).toHaveLength(2);
+  });
+
+  it("first snapshot has cumulative tokens from first response", () => {
+    const snap = session.contextSnapshots[0];
+    expect(snap.messageId).toBe("msg-snap-A");
+    expect(snap.cumulativeInputTokens).toBe(100);
+    expect(snap.cumulativeOutputTokens).toBe(30);
+  });
+
+  it("second snapshot has cumulative tokens from both responses", () => {
+    const snap = session.contextSnapshots[1];
+    expect(snap.messageId).toBe("msg-snap-B");
+    expect(snap.cumulativeInputTokens).toBe(300); // 100 + 200
+    expect(snap.cumulativeOutputTokens).toBe(80); // 30 + 50
+  });
+
+  it("assigns correct turnIndex to each snapshot", () => {
+    expect(session.contextSnapshots[0].turnIndex).toBe(0);
+    expect(session.contextSnapshots[1].turnIndex).toBe(0);
+  });
+});
+
+describe("enrichSession — context snapshots skip synthetic responses", () => {
+  const lines = [
+    toLine(makeUserPrompt("synthetic skip test")),
+    toLine(makeAssistantRecord(makeTextBlock("real response"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-snap-real",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("real response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 100, output_tokens: 40 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("synthetic error"), {
+      uuid: "uuid-asst-synth",
+      isApiErrorMessage: true,
+      message: {
+        model: "<synthetic>",
+        id: "msg-snap-synth",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("synthetic error")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 0, output_tokens: 0 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("real response 2"), {
+      uuid: "uuid-asst-003",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-snap-real2",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("real response 2")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 150, output_tokens: 60 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-003", 500)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("has 3 total responses but only 2 context snapshots", () => {
+    expect(session.responses).toHaveLength(3);
+    expect(session.contextSnapshots).toHaveLength(2);
+  });
+
+  it("skips synthetic response in cumulative totals", () => {
+    // First snapshot: 100 input, 40 output
+    expect(session.contextSnapshots[0].messageId).toBe("msg-snap-real");
+    expect(session.contextSnapshots[0].cumulativeInputTokens).toBe(100);
+    expect(session.contextSnapshots[0].cumulativeOutputTokens).toBe(40);
+
+    // Second snapshot: 100+150=250 input, 40+60=100 output (synthetic 0/0 skipped)
+    expect(session.contextSnapshots[1].messageId).toBe("msg-snap-real2");
+    expect(session.contextSnapshots[1].cumulativeInputTokens).toBe(250);
+    expect(session.contextSnapshots[1].cumulativeOutputTokens).toBe(100);
+  });
+});
+
+describe("enrichSession — context snapshots across multiple turns", () => {
+  const lines = [
+    // Turn 0
+    toLine(makeUserPrompt("turn 0")),
+    toLine(makeAssistantRecord(makeTextBlock("turn 0 response"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-mt-0",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("turn 0 response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 100, output_tokens: 20 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-001", 500)),
+    // Turn 1
+    toLine(makeUserPrompt("turn 1", { uuid: "uuid-user-002", parentUuid: null })),
+    toLine(makeAssistantRecord(makeTextBlock("turn 1 response"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-mt-1",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("turn 1 response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 200, output_tokens: 50 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 600)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("creates snapshots with correct turnIndex per turn", () => {
+    expect(session.contextSnapshots).toHaveLength(2);
+    expect(session.contextSnapshots[0].turnIndex).toBe(0);
+    expect(session.contextSnapshots[1].turnIndex).toBe(1);
+  });
+
+  it("accumulates tokens across turns", () => {
+    expect(session.contextSnapshots[0].cumulativeInputTokens).toBe(100);
+    expect(session.contextSnapshots[0].cumulativeOutputTokens).toBe(20);
+    expect(session.contextSnapshots[1].cumulativeInputTokens).toBe(300); // 100 + 200
+    expect(session.contextSnapshots[1].cumulativeOutputTokens).toBe(70); // 20 + 50
+  });
+});
+
+describe("enrichSession — context snapshots with no responses", () => {
+  const session = enrichSession([]);
+
+  it("returns empty contextSnapshots when there are no responses", () => {
+    expect(session.contextSnapshots).toEqual([]);
+  });
+});
+
+describe("enrichSession — context snapshots on minimal fixture", () => {
+  const session = parseFullSession(fixtureContent);
+
+  it("creates 1 snapshot for the single non-synthetic response", () => {
+    expect(session.contextSnapshots).toHaveLength(1);
+  });
+
+  it("snapshot has correct messageId and turnIndex", () => {
+    const snap = session.contextSnapshots[0];
+    expect(snap.messageId).toBe("msg-resp-001");
+    expect(snap.turnIndex).toBe(0);
+  });
+
+  it("snapshot has cumulative tokens matching totals", () => {
+    const snap = session.contextSnapshots[0];
+    expect(snap.cumulativeInputTokens).toBe(session.totals.inputTokens);
+    expect(snap.cumulativeOutputTokens).toBe(session.totals.outputTokens);
   });
 });

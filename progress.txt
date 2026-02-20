@@ -189,3 +189,21 @@ Files changed:
 - src/parser/enrich-session.ts (updated — tool statistics computation from paired tool calls)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 11 tests)
 - plans/transcript-parser.md (updated — Unit 11 checked off)
+
+## Unit 12 — enrichSession: Context Snapshots ✅
+
+- Added context snapshot computation to `enrichSession`: iterates responses in order, skips synthetic responses, accumulates input and output tokens cumulatively, records a `ContextSnapshot` for each non-synthetic response with messageId, turnIndex, and cumulative token counts
+- Replaced `contextSnapshots: []` stub with computed snapshots
+- Updated existing tracer bullet test that expected empty contextSnapshots (now that the feature is implemented)
+- 12 new tests across 5 describe blocks:
+  - Multiple responses: 2 snapshots with cumulative totals, correct messageIds, correct turnIndex
+  - Skip synthetic: 3 responses (1 synthetic) → 2 snapshots, synthetic tokens excluded from cumulation
+  - Across turns: 2 turns → 2 snapshots with correct turnIndex and cross-turn accumulation
+  - No responses: empty input → empty contextSnapshots
+  - Minimal fixture: 1 snapshot matching totals, correct messageId and turnIndex
+- 234 tests passing (12 new + 222 prior), typecheck clean
+
+Files changed:
+- src/parser/enrich-session.ts (updated — context snapshot computation, ContextSnapshot import)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 12 tests, fixed tracer bullet test)
+- plans/transcript-parser.md (updated — Unit 12 checked off)
