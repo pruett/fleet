@@ -6,6 +6,7 @@ import type {
   PairedToolCall,
   TokenTotals,
   ToolStat,
+  SubagentRef,
   ContextSnapshot,
   EnrichedSession,
 } from "./types";
@@ -14,8 +15,7 @@ import { computeCost } from "./pricing";
 /**
  * Build cross-message structures from a flat list of parsed messages.
  *
- * Enrichment ordering: turns → response reconstitution → tool pairing → token aggregation → tool stats → context snapshots.
- * Subagent refs return empty stubs until their respective unit is implemented.
+ * Enrichment ordering: turns → response reconstitution → tool pairing → token aggregation → tool stats → subagent refs → context snapshots.
  */
 export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
   const turns: Turn[] = [];
@@ -173,6 +173,37 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
   }
   const toolStats = Array.from(toolStatMap.values());
 
+  // Subagent references: correlate progress-agent messages with tool results carrying agentId stats
+  const subagentMap = new Map<string, SubagentRef>();
+
+  for (const msg of messages) {
+    if (msg.kind === "progress-agent") {
+      if (!subagentMap.has(msg.agentId)) {
+        subagentMap.set(msg.agentId, {
+          agentId: msg.agentId,
+          prompt: msg.prompt,
+          parentToolUseID: msg.parentToolUseID,
+          stats: null,
+        });
+      }
+    }
+  }
+
+  for (const msg of messages) {
+    if (msg.kind === "user-tool-result" && msg.toolUseResult?.agentId) {
+      const ref = subagentMap.get(msg.toolUseResult.agentId);
+      if (ref && msg.toolUseResult.totalDurationMs != null && msg.toolUseResult.totalTokens != null && msg.toolUseResult.totalToolUseCount != null) {
+        ref.stats = {
+          totalDurationMs: msg.toolUseResult.totalDurationMs,
+          totalTokens: msg.toolUseResult.totalTokens,
+          totalToolUseCount: msg.toolUseResult.totalToolUseCount,
+        };
+      }
+    }
+  }
+
+  const subagents = Array.from(subagentMap.values());
+
   // Context snapshots: cumulative token totals after each non-synthetic response
   const contextSnapshots: ContextSnapshot[] = [];
   let cumulativeInput = 0;
@@ -197,7 +228,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     toolCalls,
     totals,
     toolStats,
-    subagents: [],
+    subagents,
     contextSnapshots,
   };
 }

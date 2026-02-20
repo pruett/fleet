@@ -33,6 +33,9 @@ const multiBlockFixtureContent = readFileSync(multiBlockFixturePath, "utf-8");
 const toolCallCycleFixturePath = join(import.meta.dir, "fixtures", "tool-call-cycle.jsonl");
 const toolCallCycleFixtureContent = readFileSync(toolCallCycleFixturePath, "utf-8");
 
+const subagentSpawnFixturePath = join(import.meta.dir, "fixtures", "subagent-spawn.jsonl");
+const subagentSpawnFixtureContent = readFileSync(subagentSpawnFixturePath, "utf-8");
+
 // ============================================================
 // Unit 2: Tracer Bullet — Minimal End-to-End
 // ============================================================
@@ -2047,5 +2050,181 @@ describe("enrichSession — context snapshots on minimal fixture", () => {
     const snap = session.contextSnapshots[0];
     expect(snap.cumulativeInputTokens).toBe(session.totals.inputTokens);
     expect(snap.cumulativeOutputTokens).toBe(session.totals.outputTokens);
+  });
+});
+
+// ============================================================
+// Unit 13: enrichSession — Subagent References
+// ============================================================
+
+describe("enrichSession — subagent spawn cycle fixture", () => {
+  const session = parseFullSession(subagentSpawnFixtureContent);
+
+  it("produces 1 subagent reference", () => {
+    expect(session.subagents).toHaveLength(1);
+  });
+
+  it("extracts correct agentId from progress-agent message", () => {
+    expect(session.subagents[0].agentId).toBe("agent-001");
+  });
+
+  it("extracts correct prompt from progress-agent message", () => {
+    expect(session.subagents[0].prompt).toBe("Research the API");
+  });
+
+  it("extracts correct parentToolUseID from progress-agent message", () => {
+    expect(session.subagents[0].parentToolUseID).toBe("toolu_task_001");
+  });
+
+  it("populates stats from toolUseResult on the matching tool result", () => {
+    const stats = session.subagents[0].stats;
+    expect(stats).not.toBeNull();
+    expect(stats!.totalDurationMs).toBe(4000);
+    expect(stats!.totalTokens).toBe(1500);
+    expect(stats!.totalToolUseCount).toBe(3);
+  });
+});
+
+describe("enrichSession — still-running subagent has stats: null", () => {
+  // progress-agent message but no matching tool result with toolUseResult
+  const lines = [
+    toLine(makeUserPrompt("Spawn a subagent")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Do research" }, "toolu_task_running"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-task-running",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Task", { prompt: "Do research" }, "toolu_task_running")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 20 },
+      },
+    })),
+    toLine(makeProgressAgent("agent-running-001", "Do research", "toolu_task_running")),
+    // No tool result comes back — subagent is still running
+    toLine(makeTurnDuration("uuid-asst-001", 1000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("produces 1 subagent reference", () => {
+    expect(session.subagents).toHaveLength(1);
+  });
+
+  it("has correct agentId and prompt", () => {
+    expect(session.subagents[0].agentId).toBe("agent-running-001");
+    expect(session.subagents[0].prompt).toBe("Do research");
+    expect(session.subagents[0].parentToolUseID).toBe("toolu_task_running");
+  });
+
+  it("has stats: null for still-running subagent", () => {
+    expect(session.subagents[0].stats).toBeNull();
+  });
+});
+
+describe("enrichSession — multiple subagents with mixed completion", () => {
+  const lines = [
+    toLine(makeUserPrompt("Spawn multiple subagents")),
+    // Subagent A: completed
+    toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Task A" }, "toolu_task_a"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-task-a",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Task", { prompt: "Task A" }, "toolu_task_a")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 20 },
+      },
+    })),
+    toLine(makeProgressAgent("agent-a", "Task A", "toolu_task_a")),
+    toLine(makeUserToolResult(
+      [makeToolResultItem("toolu_task_a", "Task A result")],
+      { toolUseResult: { agentId: "agent-a", totalDurationMs: 2000, totalTokens: 800, totalToolUseCount: 2 } },
+    )),
+    // Subagent B: still running
+    toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Task B" }, "toolu_task_b"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-task-b",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Task", { prompt: "Task B" }, "toolu_task_b")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 20 },
+      },
+    })),
+    toLine(makeProgressAgent("agent-b", "Task B", "toolu_task_b")),
+    toLine(makeTurnDuration("uuid-asst-002", 3000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("produces 2 subagent references", () => {
+    expect(session.subagents).toHaveLength(2);
+  });
+
+  it("completed subagent has stats", () => {
+    const agentA = session.subagents.find((s) => s.agentId === "agent-a")!;
+    expect(agentA.stats).not.toBeNull();
+    expect(agentA.stats!.totalDurationMs).toBe(2000);
+    expect(agentA.stats!.totalTokens).toBe(800);
+    expect(agentA.stats!.totalToolUseCount).toBe(2);
+  });
+
+  it("still-running subagent has stats: null", () => {
+    const agentB = session.subagents.find((s) => s.agentId === "agent-b")!;
+    expect(agentB.stats).toBeNull();
+  });
+});
+
+describe("enrichSession — no subagents → empty array", () => {
+  const session = parseFullSession(fixtureContent);
+
+  it("returns empty subagents when there are no progress-agent messages", () => {
+    expect(session.subagents).toEqual([]);
+  });
+});
+
+describe("enrichSession — duplicate progress-agent messages for same agentId", () => {
+  // Multiple progress messages for the same agent should produce only 1 SubagentRef
+  const lines = [
+    toLine(makeUserPrompt("Dedup subagent")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Explore" }, "toolu_task_dedup"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-task-dedup",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Task", { prompt: "Explore" }, "toolu_task_dedup")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 20 },
+      },
+    })),
+    toLine(makeProgressAgent("agent-dedup", "Explore", "toolu_task_dedup")),
+    toLine(makeProgressAgent("agent-dedup", "Explore", "toolu_task_dedup")),
+    toLine(makeProgressAgent("agent-dedup", "Explore", "toolu_task_dedup")),
+    toLine(makeUserToolResult(
+      [makeToolResultItem("toolu_task_dedup", "Done exploring")],
+      { toolUseResult: { agentId: "agent-dedup", totalDurationMs: 1500, totalTokens: 600, totalToolUseCount: 1 } },
+    )),
+    toLine(makeTurnDuration("uuid-asst-001", 2000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("produces only 1 subagent reference despite multiple progress messages", () => {
+    expect(session.subagents).toHaveLength(1);
+    expect(session.subagents[0].agentId).toBe("agent-dedup");
+    expect(session.subagents[0].stats).not.toBeNull();
+    expect(session.subagents[0].stats!.totalDurationMs).toBe(1500);
   });
 });

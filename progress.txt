@@ -207,3 +207,24 @@ Files changed:
 - src/parser/enrich-session.ts (updated — context snapshot computation, ContextSnapshot import)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 12 tests, fixed tracer bullet test)
 - plans/transcript-parser.md (updated — Unit 12 checked off)
+
+## Unit 13 — enrichSession: Subagent References ✅
+
+- Added subagent reference correlation to `enrichSession`: iterates `progress-agent` messages to collect unique `agentId`/`prompt`/`parentToolUseID`, then matches with `user-tool-result` messages carrying `toolUseResult.agentId` to populate stats (`totalDurationMs`, `totalTokens`, `totalToolUseCount`)
+- Subagents with no matching tool result (still running) get `stats: null`
+- Deduplicates by `agentId` — multiple progress messages for the same agent produce only 1 `SubagentRef`
+- Replaced `subagents: []` stub with computed subagents
+- Created `subagent-spawn.jsonl` fixture (7 lines: snapshot, user prompt, assistant tool_use Task, progress-agent, user tool-result with toolUseResult stats, assistant text, turn_duration)
+- 13 new tests across 5 describe blocks:
+  - Subagent spawn fixture: 1 subagent, correct agentId/prompt/parentToolUseID, stats from toolUseResult (totalDurationMs, totalTokens, totalToolUseCount)
+  - Still-running subagent: progress-agent without matching tool result → stats: null
+  - Multiple subagents mixed completion: 2 subagents — completed has stats, still-running has null
+  - No subagents: minimal fixture → empty subagents array
+  - Duplicate progress-agent messages: 3 progress messages for same agentId → 1 SubagentRef with stats
+- 247 tests passing (13 new + 234 prior), typecheck clean
+
+Files changed:
+- src/parser/enrich-session.ts (updated — subagent reference correlation, SubagentRef import)
+- src/parser/__tests__/fixtures/subagent-spawn.jsonl (new — subagent spawn cycle fixture)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 13 tests)
+- plans/transcript-parser.md (updated — Unit 13 checked off)

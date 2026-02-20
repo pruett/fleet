@@ -141,10 +141,10 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] After each non-synthetic response, record cumulative token snapshot
 - [x] Tests: correct count (skip synthetic), cumulative output sum, correct messageId/turnIndex
 
-### Unit 13 — enrichSession: Subagent References
-- [ ] Correlate Task tool_use blocks + progress-agent messages + tool results with `toolUseResult.agentId`
-- [ ] Create fixture with subagent spawn cycle
-- [ ] Tests: correct agentId/prompt/parentToolUseID, stats from toolUseResult, still-running subagent → stats: null
+### Unit 13 — enrichSession: Subagent References ✅
+- [x] Correlate Task tool_use blocks + progress-agent messages + tool results with `toolUseResult.agentId`
+- [x] Create fixture with subagent spawn cycle
+- [x] Tests: correct agentId/prompt/parentToolUseID, stats from toolUseResult, still-running subagent → stats: null
 
 ### Unit 14 — Integration: Multi-Turn Session
 - [ ] Create 3-turn fixture exercising all enrichments together
