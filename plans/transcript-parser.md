@@ -158,9 +158,9 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Dedicated `parse-line.test.ts` with one `describe` block per message kind (12 blocks)
 - [x] Tests: happy-path all fields, missing optional fields default correctly, minimal valid input
 
-### Unit 17 — Public API and Exports
-- [ ] Wire up `src/parser/index.ts` to export all functions and types
-- [ ] Tests: import from index, verify all 3 functions callable
+### Unit 17 — Public API and Exports ✅
+- [x] Wire up `src/parser/index.ts` to export all functions and types
+- [x] Tests: import from index, verify all 3 functions callable
 
 ## Key Design Decisions
 

@@ -290,3 +290,16 @@ Files changed:
 Files changed:
 - src/parser/__tests__/parse-line.test.ts (new — dedicated parseLine comprehensive unit tests)
 - plans/transcript-parser.md (updated — Unit 16 checked off)
+
+## Unit 17 — Public API and Exports ✅
+
+- Wired up `src/parser/index.ts` to re-export all public functions: `parseLine`, `enrichSession`, `parseFullSession`, `lookupPricing`, `computeCost`
+- Re-exported all 15 parsed message types, 8 enrichment types, and `ModelPricing` type
+- Updated smoke test with 7 new tests: verifies all 5 functions are exported and callable, validates `enrichSession` and `parseFullSession` return correct `EnrichedSession` shape (8 properties)
+- 373 tests passing (7 new + 366 prior), typecheck clean
+- **All 18 units complete — transcript parser implementation is finished**
+
+Files changed:
+- src/parser/index.ts (updated — full public API re-exports)
+- src/parser/__tests__/smoke.test.ts (updated — Unit 17 export/callable tests)
+- plans/transcript-parser.md (updated — Unit 17 checked off)
