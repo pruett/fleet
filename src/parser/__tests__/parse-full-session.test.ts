@@ -13,6 +13,8 @@ import {
   makeThinkingBlock,
   makeToolUseBlock,
   makeTurnDuration,
+  makeSystemApiError,
+  makeSystemLocalCommand,
   toLine,
 } from "./helpers";
 
@@ -399,5 +401,134 @@ describe("parseLine — assistant with empty content array", () => {
     // Zod validation should reject empty content array since min 1 item expected,
     // or our code handles it as malformed
     expect(msg!.kind).toBe("malformed");
+  });
+});
+
+// ============================================================
+// Unit 5: parseLine — System Subtypes (api_error, local_command)
+// ============================================================
+
+describe("parseLine — system api_error", () => {
+  const record = makeSystemApiError("overloaded_error", {
+    retryInMs: 10000,
+    retryAttempt: 2,
+    maxRetries: 5,
+  });
+  const msg = parseLine(toLine(record), 15);
+
+  it("returns kind system-api-error", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("system-api-error");
+  });
+
+  it("extracts error string", () => {
+    if (msg!.kind !== "system-api-error") throw new Error("wrong kind");
+    expect(msg!.error).toBe("overloaded_error");
+  });
+
+  it("extracts retryInMs", () => {
+    if (msg!.kind !== "system-api-error") throw new Error("wrong kind");
+    expect(msg!.retryInMs).toBe(10000);
+  });
+
+  it("extracts retryAttempt", () => {
+    if (msg!.kind !== "system-api-error") throw new Error("wrong kind");
+    expect(msg!.retryAttempt).toBe(2);
+  });
+
+  it("extracts maxRetries", () => {
+    if (msg!.kind !== "system-api-error") throw new Error("wrong kind");
+    expect(msg!.maxRetries).toBe(5);
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "system-api-error") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(15);
+  });
+});
+
+describe("parseLine — system api_error with default helper values", () => {
+  const record = makeSystemApiError("rate_limit_error");
+  const msg = parseLine(toLine(record), 0);
+
+  it("uses helper defaults for retry fields", () => {
+    if (msg!.kind !== "system-api-error") throw new Error("wrong kind");
+    expect(msg!.error).toBe("rate_limit_error");
+    expect(msg!.retryInMs).toBe(5000);
+    expect(msg!.retryAttempt).toBe(1);
+    expect(msg!.maxRetries).toBe(3);
+  });
+});
+
+describe("parseLine — system api_error missing required field → MalformedRecord", () => {
+  const record = {
+    type: "system",
+    subtype: "api_error",
+    error: "some_error",
+    // missing retryInMs, retryAttempt, maxRetries
+  };
+  const msg = parseLine(toLine(record), 0);
+
+  it("returns malformed when required fields are missing", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+});
+
+describe("parseLine — system local_command", () => {
+  const record = makeSystemLocalCommand("git status");
+  const msg = parseLine(toLine(record), 20);
+
+  it("returns kind system-local-command", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("system-local-command");
+  });
+
+  it("extracts content", () => {
+    if (msg!.kind !== "system-local-command") throw new Error("wrong kind");
+    expect(msg!.content).toBe("git status");
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "system-local-command") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(20);
+  });
+});
+
+describe("parseLine — system local_command missing content → MalformedRecord", () => {
+  const record = {
+    type: "system",
+    subtype: "local_command",
+    // missing content
+  };
+  const msg = parseLine(toLine(record), 0);
+
+  it("returns malformed when content is missing", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+});
+
+describe("parseLine — unknown system subtype → MalformedRecord", () => {
+  const record = {
+    type: "system",
+    subtype: "unknown_subtype_xyz",
+    someField: "value",
+  };
+  const msg = parseLine(toLine(record), 25);
+
+  it("returns malformed for unknown subtype", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+
+  it("includes subtype name in error message", () => {
+    if (msg!.kind !== "malformed") throw new Error("wrong kind");
+    expect(msg!.error).toContain("unknown_subtype_xyz");
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "malformed") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(25);
   });
 });

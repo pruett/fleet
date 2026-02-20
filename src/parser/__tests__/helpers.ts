@@ -103,6 +103,31 @@ export function makeUserToolResult(
   };
 }
 
+export function makeSystemApiError(
+  error: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    type: "system" as const,
+    subtype: "api_error" as const,
+    error,
+    retryInMs: 5000,
+    retryAttempt: 1,
+    maxRetries: 3,
+    ...overrides,
+  };
+}
+
+export function makeSystemLocalCommand(
+  content: string,
+) {
+  return {
+    type: "system" as const,
+    subtype: "local_command" as const,
+    content,
+  };
+}
+
 /** Serialize a record to a JSONL line */
 export function toLine(record: Record<string, unknown>): string {
   return JSON.stringify(record);

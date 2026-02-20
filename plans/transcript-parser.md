@@ -99,10 +99,10 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Handle synthetic assistant records (`isApiErrorMessage: true`)
 - [x] Tests: thinking block extraction, tool_use field extraction, synthetic flag
 
-### Unit 5 — parseLine: System Subtypes
-- [ ] Handle `api_error` → `SystemApiErrorMessage` (error, retryInMs, retryAttempt, maxRetries)
-- [ ] Handle `local_command` → `SystemLocalCommandMessage` (content)
-- [ ] Tests: field extraction for each, unknown subtype → `MalformedRecord`
+### Unit 5 — parseLine: System Subtypes ✅
+- [x] Handle `api_error` → `SystemApiErrorMessage` (error, retryInMs, retryAttempt, maxRetries)
+- [x] Handle `local_command` → `SystemLocalCommandMessage` (content)
+- [x] Tests: field extraction for each, unknown subtype → `MalformedRecord`
 
 ### Unit 6 — parseLine: Progress Subtypes
 - [ ] Handle `agent_progress` → `ProgressAgentMessage` (agentId, prompt, parentToolUseID)

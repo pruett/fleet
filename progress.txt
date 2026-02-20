@@ -77,3 +77,18 @@ Files changed:
 Files changed:
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 4 tests)
 - plans/transcript-parser.md (updated — Unit 4 checked off)
+
+## Unit 5 — parseLine: System Subtypes ✅
+
+- Added `api_error` case to parseLine system switch: validates via SystemApiErrorSchema, extracts error, retryInMs, retryAttempt, maxRetries
+- Added `local_command` case to parseLine system switch: validates via SystemLocalCommandSchema, extracts content
+- Unknown system subtypes continue to produce MalformedRecord with subtype name in error message
+- Added `makeSystemApiError` and `makeSystemLocalCommand` fixture builders to helpers.ts
+- 15 new tests: api_error field extraction (error, retryInMs, retryAttempt, maxRetries, lineIndex), default helper values, missing required fields → MalformedRecord, local_command field extraction (content, lineIndex), missing content → MalformedRecord, unknown subtype → MalformedRecord with error containing subtype name
+- 111 tests passing (15 new + 96 prior), typecheck clean
+
+Files changed:
+- src/parser/parse-line.ts (updated — api_error and local_command system subtypes)
+- src/parser/__tests__/helpers.ts (updated — added makeSystemApiError, makeSystemLocalCommand)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 5 tests)
+- plans/transcript-parser.md (updated — Unit 5 checked off)

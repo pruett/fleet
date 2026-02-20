@@ -2,6 +2,8 @@ import type { ParsedMessage } from "./types";
 import {
   RawRecordSchema,
   SystemTurnDurationSchema,
+  SystemApiErrorSchema,
+  SystemLocalCommandSchema,
 } from "./schemas";
 
 /**
@@ -127,8 +129,44 @@ export function parseLine(line: string, lineIndex: number): ParsedMessage | null
             lineIndex,
           };
         }
+        case "api_error": {
+          const ae = SystemApiErrorSchema.safeParse(parsed);
+          if (!ae.success) {
+            return {
+              kind: "malformed",
+              raw: trimmed,
+              error: ae.error.message,
+              lineIndex,
+            };
+          }
+          return {
+            kind: "system-api-error",
+            error: ae.data.error,
+            retryInMs: ae.data.retryInMs,
+            retryAttempt: ae.data.retryAttempt,
+            maxRetries: ae.data.maxRetries,
+            lineIndex,
+          };
+        }
+
+        case "local_command": {
+          const lc = SystemLocalCommandSchema.safeParse(parsed);
+          if (!lc.success) {
+            return {
+              kind: "malformed",
+              raw: trimmed,
+              error: lc.error.message,
+              lineIndex,
+            };
+          }
+          return {
+            kind: "system-local-command",
+            content: lc.data.content,
+            lineIndex,
+          };
+        }
+
         default:
-          // Other system subtypes handled in later units
           return {
             kind: "malformed",
             raw: trimmed,
