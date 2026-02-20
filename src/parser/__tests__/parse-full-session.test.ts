@@ -2468,3 +2468,171 @@ describe("Integration — multi-turn session: context snapshots", () => {
     expect(last.cumulativeOutputTokens).toBe(session.totals.outputTokens);
   });
 });
+
+// ============================================================
+// Unit 15: parseFullSession — Edge Cases
+// ============================================================
+
+describe("parseFullSession — empty string → empty session", () => {
+  const session = parseFullSession("");
+
+  it("produces no messages", () => {
+    expect(session.messages).toHaveLength(0);
+  });
+
+  it("produces no turns", () => {
+    expect(session.turns).toHaveLength(0);
+  });
+
+  it("produces no responses", () => {
+    expect(session.responses).toHaveLength(0);
+  });
+
+  it("has zero totals", () => {
+    expect(session.totals.inputTokens).toBe(0);
+    expect(session.totals.outputTokens).toBe(0);
+    expect(session.totals.totalTokens).toBe(0);
+    expect(session.totals.estimatedCostUsd).toBe(0);
+    expect(session.totals.toolUseCount).toBe(0);
+  });
+
+  it("has empty toolCalls, toolStats, subagents, contextSnapshots", () => {
+    expect(session.toolCalls).toHaveLength(0);
+    expect(session.toolStats).toHaveLength(0);
+    expect(session.subagents).toHaveLength(0);
+    expect(session.contextSnapshots).toHaveLength(0);
+  });
+});
+
+describe("parseFullSession — blank lines only", () => {
+  const session = parseFullSession("\n\n   \n\t\n");
+
+  it("produces no messages", () => {
+    expect(session.messages).toHaveLength(0);
+  });
+
+  it("produces no turns", () => {
+    expect(session.turns).toHaveLength(0);
+  });
+});
+
+describe("parseFullSession — malformed lines mixed with valid", () => {
+  const lines = [
+    "not json at all",
+    toLine(makeFileHistorySnapshot()),
+    '{"type":"bogus"}',
+    toLine(makeUserPrompt("Hello")),
+    "{malformed json",
+    toLine(makeAssistantRecord(makeTextBlock("Hi there"))),
+    toLine(makeTurnDuration("uuid-user-001", 1500)),
+  ];
+  const session = parseFullSession(lines.join("\n"));
+
+  it("includes malformed records in messages", () => {
+    const malformed = session.messages.filter((m) => m.kind === "malformed");
+    expect(malformed.length).toBe(3);
+  });
+
+  it("still constructs valid turn from good lines", () => {
+    expect(session.turns).toHaveLength(1);
+    expect(session.turns[0].promptText).toBe("Hello");
+    expect(session.turns[0].durationMs).toBe(1500);
+  });
+
+  it("reconstitutes response from valid assistant block", () => {
+    expect(session.responses).toHaveLength(1);
+    expect(session.responses[0].blocks[0]).toEqual(makeTextBlock("Hi there"));
+  });
+
+  it("malformed records have correct lineIndex", () => {
+    const malformed = session.messages.filter((m) => m.kind === "malformed");
+    expect(malformed[0].lineIndex).toBe(0); // "not json at all"
+    expect(malformed[1].lineIndex).toBe(2); // unknown type
+    expect(malformed[2].lineIndex).toBe(4); // malformed json
+  });
+});
+
+describe("parseFullSession — no human prompt → 0 turns", () => {
+  const lines = [
+    toLine(makeFileHistorySnapshot()),
+    toLine(makeAssistantRecord(makeTextBlock("orphan response"))),
+  ];
+  const session = parseFullSession(lines.join("\n"));
+
+  it("produces 0 turns", () => {
+    expect(session.turns).toHaveLength(0);
+  });
+
+  it("still reconstitutes the response", () => {
+    expect(session.responses).toHaveLength(1);
+  });
+
+  it("assigns orphan response to turnIndex 0", () => {
+    expect(session.responses[0].turnIndex).toBe(0);
+  });
+});
+
+describe("parseFullSession — meta-only prompts → 0 turns", () => {
+  const lines = [
+    toLine(makeFileHistorySnapshot()),
+    toLine(makeUserPrompt("meta prompt", { isMeta: true })),
+    toLine(makeAssistantRecord(makeTextBlock("meta response"))),
+  ];
+  const session = parseFullSession(lines.join("\n"));
+
+  it("produces 0 turns (meta prompts are excluded)", () => {
+    expect(session.turns).toHaveLength(0);
+  });
+
+  it("includes the meta prompt in messages as user-prompt", () => {
+    const userPrompts = session.messages.filter((m) => m.kind === "user-prompt");
+    expect(userPrompts).toHaveLength(1);
+    expect(userPrompts[0].kind === "user-prompt" && userPrompts[0].isMeta).toBe(true);
+  });
+
+  it("still reconstitutes the response", () => {
+    expect(session.responses).toHaveLength(1);
+  });
+});
+
+describe("parseFullSession — single snapshot line", () => {
+  const session = parseFullSession(toLine(makeFileHistorySnapshot()));
+
+  it("produces 1 message", () => {
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].kind).toBe("file-history-snapshot");
+  });
+
+  it("produces 0 turns", () => {
+    expect(session.turns).toHaveLength(0);
+  });
+
+  it("produces 0 responses", () => {
+    expect(session.responses).toHaveLength(0);
+  });
+});
+
+describe("parseFullSession — very long lines", () => {
+  const longText = "x".repeat(100_000);
+  const lines = [
+    toLine(makeUserPrompt(longText)),
+    toLine(makeAssistantRecord(makeTextBlock(longText))),
+    toLine(makeTurnDuration("uuid-user-001", 999)),
+  ];
+  const session = parseFullSession(lines.join("\n"));
+
+  it("parses long user prompt text", () => {
+    expect(session.turns).toHaveLength(1);
+    expect(session.turns[0].promptText).toBe(longText);
+    expect(session.turns[0].promptText.length).toBe(100_000);
+  });
+
+  it("parses long assistant text block", () => {
+    expect(session.responses).toHaveLength(1);
+    const block = session.responses[0].blocks[0];
+    expect(block.type).toBe("text");
+    if (block.type === "text") {
+      expect(block.text).toBe(longText);
+    }
+  });
+});

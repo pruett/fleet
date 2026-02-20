@@ -151,8 +151,8 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Tests: 3 turns with correct prompts/durations, response counts per turn, tool pairing across turns, aggregate totals, tool stats, context snapshot count
 - [x] **Milestone: enrichSession is complete — all 7 enrichments working**
 
-### Unit 15 — parseFullSession: Edge Cases
-- [ ] Tests: empty string → empty session, blank lines only, malformed lines mixed with valid, no human prompt → 0 turns, meta-only prompts → 0 turns, single snapshot line, very long lines
+### Unit 15 — parseFullSession: Edge Cases ✅
+- [x] Tests: empty string → empty session, blank lines only, malformed lines mixed with valid, no human prompt → 0 turns, meta-only prompts → 0 turns, single snapshot line, very long lines
 
 ### Unit 16 — parseLine: Comprehensive Unit Tests
 - [ ] Dedicated `parse-line.test.ts` with one `describe` block per message kind (12 blocks)

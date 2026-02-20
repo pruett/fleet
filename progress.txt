@@ -250,3 +250,19 @@ Files changed:
 - src/parser/__tests__/fixtures/multi-turn-session.jsonl (new — 3-turn integration fixture)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 14 integration tests)
 - plans/transcript-parser.md (updated — Unit 14 checked off)
+
+## Unit 15 — parseFullSession: Edge Cases ✅
+
+- Added 22 new tests across 7 describe blocks covering parseFullSession edge cases:
+  - Empty string → empty session: 0 messages, 0 turns, 0 responses, zero totals, empty enrichment arrays
+  - Blank lines only (newlines, spaces, tabs): 0 messages, 0 turns
+  - Malformed lines mixed with valid: 3 malformed records preserved with correct lineIndex, valid turn/response still constructed from good lines
+  - No human prompt → 0 turns: orphan assistant response still reconstituted, assigned to turnIndex 0
+  - Meta-only prompts → 0 turns: isMeta: true user prompts excluded from turn construction, still present in messages
+  - Single snapshot line: 1 message (file-history-snapshot), 0 turns, 0 responses
+  - Very long lines (100K chars): both user prompt and assistant text block parse and preserve full content
+- 300 tests passing (22 new + 278 prior), typecheck clean
+
+Files changed:
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 15 edge case tests)
+- plans/transcript-parser.md (updated — Unit 15 checked off)
