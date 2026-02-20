@@ -246,11 +246,10 @@ export function parseLine(line: string, lineIndex: number): ParsedMessage | null
     }
 
     case "queue-operation":
-      // Handled in Unit 7
       return {
-        kind: "malformed",
-        raw: trimmed,
-        error: "Queue operation parsing not yet implemented",
+        kind: "queue-operation",
+        operation: record.operation,
+        content: record.content,
         lineIndex,
       };
 

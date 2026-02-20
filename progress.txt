@@ -109,3 +109,17 @@ Files changed:
 - src/parser/__tests__/helpers.ts (updated — added makeProgressAgent, makeProgressBash, makeProgressHook)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 6 tests)
 - plans/transcript-parser.md (updated — Unit 6 checked off)
+
+## Unit 7 — parseLine: Queue Operation + Edge Cases ✅
+
+- Replaced queue-operation stub in parseLine with actual handler: maps `operation` and `content` fields directly from the validated record
+- Added `makeQueueOperation` fixture builder to helpers.ts (operation, optional content)
+- 17 new tests covering: enqueue with content (kind, operation, content, lineIndex), dequeue without content (kind, operation, content undefined), missing operation field → MalformedRecord, edge cases (empty string → null, whitespace → null, invalid JSON → MalformedRecord, missing type → MalformedRecord, unknown type → MalformedRecord, parseLine never throws for varied inputs), Zod validation catches missing required fields (assistant without message.id, user without sessionId, file-history-snapshot without snapshot)
+- **Milestone: parseLine is complete — all 12 message kinds classified, all validated via Zod**
+- 150 tests passing (17 new + 133 prior), typecheck clean
+
+Files changed:
+- src/parser/parse-line.ts (updated — queue-operation handler)
+- src/parser/__tests__/helpers.ts (updated — added makeQueueOperation)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 7 tests)
+- plans/transcript-parser.md (updated — Unit 7 checked off)

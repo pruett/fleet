@@ -18,6 +18,7 @@ import {
   makeProgressAgent,
   makeProgressBash,
   makeProgressHook,
+  makeQueueOperation,
   toLine,
 } from "./helpers";
 
@@ -719,5 +720,168 @@ describe("parseLine — unknown progress data type → MalformedRecord", () => {
   it("preserves lineIndex", () => {
     if (msg!.kind !== "malformed") throw new Error("wrong kind");
     expect(msg!.lineIndex).toBe(45);
+  });
+});
+
+// ============================================================
+// Unit 7: parseLine — Queue Operation + Edge Cases
+// ============================================================
+
+describe("parseLine — queue-operation enqueue with content", () => {
+  const record = makeQueueOperation("enqueue", "Run the tests");
+  const msg = parseLine(toLine(record), 50);
+
+  it("returns kind queue-operation", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("queue-operation");
+  });
+
+  it("extracts operation", () => {
+    if (msg!.kind !== "queue-operation") throw new Error("wrong kind");
+    expect(msg!.operation).toBe("enqueue");
+  });
+
+  it("extracts content", () => {
+    if (msg!.kind !== "queue-operation") throw new Error("wrong kind");
+    expect(msg!.content).toBe("Run the tests");
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "queue-operation") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(50);
+  });
+});
+
+describe("parseLine — queue-operation dequeue without content", () => {
+  const record = makeQueueOperation("dequeue");
+  const msg = parseLine(toLine(record), 51);
+
+  it("returns kind queue-operation", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("queue-operation");
+  });
+
+  it("extracts operation", () => {
+    if (msg!.kind !== "queue-operation") throw new Error("wrong kind");
+    expect(msg!.operation).toBe("dequeue");
+  });
+
+  it("content is undefined when absent", () => {
+    if (msg!.kind !== "queue-operation") throw new Error("wrong kind");
+    expect(msg!.content).toBeUndefined();
+  });
+});
+
+describe("parseLine — queue-operation missing operation field → MalformedRecord", () => {
+  const record = { type: "queue-operation" };
+  const msg = parseLine(toLine(record), 0);
+
+  it("returns malformed when operation is missing", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+});
+
+describe("parseLine — edge cases", () => {
+  it("empty string → null", () => {
+    expect(parseLine("", 0)).toBeNull();
+  });
+
+  it("whitespace-only → null", () => {
+    expect(parseLine("   \t\n  ", 0)).toBeNull();
+  });
+
+  it("invalid JSON → MalformedRecord", () => {
+    const msg = parseLine("not json at all", 0);
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+    if (msg!.kind === "malformed") {
+      expect(msg!.error).toContain("Invalid JSON");
+    }
+  });
+
+  it("missing type field → MalformedRecord", () => {
+    const msg = parseLine(JSON.stringify({ foo: "bar" }), 0);
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+
+  it("unknown type → MalformedRecord", () => {
+    const msg = parseLine(JSON.stringify({ type: "invented-type" }), 0);
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+
+  it("parseLine never throws for any input", () => {
+    const inputs = [
+      "",
+      "   ",
+      "{bad",
+      "null",
+      "123",
+      '"string"',
+      "[]",
+      "true",
+      "undefined",
+      '{"type":',
+      String.raw`{"type":"user","message":{"role":"user","content":"\u0000"}}`,
+    ];
+    for (const input of inputs) {
+      expect(() => parseLine(input, 0)).not.toThrow();
+    }
+  });
+});
+
+describe("parseLine — Zod validation catches missing required fields", () => {
+  it("assistant record without message.id → MalformedRecord with Zod error", () => {
+    const record = {
+      uuid: "uuid-001",
+      parentUuid: null,
+      sessionId: "session-001",
+      timestamp: "2026-02-18T15:09:10.006Z",
+      type: "assistant",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        // missing id
+        type: "message",
+        role: "assistant",
+        content: [{ type: "text", text: "hello" }],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 20 },
+      },
+    };
+    const msg = parseLine(JSON.stringify(record), 0);
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+    if (msg!.kind === "malformed") {
+      expect(msg!.error).toBeTruthy();
+    }
+  });
+
+  it("user record without sessionId → MalformedRecord", () => {
+    const record = {
+      uuid: "uuid-001",
+      parentUuid: null,
+      // missing sessionId
+      timestamp: "2026-02-18T15:09:10.006Z",
+      type: "user",
+      message: { role: "user", content: "hello" },
+    };
+    const msg = parseLine(JSON.stringify(record), 0);
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+
+  it("file-history-snapshot without snapshot → MalformedRecord", () => {
+    const record = {
+      type: "file-history-snapshot",
+      messageId: "msg-001",
+      // missing snapshot
+      isSnapshotUpdate: false,
+    };
+    const msg = parseLine(JSON.stringify(record), 0);
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
   });
 });

@@ -174,6 +174,17 @@ export function makeProgressHook(
   };
 }
 
+export function makeQueueOperation(
+  operation: string,
+  content?: string,
+) {
+  return {
+    type: "queue-operation" as const,
+    operation,
+    ...(content !== undefined ? { content } : {}),
+  };
+}
+
 /** Serialize a record to a JSONL line */
 export function toLine(record: Record<string, unknown>): string {
   return JSON.stringify(record);

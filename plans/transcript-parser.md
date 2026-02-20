@@ -110,11 +110,11 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Handle `hook_progress` → `ProgressHookMessage` (hookEvent, hookName, command)
 - [x] Tests: field extraction for each, unknown `data.type` → `MalformedRecord`
 
-### Unit 7 — parseLine: Queue Operation + Edge Cases
-- [ ] Handle `queue-operation` → `QueueOperationMessage` (operation, content)
-- [ ] Tests: enqueue/dequeue, edge cases: empty string → null, invalid JSON → MalformedRecord, missing `type` → MalformedRecord, unknown type → MalformedRecord, parseLine never throws
-- [ ] Test: Zod validation rejects structurally valid JSON that's missing required fields (e.g. assistant record without `message.id`) — verify MalformedRecord contains Zod error path
-- [ ] **Milestone: parseLine is complete — all 12 message kinds classified, all validated via Zod**
+### Unit 7 — parseLine: Queue Operation + Edge Cases ✅
+- [x] Handle `queue-operation` → `QueueOperationMessage` (operation, content)
+- [x] Tests: enqueue/dequeue, edge cases: empty string → null, invalid JSON → MalformedRecord, missing `type` → MalformedRecord, unknown type → MalformedRecord, parseLine never throws
+- [x] Test: Zod validation rejects structurally valid JSON that's missing required fields (e.g. assistant record without `message.id`) — verify MalformedRecord contains Zod error path
+- [x] **Milestone: parseLine is complete — all 12 message kinds classified, all validated via Zod**
 
 ### Unit 8 — enrichSession: Multi-Block Response Reconstitution
 - [ ] Group assistant blocks by `messageId`, order by lineIndex
