@@ -128,6 +128,52 @@ export function makeSystemLocalCommand(
   };
 }
 
+export function makeProgressAgent(
+  agentId: string,
+  prompt: string,
+  parentToolUseID = "toolu_agent_001",
+) {
+  return {
+    type: "progress" as const,
+    data: {
+      type: "agent_progress" as const,
+      agentId,
+      prompt,
+      parentToolUseID,
+    },
+  };
+}
+
+export function makeProgressBash(
+  output: string,
+  elapsedTimeSeconds = 1.5,
+) {
+  return {
+    type: "progress" as const,
+    data: {
+      type: "bash_progress" as const,
+      output,
+      elapsedTimeSeconds,
+    },
+  };
+}
+
+export function makeProgressHook(
+  hookEvent: string,
+  hookName: string,
+  command: string,
+) {
+  return {
+    type: "progress" as const,
+    data: {
+      type: "hook_progress" as const,
+      hookEvent,
+      hookName,
+      command,
+    },
+  };
+}
+
 /** Serialize a record to a JSONL line */
 export function toLine(record: Record<string, unknown>): string {
   return JSON.stringify(record);

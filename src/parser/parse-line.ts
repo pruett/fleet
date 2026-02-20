@@ -4,6 +4,9 @@ import {
   SystemTurnDurationSchema,
   SystemApiErrorSchema,
   SystemLocalCommandSchema,
+  ProgressAgentSchema,
+  ProgressBashSchema,
+  ProgressHookSchema,
 } from "./schemas";
 
 /**
@@ -176,14 +179,71 @@ export function parseLine(line: string, lineIndex: number): ParsedMessage | null
       }
     }
 
-    case "progress":
-      // Handled in Unit 6
-      return {
-        kind: "malformed",
-        raw: trimmed,
-        error: "Progress parsing not yet implemented",
-        lineIndex,
-      };
+    case "progress": {
+      const dataType = record.data.type;
+      switch (dataType) {
+        case "agent_progress": {
+          const ap = ProgressAgentSchema.safeParse(parsed);
+          if (!ap.success) {
+            return {
+              kind: "malformed",
+              raw: trimmed,
+              error: ap.error.message,
+              lineIndex,
+            };
+          }
+          return {
+            kind: "progress-agent",
+            agentId: ap.data.data.agentId,
+            prompt: ap.data.data.prompt,
+            parentToolUseID: ap.data.data.parentToolUseID,
+            lineIndex,
+          };
+        }
+        case "bash_progress": {
+          const bp = ProgressBashSchema.safeParse(parsed);
+          if (!bp.success) {
+            return {
+              kind: "malformed",
+              raw: trimmed,
+              error: bp.error.message,
+              lineIndex,
+            };
+          }
+          return {
+            kind: "progress-bash",
+            output: bp.data.data.output,
+            elapsedTimeSeconds: bp.data.data.elapsedTimeSeconds,
+            lineIndex,
+          };
+        }
+        case "hook_progress": {
+          const hp = ProgressHookSchema.safeParse(parsed);
+          if (!hp.success) {
+            return {
+              kind: "malformed",
+              raw: trimmed,
+              error: hp.error.message,
+              lineIndex,
+            };
+          }
+          return {
+            kind: "progress-hook",
+            hookEvent: hp.data.data.hookEvent,
+            hookName: hp.data.data.hookName,
+            command: hp.data.data.command,
+            lineIndex,
+          };
+        }
+        default:
+          return {
+            kind: "malformed",
+            raw: trimmed,
+            error: `Unhandled progress data type: ${dataType}`,
+            lineIndex,
+          };
+      }
+    }
 
     case "queue-operation":
       // Handled in Unit 7

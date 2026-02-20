@@ -104,11 +104,11 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Handle `local_command` → `SystemLocalCommandMessage` (content)
 - [x] Tests: field extraction for each, unknown subtype → `MalformedRecord`
 
-### Unit 6 — parseLine: Progress Subtypes
-- [ ] Handle `agent_progress` → `ProgressAgentMessage` (agentId, prompt, parentToolUseID)
-- [ ] Handle `bash_progress` → `ProgressBashMessage` (output, elapsedTimeSeconds)
-- [ ] Handle `hook_progress` → `ProgressHookMessage` (hookEvent, hookName, command)
-- [ ] Tests: field extraction for each, unknown `data.type` → `MalformedRecord`
+### Unit 6 — parseLine: Progress Subtypes ✅
+- [x] Handle `agent_progress` → `ProgressAgentMessage` (agentId, prompt, parentToolUseID)
+- [x] Handle `bash_progress` → `ProgressBashMessage` (output, elapsedTimeSeconds)
+- [x] Handle `hook_progress` → `ProgressHookMessage` (hookEvent, hookName, command)
+- [x] Tests: field extraction for each, unknown `data.type` → `MalformedRecord`
 
 ### Unit 7 — parseLine: Queue Operation + Edge Cases
 - [ ] Handle `queue-operation` → `QueueOperationMessage` (operation, content)

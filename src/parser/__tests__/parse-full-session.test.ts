@@ -15,6 +15,9 @@ import {
   makeTurnDuration,
   makeSystemApiError,
   makeSystemLocalCommand,
+  makeProgressAgent,
+  makeProgressBash,
+  makeProgressHook,
   toLine,
 } from "./helpers";
 
@@ -530,5 +533,191 @@ describe("parseLine — unknown system subtype → MalformedRecord", () => {
   it("preserves lineIndex", () => {
     if (msg!.kind !== "malformed") throw new Error("wrong kind");
     expect(msg!.lineIndex).toBe(25);
+  });
+});
+
+// ============================================================
+// Unit 6: parseLine — Progress Subtypes
+// ============================================================
+
+describe("parseLine — progress agent_progress", () => {
+  const record = makeProgressAgent("a748733", "Search the codebase for X", "toolu_spawn_001");
+  const msg = parseLine(toLine(record), 30);
+
+  it("returns kind progress-agent", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("progress-agent");
+  });
+
+  it("extracts agentId", () => {
+    if (msg!.kind !== "progress-agent") throw new Error("wrong kind");
+    expect(msg!.agentId).toBe("a748733");
+  });
+
+  it("extracts prompt", () => {
+    if (msg!.kind !== "progress-agent") throw new Error("wrong kind");
+    expect(msg!.prompt).toBe("Search the codebase for X");
+  });
+
+  it("extracts parentToolUseID", () => {
+    if (msg!.kind !== "progress-agent") throw new Error("wrong kind");
+    expect(msg!.parentToolUseID).toBe("toolu_spawn_001");
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "progress-agent") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(30);
+  });
+});
+
+describe("parseLine — progress agent_progress with default helper values", () => {
+  const record = makeProgressAgent("agent-001", "Do something");
+  const msg = parseLine(toLine(record), 0);
+
+  it("uses helper default for parentToolUseID", () => {
+    if (msg!.kind !== "progress-agent") throw new Error("wrong kind");
+    expect(msg!.parentToolUseID).toBe("toolu_agent_001");
+  });
+});
+
+describe("parseLine — progress agent_progress missing required field → MalformedRecord", () => {
+  const record = {
+    type: "progress",
+    data: {
+      type: "agent_progress",
+      agentId: "a123",
+      // missing prompt and parentToolUseID
+    },
+  };
+  const msg = parseLine(toLine(record), 0);
+
+  it("returns malformed when required fields are missing", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+});
+
+describe("parseLine — progress bash_progress", () => {
+  const record = makeProgressBash("total 42\ndrwxr-xr-x  5 user", 3.7);
+  const msg = parseLine(toLine(record), 35);
+
+  it("returns kind progress-bash", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("progress-bash");
+  });
+
+  it("extracts output", () => {
+    if (msg!.kind !== "progress-bash") throw new Error("wrong kind");
+    expect(msg!.output).toBe("total 42\ndrwxr-xr-x  5 user");
+  });
+
+  it("extracts elapsedTimeSeconds", () => {
+    if (msg!.kind !== "progress-bash") throw new Error("wrong kind");
+    expect(msg!.elapsedTimeSeconds).toBe(3.7);
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "progress-bash") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(35);
+  });
+});
+
+describe("parseLine — progress bash_progress with default helper values", () => {
+  const record = makeProgressBash("ls output");
+  const msg = parseLine(toLine(record), 0);
+
+  it("uses helper default for elapsedTimeSeconds", () => {
+    if (msg!.kind !== "progress-bash") throw new Error("wrong kind");
+    expect(msg!.elapsedTimeSeconds).toBe(1.5);
+  });
+});
+
+describe("parseLine — progress bash_progress missing required field → MalformedRecord", () => {
+  const record = {
+    type: "progress",
+    data: {
+      type: "bash_progress",
+      output: "some output",
+      // missing elapsedTimeSeconds
+    },
+  };
+  const msg = parseLine(toLine(record), 0);
+
+  it("returns malformed when required fields are missing", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+});
+
+describe("parseLine — progress hook_progress", () => {
+  const record = makeProgressHook("pre-tool-use", "lint-check", "eslint --fix src/");
+  const msg = parseLine(toLine(record), 40);
+
+  it("returns kind progress-hook", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("progress-hook");
+  });
+
+  it("extracts hookEvent", () => {
+    if (msg!.kind !== "progress-hook") throw new Error("wrong kind");
+    expect(msg!.hookEvent).toBe("pre-tool-use");
+  });
+
+  it("extracts hookName", () => {
+    if (msg!.kind !== "progress-hook") throw new Error("wrong kind");
+    expect(msg!.hookName).toBe("lint-check");
+  });
+
+  it("extracts command", () => {
+    if (msg!.kind !== "progress-hook") throw new Error("wrong kind");
+    expect(msg!.command).toBe("eslint --fix src/");
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "progress-hook") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(40);
+  });
+});
+
+describe("parseLine — progress hook_progress missing required field → MalformedRecord", () => {
+  const record = {
+    type: "progress",
+    data: {
+      type: "hook_progress",
+      hookEvent: "pre-tool-use",
+      // missing hookName and command
+    },
+  };
+  const msg = parseLine(toLine(record), 0);
+
+  it("returns malformed when required fields are missing", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+});
+
+describe("parseLine — unknown progress data type → MalformedRecord", () => {
+  const record = {
+    type: "progress",
+    data: {
+      type: "unknown_progress_xyz",
+      someField: "value",
+    },
+  };
+  const msg = parseLine(toLine(record), 45);
+
+  it("returns malformed for unknown data type", () => {
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("malformed");
+  });
+
+  it("includes data type name in error message", () => {
+    if (msg!.kind !== "malformed") throw new Error("wrong kind");
+    expect(msg!.error).toContain("unknown_progress_xyz");
+  });
+
+  it("preserves lineIndex", () => {
+    if (msg!.kind !== "malformed") throw new Error("wrong kind");
+    expect(msg!.lineIndex).toBe(45);
   });
 });

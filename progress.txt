@@ -92,3 +92,20 @@ Files changed:
 - src/parser/__tests__/helpers.ts (updated — added makeSystemApiError, makeSystemLocalCommand)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 5 tests)
 - plans/transcript-parser.md (updated — Unit 5 checked off)
+
+## Unit 6 — parseLine: Progress Subtypes ✅
+
+- Added `progress` case to parseLine with inner switch on `record.data.type` for three subtypes
+- `agent_progress`: validates via ProgressAgentSchema, extracts agentId, prompt, parentToolUseID
+- `bash_progress`: validates via ProgressBashSchema, extracts output, elapsedTimeSeconds
+- `hook_progress`: validates via ProgressHookSchema, extracts hookEvent, hookName, command
+- Unknown progress data types produce MalformedRecord with data type name in error message
+- Added `makeProgressAgent`, `makeProgressBash`, `makeProgressHook` fixture builders to helpers.ts
+- 22 new tests: field extraction for each subtype (agentId, prompt, parentToolUseID, output, elapsedTimeSeconds, hookEvent, hookName, command, lineIndex), default helper values, missing required fields → MalformedRecord for each, unknown data type → MalformedRecord with error containing type name
+- 133 tests passing (22 new + 111 prior), typecheck clean
+
+Files changed:
+- src/parser/parse-line.ts (updated — progress subtypes: agent_progress, bash_progress, hook_progress)
+- src/parser/__tests__/helpers.ts (updated — added makeProgressAgent, makeProgressBash, makeProgressHook)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 6 tests)
+- plans/transcript-parser.md (updated — Unit 6 checked off)
