@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { parseLine } from "../parse-line";
+import { enrichSession } from "../enrich-session";
 import { parseFullSession } from "../parse-full-session";
 import {
   makeFileHistorySnapshot,
@@ -24,6 +25,9 @@ import {
 
 const fixturePath = join(import.meta.dir, "fixtures", "minimal-session.jsonl");
 const fixtureContent = readFileSync(fixturePath, "utf-8");
+
+const multiBlockFixturePath = join(import.meta.dir, "fixtures", "multi-block-response.jsonl");
+const multiBlockFixtureContent = readFileSync(multiBlockFixturePath, "utf-8");
 
 // ============================================================
 // Unit 2: Tracer Bullet — Minimal End-to-End
@@ -883,5 +887,213 @@ describe("parseLine — Zod validation catches missing required fields", () => {
     const msg = parseLine(JSON.stringify(record), 0);
     expect(msg).not.toBeNull();
     expect(msg!.kind).toBe("malformed");
+  });
+});
+
+// ============================================================
+// Unit 8: enrichSession — Multi-Block Response Reconstitution
+// ============================================================
+
+describe("enrichSession — 3-block response fixture", () => {
+  const session = parseFullSession(multiBlockFixtureContent);
+
+  it("groups 3 blocks with same messageId into 1 response", () => {
+    expect(session.responses).toHaveLength(1);
+    const response = session.responses[0];
+    expect(response.messageId).toBe("msg-multi-001");
+    expect(response.blocks).toHaveLength(3);
+  });
+
+  it("orders blocks by lineIndex (thinking, text, tool_use)", () => {
+    const blocks = session.responses[0].blocks;
+    expect(blocks[0].type).toBe("thinking");
+    expect(blocks[1].type).toBe("text");
+    expect(blocks[2].type).toBe("tool_use");
+  });
+
+  it("takes usage from last block per response", () => {
+    const usage = session.responses[0].usage;
+    // Last block (tool_use at line 4) has output_tokens: 50
+    expect(usage.output_tokens).toBe(50);
+    expect(usage.input_tokens).toBe(100);
+  });
+
+  it("sets correct model from first block", () => {
+    expect(session.responses[0].model).toBe("claude-sonnet-4-20250514");
+  });
+
+  it("sets correct lineIndexStart and lineIndexEnd", () => {
+    const response = session.responses[0];
+    expect(response.lineIndexStart).toBe(2); // first assistant block is line index 2
+    expect(response.lineIndexEnd).toBe(4); // last assistant block is line index 4
+  });
+
+  it("assigns response to correct turn", () => {
+    expect(session.responses[0].turnIndex).toBe(0);
+  });
+
+  it("updates turn responseCount", () => {
+    expect(session.turns[0].responseCount).toBe(1);
+  });
+
+  it("computes token totals from deduplicated response", () => {
+    // Only 1 response, so totals come from that response's usage (last block)
+    expect(session.totals.inputTokens).toBe(100);
+    expect(session.totals.outputTokens).toBe(50);
+    expect(session.totals.totalTokens).toBe(150);
+  });
+});
+
+describe("enrichSession — 2 different messageIds → 2 responses", () => {
+  // Build messages: prompt + 2 assistant blocks with different messageIds
+  const lines = [
+    toLine(makeUserPrompt("multi-response prompt")),
+    toLine(makeAssistantRecord(makeTextBlock("First response"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-resp-A",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("First response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 10 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("Second response"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-resp-B",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("Second response")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 25 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 1000)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("produces 2 separate responses", () => {
+    expect(session.responses).toHaveLength(2);
+  });
+
+  it("each response has the correct messageId", () => {
+    const ids = session.responses.map((r) => r.messageId).sort();
+    expect(ids).toEqual(["msg-resp-A", "msg-resp-B"]);
+  });
+
+  it("each response has 1 block", () => {
+    for (const response of session.responses) {
+      expect(response.blocks).toHaveLength(1);
+    }
+  });
+
+  it("each response has its own usage", () => {
+    const respA = session.responses.find((r) => r.messageId === "msg-resp-A")!;
+    const respB = session.responses.find((r) => r.messageId === "msg-resp-B")!;
+    expect(respA.usage.output_tokens).toBe(10);
+    expect(respB.usage.output_tokens).toBe(25);
+  });
+
+  it("token totals sum across both responses", () => {
+    expect(session.totals.inputTokens).toBe(100); // 50 + 50
+    expect(session.totals.outputTokens).toBe(35); // 10 + 25
+    expect(session.totals.totalTokens).toBe(135);
+  });
+
+  it("turn responseCount reflects both responses", () => {
+    expect(session.turns[0].responseCount).toBe(2);
+  });
+});
+
+describe("enrichSession — usage from last block (multi-block)", () => {
+  // 2 blocks sharing messageId with different usage values
+  const lines = [
+    toLine(makeUserPrompt("usage test")),
+    toLine(makeAssistantRecord(makeThinkingBlock("thinking..."), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-usage-test",
+        type: "message",
+        role: "assistant",
+        content: [makeThinkingBlock("thinking...")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 200, output_tokens: 10 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("final answer"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-usage-test",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("final answer")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 200, output_tokens: 80, cache_creation_input_tokens: 15, cache_read_input_tokens: 50 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 500)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("takes usage from the last block (output_tokens: 80, not 10)", () => {
+    expect(session.responses).toHaveLength(1);
+    expect(session.responses[0].usage.output_tokens).toBe(80);
+    expect(session.responses[0].usage.input_tokens).toBe(200);
+  });
+
+  it("includes cache tokens from last block in totals", () => {
+    expect(session.totals.cacheCreationInputTokens).toBe(15);
+    expect(session.totals.cacheReadInputTokens).toBe(50);
+  });
+});
+
+describe("enrichSession — synthetic response handling", () => {
+  const lines = [
+    toLine(makeUserPrompt("trigger error")),
+    toLine(makeAssistantRecord(makeTextBlock("An error occurred"), {
+      uuid: "uuid-asst-synthetic",
+      isApiErrorMessage: true,
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-synthetic-001",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("An error occurred")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 0, output_tokens: 0 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-synthetic", 100)),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("marks reconstituted response as synthetic", () => {
+    expect(session.responses).toHaveLength(1);
+    expect(session.responses[0].isSynthetic).toBe(true);
+  });
+
+  it("preserves messageId on synthetic response", () => {
+    expect(session.responses[0].messageId).toBe("msg-synthetic-001");
+  });
+
+  it("non-synthetic response defaults isSynthetic to false", () => {
+    // Use the minimal fixture (already tested above) to verify the default
+    const minimalSession = parseFullSession(fixtureContent);
+    expect(minimalSession.responses[0].isSynthetic).toBe(false);
   });
 });

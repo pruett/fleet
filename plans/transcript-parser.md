@@ -116,11 +116,11 @@ Zod schemas are the **single source of truth** for all data shapes. TypeScript t
 - [x] Test: Zod validation rejects structurally valid JSON that's missing required fields (e.g. assistant record without `message.id`) — verify MalformedRecord contains Zod error path
 - [x] **Milestone: parseLine is complete — all 12 message kinds classified, all validated via Zod**
 
-### Unit 8 — enrichSession: Multi-Block Response Reconstitution
-- [ ] Group assistant blocks by `messageId`, order by lineIndex
-- [ ] Take usage from last block per response
-- [ ] Create fixture with 3-block response (thinking, text, tool_use sharing same messageId)
-- [ ] Tests: 3 blocks → 1 response, 2 different messageIds → 2 responses, usage from last block, synthetic handling
+### Unit 8 — enrichSession: Multi-Block Response Reconstitution ✅
+- [x] Group assistant blocks by `messageId`, order by lineIndex
+- [x] Take usage from last block per response
+- [x] Create fixture with 3-block response (thinking, text, tool_use sharing same messageId)
+- [x] Tests: 3 blocks → 1 response, 2 different messageIds → 2 responses, usage from last block, synthetic handling
 
 ### Unit 9 — enrichSession: Tool Call Pairing
 - [ ] Match `tool_use` blocks with `tool_result` items by toolUseId

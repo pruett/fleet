@@ -123,3 +123,19 @@ Files changed:
 - src/parser/__tests__/helpers.ts (updated — added makeQueueOperation)
 - src/parser/__tests__/parse-full-session.test.ts (updated — Unit 7 tests)
 - plans/transcript-parser.md (updated — Unit 7 checked off)
+
+## Unit 8 — enrichSession: Multi-Block Response Reconstitution ✅
+
+- Verified existing `enrichSession` implementation already handles multi-block response reconstitution correctly (grouping by messageId, ordering by lineIndex, taking usage from last block) — no code changes needed in enrich-session.ts
+- Created `multi-block-response.jsonl` fixture with 3-block response (thinking → text → tool_use sharing messageId `msg-multi-001`), each with different usage values to verify last-block selection
+- 19 new tests across 4 describe blocks:
+  - 3-block response fixture: grouping into 1 response, block ordering, usage from last block (output_tokens: 50), model, lineIndexStart/End, turnIndex, responseCount, token totals
+  - 2 different messageIds → 2 responses: separate responses, correct messageIds, individual usage, summed totals, responseCount
+  - Usage from last block (multi-block): explicit test with 2 blocks sharing messageId, cache token aggregation
+  - Synthetic response handling: isSynthetic flag propagation, messageId preservation, non-synthetic default
+- 169 tests passing (19 new + 150 prior), typecheck clean
+
+Files changed:
+- src/parser/__tests__/fixtures/multi-block-response.jsonl (new — 3-block response fixture)
+- src/parser/__tests__/parse-full-session.test.ts (updated — Unit 8 tests + enrichSession import)
+- plans/transcript-parser.md (updated — Unit 8 checked off)
