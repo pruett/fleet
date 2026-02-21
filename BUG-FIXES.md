@@ -177,7 +177,7 @@ Then audit call sites — any that manually duplicate the content block inside `
 
 ---
 
-### [ ] ISSUE-2: Unbounded `errorSamples` array in ToolStat
+### [x] ISSUE-2: Unbounded `errorSamples` array in ToolStat
 
 **File:** `src/parser/enrich-session.ts:167`
 

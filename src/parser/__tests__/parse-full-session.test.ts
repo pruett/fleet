@@ -1717,6 +1717,41 @@ describe("enrichSession — tool stats error samples have correct turnIndex", ()
   });
 });
 
+describe("enrichSession — tool stats errorSamples capped at 10", () => {
+  const lines: string[] = [
+    toLine(makeUserPrompt("trigger many errors")),
+  ];
+
+  // Create 15 tool_use + tool_result pairs, all errors for the same tool
+  for (let i = 0; i < 15; i++) {
+    const toolId = `toolu_cap_${String(i).padStart(3, "0")}`;
+    lines.push(
+      toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: `fail${i}` }, toolId), {
+        message: {
+          id: `msg-cap-${i}`,
+          usage: { input_tokens: 10, output_tokens: 5 },
+        },
+      })),
+      toLine(makeUserToolResult([makeToolResultItem(toolId, `Error: failure ${i}`, true)])),
+    );
+  }
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("caps errorSamples at 10 even when more errors occur", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    expect(bash.errorCount).toBe(15);
+    expect(bash.errorSamples).toHaveLength(10);
+  });
+
+  it("keeps the first 10 error samples", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    expect(bash.errorSamples[0].toolUseId).toBe("toolu_cap_000");
+    expect(bash.errorSamples[9].toolUseId).toBe("toolu_cap_009");
+  });
+});
+
 describe("enrichSession — tool stats with no tool calls", () => {
   const session = parseFullSession(fixtureContent);
 

@@ -165,13 +165,15 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     stat.callCount++;
     if (tc.toolResultBlock?.isError) {
       stat.errorCount++;
-      stat.errorSamples.push({
-        toolUseId: tc.toolUseId,
-        errorText: typeof tc.toolResultBlock.content === "string"
-          ? tc.toolResultBlock.content
-          : JSON.stringify(tc.toolResultBlock.content),
-        turnIndex: tc.turnIndex,
-      });
+      if (stat.errorSamples.length < 10) {
+        stat.errorSamples.push({
+          toolUseId: tc.toolUseId,
+          errorText: typeof tc.toolResultBlock.content === "string"
+            ? tc.toolResultBlock.content
+            : JSON.stringify(tc.toolResultBlock.content),
+          turnIndex: tc.turnIndex,
+        });
+      }
     }
   }
   const toolStats = Array.from(toolStatMap.values());
