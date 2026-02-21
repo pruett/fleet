@@ -65,7 +65,7 @@ cumulativeInput += response.usage.input_tokens
 
 ## P1 — Fix soon
 
-### [ ] ISSUE-1: Turn duration matching uses iteration order, not parentUuid
+### [x] ISSUE-1: Turn duration matching uses iteration order, not parentUuid
 
 **File:** `src/parser/enrich-session.ts:41-43`
 

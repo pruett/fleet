@@ -2318,6 +2318,52 @@ describe("Integration — multi-turn session: turns", () => {
   });
 });
 
+describe("Integration — turn duration uses parentUuid, not iteration order", () => {
+  // Two turns where duration records arrive in reverse order (turn 1's duration before turn 0's).
+  // This verifies UUID-based matching, not positional.
+  const lines = [
+    toLine(makeUserPrompt("First prompt", { uuid: "uuid-user-001" })),
+    toLine(makeAssistantRecord(makeTextBlock("First response"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-resp-001",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("First response")],
+        stop_reason: "end_turn",
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 20 },
+      },
+    })),
+    toLine(makeUserPrompt("Second prompt", { uuid: "uuid-user-002" })),
+    toLine(makeAssistantRecord(makeTextBlock("Second response"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-resp-002",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("Second response")],
+        stop_reason: "end_turn",
+        stop_sequence: null,
+        usage: { input_tokens: 30, output_tokens: 40 },
+      },
+    })),
+    // Duration records in REVERSE order: turn 1 first, then turn 0
+    toLine(makeTurnDuration("uuid-user-002", 7000)),
+    toLine(makeTurnDuration("uuid-user-001", 3000)),
+  ];
+  const session = parseFullSession(lines.join("\n"));
+
+  it("assigns duration to correct turn via parentUuid, not iteration order", () => {
+    expect(session.turns).toHaveLength(2);
+    expect(session.turns[0].promptText).toBe("First prompt");
+    expect(session.turns[0].durationMs).toBe(3000);
+    expect(session.turns[1].promptText).toBe("Second prompt");
+    expect(session.turns[1].durationMs).toBe(7000);
+  });
+});
+
 describe("Integration — multi-turn session: response counts per turn", () => {
   const session = parseFullSession(multiTurnFixtureContent);
 

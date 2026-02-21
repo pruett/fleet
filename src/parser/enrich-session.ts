@@ -38,8 +38,9 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
       });
     }
 
-    if (msg.kind === "system-turn-duration" && currentTurnIndex >= 0) {
-      turns[currentTurnIndex].durationMs = msg.durationMs;
+    if (msg.kind === "system-turn-duration") {
+      const turn = turns.find(t => t.promptUuid === msg.parentUuid);
+      if (turn) turn.durationMs = msg.durationMs;
     }
 
     lineToTurn.set(msg.lineIndex, Math.max(currentTurnIndex, 0));
