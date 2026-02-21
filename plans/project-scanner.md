@@ -71,10 +71,10 @@
 ## Phase 3 — Multi-Source + Sorting + Public API
 
 ### Multiple Base Paths
-- [ ] Create fixture with two base paths, each containing projects (including one with the same directory name)
-- [ ] Test: same directory name under different base paths → separate `ProjectSummary` entries with different `source`
-- [ ] Test: results merged and sorted by `lastActiveAt` descending across all base paths
-- [ ] Test: one missing base path + one valid → returns results from valid path only
+- [x] Create fixture with two base paths, each containing projects (including one with the same directory name)
+- [x] Test: same directory name under different base paths → separate `ProjectSummary` entries with different `source`
+- [x] Test: results merged and sorted by `lastActiveAt` descending across all base paths
+- [x] Test: one missing base path + one valid → returns results from valid path only
 
 ### Sorting
 - [ ] Test: `scanProjects` returns projects sorted by `lastActiveAt` desc (most recent first)

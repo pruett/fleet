@@ -6,6 +6,8 @@ const FIXTURES = join(import.meta.dir, "fixtures");
 const BASE_PATH = join(FIXTURES, "base-path");
 const FILTERING_BASE = join(FIXTURES, "filtering-base");
 const RESILIENCE_BASE = join(FIXTURES, "resilience-base");
+const MULTI_SOURCE_BASE_1 = join(FIXTURES, "multi-source-base-1");
+const MULTI_SOURCE_BASE_2 = join(FIXTURES, "multi-source-base-2");
 
 describe("scanProjects", () => {
   it("returns one project from the fixture base path", async () => {
@@ -71,6 +73,55 @@ describe("scanProjects", () => {
       ]);
 
       expect(projects).toHaveLength(0);
+    });
+  });
+
+  describe("multiple base paths", () => {
+    it("returns separate entries for same directory name under different base paths", async () => {
+      const projects = await scanProjects([
+        MULTI_SOURCE_BASE_1,
+        MULTI_SOURCE_BASE_2,
+      ]);
+
+      // Both base paths have -Users-shared-project — should produce 2 separate entries
+      const shared = projects.filter((p) => p.id === "-Users-shared-project");
+      expect(shared).toHaveLength(2);
+
+      const sources = shared.map((p) => p.source);
+      expect(sources).toContain(MULTI_SOURCE_BASE_1);
+      expect(sources).toContain(MULTI_SOURCE_BASE_2);
+    });
+
+    it("merges and sorts results by lastActiveAt descending across all base paths", async () => {
+      const projects = await scanProjects([
+        MULTI_SOURCE_BASE_1,
+        MULTI_SOURCE_BASE_2,
+      ]);
+
+      // base-1 has: -Users-alpha-repo (T3=2026-02-19) and -Users-shared-project (T1=2026-02-15)
+      // base-2 has: -Users-shared-project (T2=2026-02-17)
+      expect(projects).toHaveLength(3);
+
+      // Sorted desc: alpha-repo (Feb 19), base-2/shared (Feb 17), base-1/shared (Feb 15)
+      expect(projects[0].id).toBe("-Users-alpha-repo");
+      expect(projects[0].lastActiveAt).toBe("2026-02-19T10:00:01.000Z");
+
+      expect(projects[1].id).toBe("-Users-shared-project");
+      expect(projects[1].source).toBe(MULTI_SOURCE_BASE_2);
+      expect(projects[1].lastActiveAt).toBe("2026-02-17T10:00:01.000Z");
+
+      expect(projects[2].id).toBe("-Users-shared-project");
+      expect(projects[2].source).toBe(MULTI_SOURCE_BASE_1);
+      expect(projects[2].lastActiveAt).toBe("2026-02-15T10:00:01.000Z");
+    });
+
+    it("returns results from valid path only when one base path is missing", async () => {
+      const missing = join(FIXTURES, "nonexistent-base");
+      const projects = await scanProjects([missing, MULTI_SOURCE_BASE_2]);
+
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("-Users-shared-project");
+      expect(projects[0].source).toBe(MULTI_SOURCE_BASE_2);
     });
   });
 });

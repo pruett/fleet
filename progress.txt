@@ -269,3 +269,30 @@ Added test coverage for all resilience behaviors in `extractSessionSummary` and 
 - All 411 tests pass (387 parser + 24 scanner), typecheck passes
 - All resilience behaviors were already implemented in the source code — this task adds explicit test coverage
 - Phase 2 (Edge Cases & Validation) is now fully complete
+
+## 2026-02-20 — Phase 3: Multiple Base Paths
+
+Added test coverage for multi-source scanning with two base paths, including shared directory name deduplication and cross-source sorting.
+
+### What was done
+- Created `fixtures/multi-source-base-1/` with two project dirs:
+  - `-Users-shared-project/` — session at T1 (2026-02-15)
+  - `-Users-alpha-repo/` — session at T3 (2026-02-19, most recent)
+- Created `fixtures/multi-source-base-2/` with one project dir:
+  - `-Users-shared-project/` — session at T2 (2026-02-17)
+- Added 3 tests in `scan-projects.test.ts` under "multiple base paths" describe block:
+  - Same directory name under different base paths → 2 separate `ProjectSummary` entries with different `source`
+  - Results merged and sorted by `lastActiveAt` descending across all base paths (alpha-repo→base-2/shared→base-1/shared)
+  - One missing base path + one valid → returns results from valid path only
+
+### Files changed
+- `src/scanner/__tests__/fixtures/multi-source-base-1/-Users-shared-project/aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jsonl` (new)
+- `src/scanner/__tests__/fixtures/multi-source-base-1/-Users-alpha-repo/bbbb2222-bbbb-bbbb-bbbb-bbbbbbbbbbbb.jsonl` (new)
+- `src/scanner/__tests__/fixtures/multi-source-base-2/-Users-shared-project/cccc3333-cccc-cccc-cccc-cccccccccccc.jsonl` (new)
+- `src/scanner/__tests__/scan-projects.test.ts` (extended with 3 tests)
+- `plans/project-scanner.md` (checked off 4 items)
+
+### Notes
+- All 414 tests pass (387 parser + 27 scanner), typecheck passes
+- No source code changes needed — `scanProjects` already handles multiple base paths correctly; this task adds explicit multi-source test coverage
+- Fixture timestamps chosen to verify cross-source sorting: T1 (Feb 15) < T2 (Feb 17) < T3 (Feb 19)

@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-02-15T10:00:00.000Z","message":{"content":"Hello from base 1"},"cwd":"/Users/shared/project"}
+{"type":"assistant","timestamp":"2026-02-15T10:00:01.000Z","message":{"id":"resp-a1","model":"claude-sonnet-4-20250514","content":[{"type":"text","text":"Hi!"}],"usage":{"input_tokens":10,"output_tokens":5}}}

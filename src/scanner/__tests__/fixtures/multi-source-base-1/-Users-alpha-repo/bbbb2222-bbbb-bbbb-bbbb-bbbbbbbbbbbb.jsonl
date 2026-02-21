@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-02-19T10:00:00.000Z","message":{"content":"Hello from alpha repo"},"cwd":"/Users/alpha/repo"}
+{"type":"assistant","timestamp":"2026-02-19T10:00:01.000Z","message":{"id":"resp-b1","model":"claude-sonnet-4-20250514","content":[{"type":"text","text":"Hi!"}],"usage":{"input_tokens":15,"output_tokens":8}}}
