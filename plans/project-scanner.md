@@ -20,7 +20,7 @@
 ### Minimal scanProjects + scanSessions
 - [x] Create `src/scanner/scan-projects.ts` — `scanProjects(basePaths)`: iterate base paths, read directory entries, skip non-dirs / `memory` / dot-prefixed, decode path (replace leading `-` then all `-` with `/`), return `ProjectSummary[]` sorted by `lastActiveAt` desc
 - [x] Create `src/scanner/scan-sessions.ts` — `scanSessions(projectDir)`: read directory entries, skip dirs, skip non-`.jsonl`, skip non-UUID filenames, return `SessionSummary[]` sorted by `lastActiveAt` desc
-- [ ] Create `src/scanner/extract-session-summary.ts` — reads a single `.jsonl` file selectively: header lines for `sessionId`/`slug`/`firstPrompt`/`startedAt`/`cwd`/`gitBranch`, last line for `lastActiveAt`, stub zeros for token fields
+- [x] Create `src/scanner/extract-session-summary.ts` — reads a single `.jsonl` file selectively: header lines for `sessionId`/`slug`/`firstPrompt`/`startedAt`/`cwd`/`gitBranch`, last line for `lastActiveAt`, stub zeros for token fields
 - [ ] Create `src/scanner/__tests__/scan-projects.test.ts` — scan fixture base path, verify 1 project with correct `id`, `path`, `source`, `sessionCount`, `lastActiveAt`
 - [ ] Create `src/scanner/__tests__/scan-sessions.test.ts` — scan fixture project dir, verify 1 session with correct `sessionId`, `slug`, `firstPrompt`, `startedAt`, `lastActiveAt`
 - [ ] **Verify:** `bun test src/scanner` passes end-to-end

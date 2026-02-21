@@ -63,3 +63,28 @@ Implemented `scanSessions(projectDir)` — the directory scanning and filtering 
 - UUID regex: `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`
 - Uses `node:path` `basename`/`extname` for robust filename parsing
 - Same sorting pattern as `scanProjects` (nulls last via comparator)
+
+## 2026-02-20 — Phase 0: extractSessionSummary implementation
+
+Replaced the stub with full selective JSONL reading for session metadata.
+
+### What was done
+- Replaced `src/scanner/extract-session-summary.ts` stub with full implementation:
+  - Reads file contents, splits into non-empty lines
+  - Scans header lines (up to first non-meta user record) for: `startedAt` (earliest timestamp, including `snapshot.timestamp` for file-history-snapshot records), `firstPrompt` (first non-meta user message content, truncated to 200 chars), `cwd`, `gitBranch`
+  - Scans backwards from end for `lastActiveAt` (first line with a `timestamp` field, since `system`/`turn_duration` records lack timestamps)
+  - `slug` returns `null` — not present in the JSONL format
+  - `model` returns `null` — deferred to Phase 1 (token aggregation)
+  - Token fields stubbed to zero — deferred to Phase 1
+  - Malformed JSON lines silently skipped
+  - File read errors return empty summary (all null/zero)
+  - Empty files return empty summary
+
+### Files changed
+- `src/scanner/extract-session-summary.ts` (replaced stub with full implementation)
+
+### Notes
+- Typecheck passes, all 387 parser tests still pass
+- `startedAt` checks both top-level `timestamp` and `snapshot.timestamp` for file-history-snapshot records
+- `lastActiveAt` scans backwards because the typical last line (`system`/`turn_duration`) has no timestamp — the last assistant or user record does
+- `slug` is not in the JSONL format; may need a separate source or convention in a later phase
