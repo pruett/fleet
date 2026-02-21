@@ -88,3 +88,20 @@ Replaced the stub with full selective JSONL reading for session metadata.
 - `startedAt` checks both top-level `timestamp` and `snapshot.timestamp` for file-history-snapshot records
 - `lastActiveAt` scans backwards because the typical last line (`system`/`turn_duration`) has no timestamp — the last assistant or user record does
 - `slug` is not in the JSONL format; may need a separate source or convention in a later phase
+
+## 2026-02-20 — Phase 0: scan-projects.test.ts
+
+Created the first scanner test file covering `scanProjects`.
+
+### What was done
+- Created `src/scanner/__tests__/scan-projects.test.ts` with 3 tests:
+  - Scans fixture base path and verifies 1 project with correct `id`, `path`, `source`, `sessionCount`, `lastActiveAt`
+  - Silently skips a missing base path (returns empty array)
+  - Merges results from multiple base paths (one missing, one valid)
+
+### Files changed
+- `src/scanner/__tests__/scan-projects.test.ts` (new)
+
+### Notes
+- All 390 tests pass (387 parser + 3 new scanner), typecheck passes
+- `lastActiveAt` is `2026-02-18T10:00:02.000Z` — the assistant record timestamp, not the system/turn_duration line which lacks a timestamp
