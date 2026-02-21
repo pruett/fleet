@@ -82,9 +82,9 @@
 - [x] Test: project with `null` `lastActiveAt` (empty project) sorts last
 
 ### Public API + Exports
-- [ ] Wire up `src/scanner/index.ts` — export `scanProjects`, `scanSessions`, `ProjectSummary`, `SessionSummary`
-- [ ] Test: import from `src/scanner/index.ts`, verify both functions callable
-- [ ] **Verify:** `bun test` passes (all scanner + parser tests), `bun run typecheck` passes
+- [x] Wire up `src/scanner/index.ts` — export `scanProjects`, `scanSessions`, `ProjectSummary`, `SessionSummary`
+- [x] Test: import from `src/scanner/index.ts`, verify both functions callable
+- [x] **Verify:** `bun test` passes (all scanner + parser tests), `bun run typecheck` passes
 
 ## Directory Structure
 

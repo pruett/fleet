@@ -328,3 +328,24 @@ Added dedicated sorting tests for `scanProjects` and `scanSessions` with a new f
 - All 417 tests pass (387 parser + 30 scanner), typecheck passes
 - No source code changes needed — sorting was already implemented; this task adds explicit test coverage
 - The multi-session fixture doubles as the data for both scanProjects (project-level lastActiveAt = most recent session) and scanSessions (session-level ordering)
+
+## 2026-02-20 — Phase 3: Public API + Exports
+
+Wired up the public API in `src/scanner/index.ts` and added tests verifying both functions are importable and callable.
+
+### What was done
+- Updated `src/scanner/index.ts` to re-export `scanProjects` from `./scan-projects` and `scanSessions` from `./scan-sessions` alongside the existing type exports
+- Created `src/scanner/__tests__/index.test.ts` with 2 tests:
+  - `scanProjects` is callable via the public API and returns `ProjectSummary[]`
+  - `scanSessions` is callable via the public API and returns `SessionSummary[]`
+- Verified full test suite and typecheck pass
+
+### Files changed
+- `src/scanner/index.ts` (added function re-exports)
+- `src/scanner/__tests__/index.test.ts` (new)
+- `plans/project-scanner.md` (checked off 3 items)
+
+### Notes
+- All 419 tests pass (387 parser + 32 scanner), typecheck passes
+- Phase 3 (Multi-Source + Sorting + Public API) is now fully complete
+- All phases (0–3) of the project scanner implementation plan are complete
