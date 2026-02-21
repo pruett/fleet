@@ -57,6 +57,10 @@ export function makeAssistantRecord(
   contentBlock: ContentBlockInput = makeTextBlock(""),
   overrides: Record<string, unknown> = {},
 ) {
+  const { message: messageOverrides, ...rest } = overrides as {
+    message?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
   return {
     ...makeCommonFields({ uuid: "uuid-asst-001", parentUuid: "uuid-user-001" }),
     type: "assistant" as const,
@@ -69,8 +73,9 @@ export function makeAssistantRecord(
       stop_reason: null,
       stop_sequence: null,
       usage: { input_tokens: 10, output_tokens: 20 },
+      ...messageOverrides,
     },
-    ...overrides,
+    ...rest,
   };
 }
 

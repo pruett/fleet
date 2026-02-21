@@ -963,26 +963,14 @@ describe("enrichSession — 2 different messageIds → 2 responses", () => {
     toLine(makeUserPrompt("multi-response prompt")),
     toLine(makeAssistantRecord(makeTextBlock("First response"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-resp-A",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("First response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
     toLine(makeAssistantRecord(makeTextBlock("Second response"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-resp-B",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("Second response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 25 },
       },
     })),
@@ -1031,26 +1019,14 @@ describe("enrichSession — usage from last block (multi-block)", () => {
     toLine(makeUserPrompt("usage test")),
     toLine(makeAssistantRecord(makeThinkingBlock("thinking..."), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-usage-test",
-        type: "message",
-        role: "assistant",
-        content: [makeThinkingBlock("thinking...")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 200, output_tokens: 10 },
       },
     })),
     toLine(makeAssistantRecord(makeTextBlock("final answer"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-usage-test",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("final answer")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 200, output_tokens: 80, cache_creation_input_tokens: 15, cache_read_input_tokens: 50 },
       },
     })),
@@ -1079,13 +1055,7 @@ describe("enrichSession — synthetic response handling", () => {
       uuid: "uuid-asst-synthetic",
       isApiErrorMessage: true,
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-synthetic-001",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("An error occurred")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 0, output_tokens: 0 },
       },
     })),
@@ -1169,13 +1139,7 @@ describe("enrichSession — error tool result pairing", () => {
     toLine(makeUserPrompt("Run dangerous command")),
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "rm -rf /" }, "toolu_err_001"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-err-resp",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "rm -rf /" }, "toolu_err_001")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 20 },
       },
     })),
@@ -1208,13 +1172,7 @@ describe("enrichSession — unmatched tool_use → toolResultBlock: null", () =>
     toLine(makeUserPrompt("Do something")),
     toLine(makeAssistantRecord(makeToolUseBlock("Read", { file_path: "/tmp/test" }, "toolu_unmatched_001"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-unmatched",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Read", { file_path: "/tmp/test" }, "toolu_unmatched_001")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1244,13 +1202,7 @@ describe("enrichSession — multiple tool calls across turns", () => {
     toLine(makeUserPrompt("First task")),
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_t0_001"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-t0-resp",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_t0_001")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1258,13 +1210,7 @@ describe("enrichSession — multiple tool calls across turns", () => {
     toLine(makeAssistantRecord(makeToolUseBlock("Read", { file_path: "/a" }, "toolu_t0_002"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-t0-resp2",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Read", { file_path: "/a" }, "toolu_t0_002")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 60, output_tokens: 15 },
       },
     })),
@@ -1275,13 +1221,7 @@ describe("enrichSession — multiple tool calls across turns", () => {
     toLine(makeAssistantRecord(makeToolUseBlock("Write", { file_path: "/b" }, "toolu_t1_001"), {
       uuid: "uuid-asst-003",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-t1-resp",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Write", { file_path: "/b" }, "toolu_t1_001")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 70, output_tokens: 20 },
       },
     })),
@@ -1461,26 +1401,14 @@ describe("enrichSession — token deduplication by messageId", () => {
     toLine(makeUserPrompt("dedup test")),
     toLine(makeAssistantRecord(makeThinkingBlock("thinking..."), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-dedup-001",
-        type: "message",
-        role: "assistant",
-        content: [makeThinkingBlock("thinking...")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 100, output_tokens: 10 },
       },
     })),
     toLine(makeAssistantRecord(makeTextBlock("answer"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-dedup-001",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("answer")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 100, output_tokens: 50 },
       },
     })),
@@ -1507,26 +1435,14 @@ describe("enrichSession — cost summation across responses", () => {
     toLine(makeUserPrompt("cost test")),
     toLine(makeAssistantRecord(makeTextBlock("response 1"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-cost-A",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("response 1")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 1000, output_tokens: 500 },
       },
     })),
     toLine(makeAssistantRecord(makeTextBlock("response 2"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-cost-B",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("response 2")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 2000, output_tokens: 1000 },
       },
     })),
@@ -1558,11 +1474,6 @@ describe("enrichSession — unknown model → cost 0", () => {
       message: {
         model: "<synthetic>",
         id: "msg-synth-cost",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("error message")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 0, output_tokens: 0 },
       },
     })),
@@ -1582,13 +1493,7 @@ describe("enrichSession — cache token aggregation in cost", () => {
     toLine(makeUserPrompt("cache test")),
     toLine(makeAssistantRecord(makeTextBlock("cached response"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-cache-cost",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("cached response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: {
           input_tokens: 10_000,
           output_tokens: 5_000,
@@ -1623,13 +1528,7 @@ describe("enrichSession — cost with mixed models", () => {
     toLine(makeUserPrompt("mixed models")),
     toLine(makeAssistantRecord(makeTextBlock("sonnet response"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-mixed-A",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("sonnet response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 1_000_000, output_tokens: 100_000 },
       },
     })),
@@ -1638,11 +1537,6 @@ describe("enrichSession — cost with mixed models", () => {
       message: {
         model: "claude-opus-4-6",
         id: "msg-mixed-B",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("opus response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 1_000_000, output_tokens: 100_000 },
       },
     })),
@@ -1670,13 +1564,7 @@ describe("enrichSession — tool stats with mixed success/error calls", () => {
     // Bash success
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_bash_s1"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-ts-1",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_bash_s1")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1685,13 +1573,7 @@ describe("enrichSession — tool stats with mixed success/error calls", () => {
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "rm /root" }, "toolu_bash_e1"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-ts-2",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "rm /root" }, "toolu_bash_e1")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1700,13 +1582,7 @@ describe("enrichSession — tool stats with mixed success/error calls", () => {
     toLine(makeAssistantRecord(makeToolUseBlock("Read", { file_path: "/a.ts" }, "toolu_read_s1"), {
       uuid: "uuid-asst-003",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-ts-3",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Read", { file_path: "/a.ts" }, "toolu_read_s1")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1715,13 +1591,7 @@ describe("enrichSession — tool stats with mixed success/error calls", () => {
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "cat /secret" }, "toolu_bash_e2"), {
       uuid: "uuid-asst-004",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-ts-4",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "cat /secret" }, "toolu_bash_e2")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1774,13 +1644,7 @@ describe("enrichSession — tool stats error samples with structured content", (
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_struct_err"), {
       uuid: "uuid-asst-struct",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-struct-1",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_struct_err")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 10, output_tokens: 5 },
       },
     })),
@@ -1803,13 +1667,7 @@ describe("enrichSession — tool stats error samples with structured content", (
       toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_str_err"), {
         uuid: "uuid-asst-str",
         message: {
-          model: "claude-sonnet-4-20250514",
           id: "msg-str-1",
-          type: "message",
-          role: "assistant",
-          content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_str_err")],
-          stop_reason: null,
-          stop_sequence: null,
           usage: { input_tokens: 10, output_tokens: 5 },
         },
       })),
@@ -1829,13 +1687,7 @@ describe("enrichSession — tool stats error samples have correct turnIndex", ()
     toLine(makeUserPrompt("first turn")),
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "fail1" }, "toolu_t0_err"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-ti-1",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "fail1" }, "toolu_t0_err")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1846,13 +1698,7 @@ describe("enrichSession — tool stats error samples have correct turnIndex", ()
     toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "fail2" }, "toolu_t1_err"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-ti-2",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Bash", { command: "fail2" }, "toolu_t1_err")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1884,13 +1730,7 @@ describe("enrichSession — tool stats with unmatched tool_use (no result)", () 
     toLine(makeUserPrompt("unmatched test")),
     toLine(makeAssistantRecord(makeToolUseBlock("Write", { file_path: "/x" }, "toolu_unmatched"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-unm",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Write", { file_path: "/x" }, "toolu_unmatched")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 10 },
       },
     })),
@@ -1919,26 +1759,14 @@ describe("enrichSession — context snapshots with multiple responses", () => {
     toLine(makeUserPrompt("snapshot test")),
     toLine(makeAssistantRecord(makeTextBlock("response 1"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-snap-A",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("response 1")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 100, output_tokens: 30 },
       },
     })),
     toLine(makeAssistantRecord(makeTextBlock("response 2"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-snap-B",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("response 2")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 200, output_tokens: 50 },
       },
     })),
@@ -1977,13 +1805,7 @@ describe("enrichSession — context snapshots skip synthetic responses", () => {
     toLine(makeUserPrompt("synthetic skip test")),
     toLine(makeAssistantRecord(makeTextBlock("real response"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-snap-real",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("real response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 100, output_tokens: 40 },
       },
     })),
@@ -1993,24 +1815,13 @@ describe("enrichSession — context snapshots skip synthetic responses", () => {
       message: {
         model: "<synthetic>",
         id: "msg-snap-synth",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("synthetic error")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 0, output_tokens: 0 },
       },
     })),
     toLine(makeAssistantRecord(makeTextBlock("real response 2"), {
       uuid: "uuid-asst-003",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-snap-real2",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("real response 2")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 150, output_tokens: 60 },
       },
     })),
@@ -2044,13 +1855,7 @@ describe("enrichSession — context snapshots across multiple turns", () => {
     toLine(makeUserPrompt("turn 0")),
     toLine(makeAssistantRecord(makeTextBlock("turn 0 response"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-mt-0",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("turn 0 response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 100, output_tokens: 20 },
       },
     })),
@@ -2060,13 +1865,7 @@ describe("enrichSession — context snapshots across multiple turns", () => {
     toLine(makeAssistantRecord(makeTextBlock("turn 1 response"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-mt-1",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("turn 1 response")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 200, output_tokens: 50 },
       },
     })),
@@ -2095,26 +1894,14 @@ describe("enrichSession — context snapshots include cache tokens in cumulative
     toLine(makeUserPrompt("cache token test")),
     toLine(makeAssistantRecord(makeTextBlock("response with cache"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-cache-A",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("response with cache")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 30, cache_read_input_tokens: 400, cache_creation_input_tokens: 100 },
       },
     })),
     toLine(makeAssistantRecord(makeTextBlock("response 2 with cache"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-cache-B",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("response 2 with cache")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 60, output_tokens: 20, cache_read_input_tokens: 500 },
       },
     })),
@@ -2204,13 +1991,7 @@ describe("enrichSession — still-running subagent has stats: null", () => {
     toLine(makeUserPrompt("Spawn a subagent")),
     toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Do research" }, "toolu_task_running"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-task-running",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Task", { prompt: "Do research" }, "toolu_task_running")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 20 },
       },
     })),
@@ -2243,13 +2024,7 @@ describe("enrichSession — multiple subagents with mixed completion", () => {
     // Subagent A: completed
     toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Task A" }, "toolu_task_a"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-task-a",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Task", { prompt: "Task A" }, "toolu_task_a")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 20 },
       },
     })),
@@ -2262,13 +2037,7 @@ describe("enrichSession — multiple subagents with mixed completion", () => {
     toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Task B" }, "toolu_task_b"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-task-b",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Task", { prompt: "Task B" }, "toolu_task_b")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 20 },
       },
     })),
@@ -2311,13 +2080,7 @@ describe("enrichSession — duplicate progress-agent messages for same agentId",
     toLine(makeUserPrompt("Dedup subagent")),
     toLine(makeAssistantRecord(makeToolUseBlock("Task", { prompt: "Explore" }, "toolu_task_dedup"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-task-dedup",
-        type: "message",
-        role: "assistant",
-        content: [makeToolUseBlock("Task", { prompt: "Explore" }, "toolu_task_dedup")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 50, output_tokens: 20 },
       },
     })),
@@ -2381,27 +2144,15 @@ describe("Integration — turn duration uses parentUuid, not iteration order", (
     toLine(makeUserPrompt("First prompt", { uuid: "uuid-user-001" })),
     toLine(makeAssistantRecord(makeTextBlock("First response"), {
       message: {
-        model: "claude-sonnet-4-20250514",
-        id: "msg-resp-001",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("First response")],
         stop_reason: "end_turn",
-        stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 20 },
       },
     })),
     toLine(makeUserPrompt("Second prompt", { uuid: "uuid-user-002" })),
     toLine(makeAssistantRecord(makeTextBlock("Second response"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-resp-002",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("Second response")],
         stop_reason: "end_turn",
-        stop_sequence: null,
         usage: { input_tokens: 30, output_tokens: 40 },
       },
     })),
@@ -2759,27 +2510,14 @@ describe("parseFullSession — meta prompts interleaved with real prompts", () =
     toLine(makeUserPrompt("Real prompt 1", { uuid: "uuid-user-001" })),
     toLine(makeAssistantRecord(makeTextBlock("Response to real 1"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-real-1",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("Response to real 1")],
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 20 },
       },
     })),
     toLine(makeUserPrompt("Meta prompt interleaved", { uuid: "uuid-meta-001", isMeta: true })),
     toLine(makeAssistantRecord(makeTextBlock("Response to meta"), {
       uuid: "uuid-asst-meta",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-meta-1",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("Response to meta")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 5, output_tokens: 10 },
       },
     })),
@@ -2787,13 +2525,7 @@ describe("parseFullSession — meta prompts interleaved with real prompts", () =
     toLine(makeAssistantRecord(makeTextBlock("Response to real 2"), {
       uuid: "uuid-asst-002",
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-real-2",
-        type: "message",
-        role: "assistant",
-        content: [makeTextBlock("Response to real 2")],
-        stop_reason: null,
-        stop_sequence: null,
         usage: { input_tokens: 15, output_tokens: 25 },
       },
     })),

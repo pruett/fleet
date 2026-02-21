@@ -232,11 +232,7 @@ describe("parseLine — assistant-block (text)", () => {
       message: {
         model: "claude-opus-4-20250514",
         id: "msg-400",
-        type: "message" as const,
-        role: "assistant" as const,
-        content: [makeTextBlock("Hello! How can I help?")],
         stop_reason: "end_turn",
-        stop_sequence: null,
         usage: {
           input_tokens: 100,
           output_tokens: 50,
@@ -295,14 +291,8 @@ describe("parseLine — assistant-block (text)", () => {
   it("empty content array → malformed (rejected by schema)", () => {
     const record = makeAssistantRecord(makeTextBlock("test"), {
       message: {
-        model: "claude-sonnet-4-20250514",
         id: "msg-empty",
-        type: "message" as const,
-        role: "assistant" as const,
         content: [],
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 20 },
       },
     });
     const msg = parseLine(toLine(record), 0);

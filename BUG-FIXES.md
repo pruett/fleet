@@ -110,7 +110,7 @@ errorText: typeof tc.toolResultBlock.content === "string"
 
 ---
 
-### [ ] ISSUE-4: `makeAssistantRecord` first argument is dead code when message is overridden
+### [x] ISSUE-4: `makeAssistantRecord` first argument is dead code when message is overridden
 
 **File:** `src/parser/__tests__/helpers.ts:56-75`
 
