@@ -39,3 +39,27 @@ Implemented `scanProjects(basePaths)` — the first function in the "Minimal sca
 - Typecheck passes, all 387 parser tests still pass
 - `scanProjects` relies on `scanSessions` being sorted by `lastActiveAt` desc — uses `sessions[0]?.lastActiveAt ?? null` for project-level recency
 - Path decoding is lossy (hyphens in original paths are ambiguous) — matches spec behavior
+
+## 2026-02-20 — Phase 0: scanSessions implementation
+
+Implemented `scanSessions(projectDir)` — the directory scanning and filtering logic for session files.
+
+### What was done
+- Replaced `src/scanner/scan-sessions.ts` stub with full implementation:
+  - Reads directory entries from project dir (silently returns `[]` on error)
+  - Skips directories (excludes subagent companion dirs)
+  - Skips non-`.jsonl` files
+  - Skips files whose stem is not a valid UUID (case-insensitive regex)
+  - Calls `extractSessionSummary(filePath, sessionId)` for each valid file
+  - Sorts results by `lastActiveAt` descending (nulls last)
+- Created `src/scanner/extract-session-summary.ts` as a stub — returns a `SessionSummary` with the given `sessionId` and all other fields null/zero; will be implemented in next task
+
+### Files changed
+- `src/scanner/scan-sessions.ts` (replaced stub with full implementation)
+- `src/scanner/extract-session-summary.ts` (new — stub)
+
+### Notes
+- Typecheck passes, all 387 parser tests still pass
+- UUID regex: `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`
+- Uses `node:path` `basename`/`extname` for robust filename parsing
+- Same sorting pattern as `scanProjects` (nulls last via comparator)
