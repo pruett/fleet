@@ -100,7 +100,7 @@ export const AssistantRecordSchema = CommonFieldsSchema.extend({
     id: z.string(),
     type: z.literal("message"),
     role: z.literal("assistant"),
-    content: z.array(ContentBlockSchema),
+    content: z.array(ContentBlockSchema).length(1),
     stop_reason: z.string().nullable(),
     stop_sequence: z.string().nullable(),
     usage: TokenUsageSchema,

@@ -148,7 +148,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     outputTokens,
     cacheCreationInputTokens,
     cacheReadInputTokens,
-    totalTokens: inputTokens + outputTokens,
+    totalTokens: inputTokens + outputTokens + cacheCreationInputTokens + cacheReadInputTokens,
     estimatedCostUsd,
     toolUseCount: toolCalls.length,
   };

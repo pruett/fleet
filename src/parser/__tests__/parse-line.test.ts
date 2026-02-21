@@ -256,9 +256,7 @@ describe("parseLine — assistant-block (text)", () => {
     expect(msg.messageId).toBe("msg-400");
     expect(msg.model).toBe("claude-opus-4-20250514");
     expect(msg.contentBlock.type).toBe("text");
-    if (msg.contentBlock.type === "text") {
-      expect(msg.contentBlock.text).toBe("Hello! How can I help?");
-    }
+    expect((msg.contentBlock as Extract<typeof msg.contentBlock, { type: "text" }>).text).toBe("Hello! How can I help?");
     expect(msg.usage.input_tokens).toBe(100);
     expect(msg.usage.output_tokens).toBe(50);
     expect(msg.usage.cache_creation_input_tokens).toBe(10);
@@ -294,7 +292,7 @@ describe("parseLine — assistant-block (text)", () => {
     expect(msg.isSynthetic).toBe(true);
   });
 
-  it("empty content array → malformed", () => {
+  it("empty content array → malformed (rejected by schema)", () => {
     const record = makeAssistantRecord(makeTextBlock("test"), {
       message: {
         model: "claude-sonnet-4-20250514",
@@ -309,9 +307,6 @@ describe("parseLine — assistant-block (text)", () => {
     });
     const msg = parseLine(toLine(record), 0);
     expect(msg!.kind).toBe("malformed");
-    if (msg!.kind === "malformed") {
-      expect(msg.error).toContain("no content blocks");
-    }
   });
 });
 
@@ -322,10 +317,9 @@ describe("parseLine — assistant-block (thinking)", () => {
     expect(msg!.kind).toBe("assistant-block");
     if (msg!.kind !== "assistant-block") return;
     expect(msg.contentBlock.type).toBe("thinking");
-    if (msg.contentBlock.type === "thinking") {
-      expect(msg.contentBlock.thinking).toBe("Let me think about this...");
-      expect(msg.contentBlock.signature).toBe("sig-think-500");
-    }
+    const thinkingBlock = msg.contentBlock as Extract<typeof msg.contentBlock, { type: "thinking" }>;
+    expect(thinkingBlock.thinking).toBe("Let me think about this...");
+    expect(thinkingBlock.signature).toBe("sig-think-500");
     expect(msg.lineIndex).toBe(4);
   });
 
@@ -334,9 +328,8 @@ describe("parseLine — assistant-block (thinking)", () => {
     const msg = parseLine(toLine(record), 0);
     expect(msg!.kind).toBe("assistant-block");
     if (msg!.kind !== "assistant-block") return;
-    if (msg.contentBlock.type === "thinking") {
-      expect(msg.contentBlock.thinking).toBe("");
-    }
+    expect(msg.contentBlock.type).toBe("thinking");
+    expect((msg.contentBlock as Extract<typeof msg.contentBlock, { type: "thinking" }>).thinking).toBe("");
   });
 });
 
@@ -349,11 +342,10 @@ describe("parseLine — assistant-block (tool_use)", () => {
     expect(msg!.kind).toBe("assistant-block");
     if (msg!.kind !== "assistant-block") return;
     expect(msg.contentBlock.type).toBe("tool_use");
-    if (msg.contentBlock.type === "tool_use") {
-      expect(msg.contentBlock.id).toBe("toolu_600");
-      expect(msg.contentBlock.name).toBe("Bash");
-      expect(msg.contentBlock.input).toEqual({ command: "ls -la" });
-    }
+    const toolBlock = msg.contentBlock as Extract<typeof msg.contentBlock, { type: "tool_use" }>;
+    expect(toolBlock.id).toBe("toolu_600");
+    expect(toolBlock.name).toBe("Bash");
+    expect(toolBlock.input).toEqual({ command: "ls -la" });
     expect(msg.lineIndex).toBe(6);
   });
 
@@ -362,9 +354,8 @@ describe("parseLine — assistant-block (tool_use)", () => {
     const msg = parseLine(toLine(record), 0);
     expect(msg!.kind).toBe("assistant-block");
     if (msg!.kind !== "assistant-block") return;
-    if (msg.contentBlock.type === "tool_use") {
-      expect(msg.contentBlock.input).toEqual({});
-    }
+    expect(msg.contentBlock.type).toBe("tool_use");
+    expect((msg.contentBlock as Extract<typeof msg.contentBlock, { type: "tool_use" }>).input).toEqual({});
   });
 
   it("complex nested input preserved", () => {
@@ -377,9 +368,8 @@ describe("parseLine — assistant-block (tool_use)", () => {
     const msg = parseLine(toLine(record), 0);
     expect(msg!.kind).toBe("assistant-block");
     if (msg!.kind !== "assistant-block") return;
-    if (msg.contentBlock.type === "tool_use") {
-      expect(msg.contentBlock.input).toEqual(complexInput);
-    }
+    expect(msg.contentBlock.type).toBe("tool_use");
+    expect((msg.contentBlock as Extract<typeof msg.contentBlock, { type: "tool_use" }>).input).toEqual(complexInput);
   });
 });
 

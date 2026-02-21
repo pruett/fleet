@@ -2347,7 +2347,7 @@ describe("Integration — multi-turn session: aggregate totals", () => {
     expect(session.totals.outputTokens).toBe(320);
   });
 
-  it("totalTokens is input + output", () => {
+  it("totalTokens is input + output + cache", () => {
     expect(session.totals.totalTokens).toBe(2070);
   });
 
@@ -2592,6 +2592,92 @@ describe("parseFullSession — meta-only prompts → 0 turns", () => {
 
   it("still reconstitutes the response", () => {
     expect(session.responses).toHaveLength(1);
+  });
+});
+
+describe("parseFullSession — meta prompts interleaved with real prompts", () => {
+  // Real prompt → assistant → meta prompt → assistant → real prompt → assistant
+  // The meta prompt should NOT create a new turn; assistant blocks after the
+  // meta prompt should still be attributed to the previous real turn (turn 0).
+  const lines = [
+    toLine(makeUserPrompt("Real prompt 1", { uuid: "uuid-user-001" })),
+    toLine(makeAssistantRecord(makeTextBlock("Response to real 1"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-real-1",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("Response to real 1")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 20 },
+      },
+    })),
+    toLine(makeUserPrompt("Meta prompt interleaved", { uuid: "uuid-meta-001", isMeta: true })),
+    toLine(makeAssistantRecord(makeTextBlock("Response to meta"), {
+      uuid: "uuid-asst-meta",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-meta-1",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("Response to meta")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 5, output_tokens: 10 },
+      },
+    })),
+    toLine(makeUserPrompt("Real prompt 2", { uuid: "uuid-user-002" })),
+    toLine(makeAssistantRecord(makeTextBlock("Response to real 2"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-real-2",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("Response to real 2")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 15, output_tokens: 25 },
+      },
+    })),
+    toLine(makeTurnDuration("uuid-asst-002", 500)),
+  ];
+  const session = parseFullSession(lines.join("\n"));
+
+  it("creates exactly 2 turns (meta prompt does not create a turn)", () => {
+    expect(session.turns).toHaveLength(2);
+    expect(session.turns[0].promptText).toBe("Real prompt 1");
+    expect(session.turns[1].promptText).toBe("Real prompt 2");
+  });
+
+  it("neither turn is marked as meta", () => {
+    expect(session.turns[0].isMeta).toBe(false);
+    expect(session.turns[1].isMeta).toBe(false);
+  });
+
+  it("assistant response after meta prompt is attributed to turn 0", () => {
+    const metaResponse = session.responses.find((r) => r.messageId === "msg-meta-1");
+    expect(metaResponse).toBeDefined();
+    expect(metaResponse!.turnIndex).toBe(0);
+  });
+
+  it("assistant response after real prompt 2 is attributed to turn 1", () => {
+    const realResponse2 = session.responses.find((r) => r.messageId === "msg-real-2");
+    expect(realResponse2).toBeDefined();
+    expect(realResponse2!.turnIndex).toBe(1);
+  });
+
+  it("produces 3 responses total", () => {
+    expect(session.responses).toHaveLength(3);
+  });
+
+  it("turn 0 has 2 responses (real + meta)", () => {
+    expect(session.turns[0].responseCount).toBe(2);
+  });
+
+  it("turn 1 has 1 response", () => {
+    expect(session.turns[1].responseCount).toBe(1);
   });
 });
 

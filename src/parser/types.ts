@@ -66,7 +66,7 @@ export interface PairedToolCall {
   toolUseId: string;
   toolName: string;
   input: Record<string, unknown>;
-  toolUseBlock: ContentBlock;
+  toolUseBlock: Extract<ContentBlock, { type: "tool_use" }>;
   toolResultBlock: {
     toolUseId: string;
     content: unknown;

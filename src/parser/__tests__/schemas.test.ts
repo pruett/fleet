@@ -12,44 +12,7 @@ import {
   RawRecordSchema,
   ParsedMessageSchema,
 } from "../schemas";
-
-// ---- Helpers ----
-
-function makeCommonFields(overrides: Record<string, unknown> = {}) {
-  return {
-    uuid: "test-uuid-1234",
-    parentUuid: null,
-    sessionId: "session-5678",
-    timestamp: "2026-02-18T15:09:10.006Z",
-    ...overrides,
-  };
-}
-
-function makeValidUsage(overrides: Record<string, unknown> = {}) {
-  return {
-    input_tokens: 100,
-    output_tokens: 200,
-    ...overrides,
-  };
-}
-
-function makeAssistantRecord(overrides: Record<string, unknown> = {}) {
-  return {
-    ...makeCommonFields(),
-    type: "assistant" as const,
-    message: {
-      model: "claude-opus-4-6",
-      id: "msg_015kDst",
-      type: "message" as const,
-      role: "assistant" as const,
-      content: [{ type: "text" as const, text: "Hello!" }],
-      stop_reason: null,
-      stop_sequence: null,
-      usage: makeValidUsage(),
-    },
-    ...overrides,
-  };
-}
+import { makeCommonFields, makeAssistantRecord, makeTextBlock } from "./helpers";
 
 // ============================================================
 // CommonFieldsSchema
@@ -106,7 +69,7 @@ describe("TokenUsageSchema", () => {
   });
 
   it("accepts usage with only required fields", () => {
-    const result = TokenUsageSchema.safeParse(makeValidUsage());
+    const result = TokenUsageSchema.safeParse({ input_tokens: 100, output_tokens: 200 });
     expect(result.success).toBe(true);
   });
 
@@ -327,21 +290,21 @@ describe("UserRecordSchema", () => {
 // ============================================================
 
 describe("AssistantRecordSchema", () => {
-  const valid = makeAssistantRecord();
+  const valid = makeAssistantRecord(makeTextBlock("Hello!"));
 
   it("accepts a valid record", () => {
     const result = AssistantRecordSchema.safeParse(valid);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.type).toBe("assistant");
-      expect(result.data.message.model).toBe("claude-opus-4-6");
-      expect(result.data.message.id).toBe("msg_015kDst");
+      expect(result.data.message.model).toBe("claude-sonnet-4-20250514");
+      expect(result.data.message.id).toBe("msg-resp-001");
     }
   });
 
   it("accepts with tool_use content block", () => {
     const result = AssistantRecordSchema.safeParse(
-      makeAssistantRecord({
+      makeAssistantRecord(undefined, {
         message: {
           ...valid.message,
           content: [
@@ -563,7 +526,7 @@ describe("RawRecordSchema", () => {
   });
 
   it("discriminates assistant", () => {
-    const result = RawRecordSchema.safeParse(makeAssistantRecord());
+    const result = RawRecordSchema.safeParse(makeAssistantRecord(makeTextBlock("Hello!")));
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.type).toBe("assistant");
   });

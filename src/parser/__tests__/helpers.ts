@@ -48,8 +48,13 @@ export function makeToolUseBlock(name: string, input: Record<string, unknown>, i
   return { type: "tool_use" as const, id, name, input };
 }
 
+type ContentBlockInput =
+  | ReturnType<typeof makeTextBlock>
+  | ReturnType<typeof makeThinkingBlock>
+  | ReturnType<typeof makeToolUseBlock>;
+
 export function makeAssistantRecord(
-  contentBlock: Record<string, unknown>,
+  contentBlock: ContentBlockInput = makeTextBlock(""),
   overrides: Record<string, unknown> = {},
 ) {
   return {

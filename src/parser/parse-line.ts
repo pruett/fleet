@@ -90,14 +90,6 @@ export function parseLine(line: string, lineIndex: number): ParsedMessage | null
 
     case "assistant": {
       const block = record.message.content[0];
-      if (!block) {
-        return {
-          kind: "malformed",
-          raw: trimmed,
-          error: "Assistant record has no content blocks",
-          lineIndex,
-        };
-      }
       return {
         kind: "assistant-block",
         uuid: record.uuid,
