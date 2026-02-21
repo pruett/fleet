@@ -105,3 +105,22 @@ Created the first scanner test file covering `scanProjects`.
 ### Notes
 - All 390 tests pass (387 parser + 3 new scanner), typecheck passes
 - `lastActiveAt` is `2026-02-18T10:00:02.000Z` — the assistant record timestamp, not the system/turn_duration line which lacks a timestamp
+
+## 2026-02-20 — Phase 0: scan-sessions.test.ts
+
+Created the scanner test file covering `scanSessions`.
+
+### What was done
+- Created `src/scanner/__tests__/scan-sessions.test.ts` with 3 tests:
+  - Scans fixture project dir and verifies 1 session with correct `sessionId`, `slug`, `firstPrompt`, `startedAt`, `lastActiveAt`
+  - Silently returns empty for a missing project dir
+  - Silently returns empty for a directory with no `.jsonl` session files
+- Marked the **Verify** checkpoint as done — `bun test src/scanner` passes end-to-end (6 scanner tests)
+
+### Files changed
+- `src/scanner/__tests__/scan-sessions.test.ts` (new)
+- `plans/project-scanner.md` (updated checkboxes)
+
+### Notes
+- All 393 tests pass (387 parser + 6 scanner), typecheck passes
+- Phase 0 (Tracer Bullet) is now fully complete
