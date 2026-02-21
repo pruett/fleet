@@ -1362,8 +1362,8 @@ describe("lookupPricing — model prefix matching", () => {
     expect(p!.inputPerMTok).toBe(15);
   });
 
-  it("matches claude-opus-3-20240229", () => {
-    const p = lookupPricing("claude-opus-3-20240229");
+  it("matches claude-3-opus-20240229", () => {
+    const p = lookupPricing("claude-3-opus-20240229");
     expect(p).not.toBeNull();
     expect(p!.inputPerMTok).toBe(15);
   });
@@ -1375,15 +1375,15 @@ describe("lookupPricing — model prefix matching", () => {
     expect(p!.outputPerMTok).toBe(5);
   });
 
-  it("matches claude-haiku-3-5-20241022", () => {
-    const p = lookupPricing("claude-haiku-3-5-20241022");
+  it("matches claude-3-5-haiku-20241022", () => {
+    const p = lookupPricing("claude-3-5-haiku-20241022");
     expect(p).not.toBeNull();
     expect(p!.inputPerMTok).toBe(0.8);
     expect(p!.outputPerMTok).toBe(4);
   });
 
-  it("matches claude-haiku-3-20240307", () => {
-    const p = lookupPricing("claude-haiku-3-20240307");
+  it("matches claude-3-haiku-20240307", () => {
+    const p = lookupPricing("claude-3-haiku-20240307");
     expect(p).not.toBeNull();
     expect(p!.inputPerMTok).toBe(0.25);
     expect(p!.outputPerMTok).toBe(1.25);
@@ -1395,8 +1395,14 @@ describe("lookupPricing — model prefix matching", () => {
     expect(p!.inputPerMTok).toBe(3);
   });
 
-  it("matches claude-sonnet-3-7-20250219", () => {
-    const p = lookupPricing("claude-sonnet-3-7-20250219");
+  it("matches claude-3-7-sonnet-20250219", () => {
+    const p = lookupPricing("claude-3-7-sonnet-20250219");
+    expect(p).not.toBeNull();
+    expect(p!.inputPerMTok).toBe(3);
+  });
+
+  it("matches claude-3-5-sonnet-20241022", () => {
+    const p = lookupPricing("claude-3-5-sonnet-20241022");
     expect(p).not.toBeNull();
     expect(p!.inputPerMTok).toBe(3);
   });

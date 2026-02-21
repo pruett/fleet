@@ -6,7 +6,7 @@ Derived from code-review-3.txt. Ordered by priority.
 
 ## P0 — Fix before integration
 
-### [ ] BUG-1: Claude 3.x pricing rules use wrong model ID naming convention
+### [x] BUG-1: Claude 3.x pricing rules use wrong model ID naming convention
 
 **File:** `src/parser/pricing.ts:62-73`
 

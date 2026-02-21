@@ -64,13 +64,16 @@ const PRICING_RULES: ReadonlyArray<[prefix: string, pricing: ModelPricing]> = [
   ["claude-opus-4-6", OPUS_NEW],
   ["claude-opus-4-5", OPUS_NEW],
   ["claude-opus-4", OPUS_LEGACY],
-  ["claude-opus-3", OPUS_LEGACY],
   // Sonnet: all versions → $3/$15
   ["claude-sonnet-", SONNET],
   // Haiku: 4.5 → $1/$5, 3.5 → $0.80/$4, 3 → $0.25/$1.25
   ["claude-haiku-4", HAIKU_45],
-  ["claude-haiku-3-5", HAIKU_35],
-  ["claude-haiku-3", HAIKU_3],
+  // Claude 3.x naming convention (claude-{ver}-{family})
+  ["claude-3-opus", OPUS_LEGACY],
+  ["claude-3-5-sonnet", SONNET],
+  ["claude-3-7-sonnet", SONNET],
+  ["claude-3-5-haiku", HAIKU_35],
+  ["claude-3-haiku", HAIKU_3],
 ];
 
 /**
