@@ -16,3 +16,26 @@ Implemented the first task group from Phase 0 (Tracer Bullet).
 - `bun install` was needed (no `node_modules` in worktree)
 - Typecheck and all 387 existing parser tests pass
 - Fixture uses sessionId matching the UUID filename, model `claude-sonnet-4-20250514`, 10 input / 20 output tokens
+
+## 2026-02-20 — Phase 0: scanProjects implementation
+
+Implemented `scanProjects(basePaths)` — the first function in the "Minimal scanProjects + scanSessions" task group.
+
+### What was done
+- Created `src/scanner/scan-projects.ts` with full `scanProjects` implementation:
+  - Iterates base paths, reads directory entries
+  - Skips non-directories, dot-prefixed dirs, and `memory` dir
+  - Decodes path (`-` → `/`)
+  - Calls `scanSessions` per project for `sessionCount` and `lastActiveAt`
+  - Sorts results by `lastActiveAt` descending (nulls last)
+  - Silently skips missing/unreadable base paths
+- Created `src/scanner/scan-sessions.ts` as a stub (returns `[]`) — dependency for `scanProjects` to compile; will be implemented in next task
+
+### Files changed
+- `src/scanner/scan-projects.ts` (new)
+- `src/scanner/scan-sessions.ts` (new — stub)
+
+### Notes
+- Typecheck passes, all 387 parser tests still pass
+- `scanProjects` relies on `scanSessions` being sorted by `lastActiveAt` desc — uses `sessions[0]?.lastActiveAt ?? null` for project-level recency
+- Path decoding is lossy (hyphens in original paths are ambiguous) — matches spec behavior
