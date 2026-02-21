@@ -152,7 +152,7 @@ Then audit call sites — any that manually duplicate the content block inside `
 
 ## P2 — Address when convenient
 
-### [ ] LIKELY-BUG-1: Pre-turn messages get phantom `turnIndex: 0`
+### [x] LIKELY-BUG-1: Pre-turn messages get phantom `turnIndex: 0`
 
 **File:** `src/parser/enrich-session.ts:45`
 

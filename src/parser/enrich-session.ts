@@ -22,7 +22,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
 
   // First pass: build turns and track which turn each lineIndex belongs to
   let currentTurnIndex = -1;
-  const lineToTurn = new Map<number, number>();
+  const lineToTurn = new Map<number, number | null>();
 
   for (const msg of messages) {
     if (msg.kind === "user-prompt" && !msg.isMeta) {
@@ -43,7 +43,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
       if (turn) turn.durationMs = msg.durationMs;
     }
 
-    lineToTurn.set(msg.lineIndex, Math.max(currentTurnIndex, 0));
+    lineToTurn.set(msg.lineIndex, currentTurnIndex >= 0 ? currentTurnIndex : null);
   }
 
   // Second pass: group assistant blocks by messageId → reconstituted responses
@@ -61,7 +61,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     blocks.sort((a, b) => a.lineIndex - b.lineIndex);
     const first = blocks[0];
     const last = blocks[blocks.length - 1];
-    const turnIdx = lineToTurn.get(first.lineIndex) ?? 0;
+    const turnIdx = lineToTurn.get(first.lineIndex) ?? null;
 
     responses.push({
       messageId,
@@ -77,7 +77,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
 
   // Update turn response counts
   for (const response of responses) {
-    if (response.turnIndex < turns.length) {
+    if (response.turnIndex != null && response.turnIndex < turns.length) {
       turns[response.turnIndex].responseCount++;
     }
   }
@@ -95,7 +95,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
         input: block.input as Record<string, unknown>,
         toolUseBlock: block,
         toolResultBlock: null,
-        turnIndex: lineToTurn.get(msg.lineIndex) ?? 0,
+        turnIndex: lineToTurn.get(msg.lineIndex) ?? null,
       };
       toolCalls.push(paired);
       toolCallMap.set(block.id, paired);
@@ -119,7 +119,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
 
   // Update turn toolUseCount
   for (const tc of toolCalls) {
-    if (tc.turnIndex < turns.length) {
+    if (tc.turnIndex != null && tc.turnIndex < turns.length) {
       turns[tc.turnIndex].toolUseCount++;
     }
   }

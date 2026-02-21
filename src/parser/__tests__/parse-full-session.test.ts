@@ -2474,8 +2474,8 @@ describe("parseFullSession — no human prompt → 0 turns", () => {
     expect(session.responses).toHaveLength(1);
   });
 
-  it("assigns orphan response to turnIndex 0", () => {
-    expect(session.responses[0].turnIndex).toBe(0);
+  it("assigns orphan response to turnIndex null", () => {
+    expect(session.responses[0].turnIndex).toBeNull();
   });
 });
 

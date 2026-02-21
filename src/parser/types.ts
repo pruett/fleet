@@ -57,7 +57,7 @@ export interface ReconstitutedResponse {
   blocks: ContentBlock[];
   usage: TokenUsage;
   isSynthetic: boolean;
-  turnIndex: number;
+  turnIndex: number | null;
   lineIndexStart: number;
   lineIndexEnd: number;
 }
@@ -72,7 +72,7 @@ export interface PairedToolCall {
     content: unknown;
     isError: boolean;
   } | null;
-  turnIndex: number;
+  turnIndex: number | null;
 }
 
 export interface TokenTotals {
@@ -92,7 +92,7 @@ export interface ToolStat {
   errorSamples: Array<{
     toolUseId: string;
     errorText: string;
-    turnIndex: number;
+    turnIndex: number | null;
   }>;
 }
 
@@ -109,7 +109,7 @@ export interface SubagentRef {
 
 export interface ContextSnapshot {
   messageId: string;
-  turnIndex: number;
+  turnIndex: number | null;
   cumulativeInputTokens: number;
   cumulativeOutputTokens: number;
 }
