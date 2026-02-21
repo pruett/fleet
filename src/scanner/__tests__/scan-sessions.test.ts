@@ -9,6 +9,11 @@ const FILTERING_PROJECT_DIR = join(
   "filtering-base",
   "-Users-test-project",
 );
+const MULTI_SESSION_DIR = join(
+  FIXTURES,
+  "sorting-base",
+  "-Users-multi-session",
+);
 
 describe("scanSessions", () => {
   it("returns one session from the fixture project dir", async () => {
@@ -65,6 +70,30 @@ describe("scanSessions", () => {
       expect(ids).not.toContain("notes");
       expect(ids).not.toContain("memory");
       expect(sessions).toHaveLength(1);
+    });
+  });
+
+  describe("sorting", () => {
+    it("returns sessions sorted by lastActiveAt descending (most recent first)", async () => {
+      // multi-session dir has 3 sessions: Feb 10, Feb 14, Feb 16
+      const sessions = await scanSessions(MULTI_SESSION_DIR);
+
+      expect(sessions).toHaveLength(3);
+
+      expect(sessions[0].sessionId).toBe(
+        "eeee0005-eeee-eeee-eeee-eeeeeeeeeeee",
+      );
+      expect(sessions[0].lastActiveAt).toBe("2026-02-16T10:00:01.000Z");
+
+      expect(sessions[1].sessionId).toBe(
+        "dddd0004-dddd-dddd-dddd-dddddddddddd",
+      );
+      expect(sessions[1].lastActiveAt).toBe("2026-02-14T10:00:01.000Z");
+
+      expect(sessions[2].sessionId).toBe(
+        "cccc0003-cccc-cccc-cccc-cccccccccccc",
+      );
+      expect(sessions[2].lastActiveAt).toBe("2026-02-10T10:00:01.000Z");
     });
   });
 });

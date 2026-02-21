@@ -296,3 +296,35 @@ Added test coverage for multi-source scanning with two base paths, including sha
 - All 414 tests pass (387 parser + 27 scanner), typecheck passes
 - No source code changes needed — `scanProjects` already handles multiple base paths correctly; this task adds explicit multi-source test coverage
 - Fixture timestamps chosen to verify cross-source sorting: T1 (Feb 15) < T2 (Feb 17) < T3 (Feb 19)
+
+## 2026-02-20 — Phase 3: Sorting Tests
+
+Added dedicated sorting tests for `scanProjects` and `scanSessions` with a new fixture base path.
+
+### What was done
+- Created `fixtures/sorting-base/` with 4 project dirs:
+  - `-Users-project-recent/` — 1 session at Feb 19
+  - `-Users-multi-session/` — 3 sessions at Feb 10, Feb 14, Feb 16
+  - `-Users-project-old/` — 1 session at Feb 12
+  - `-Users-project-empty/` — empty dir (no sessions, `.gitkeep`)
+- Added 2 tests in `scan-projects.test.ts` under "sorting" describe block:
+  - Projects sorted by `lastActiveAt` desc: recent (Feb 19) → multi-session (Feb 16) → old (Feb 12) → empty (null)
+  - Project with `null` `lastActiveAt` (empty project) sorts last
+- Added 1 test in `scan-sessions.test.ts` under "sorting" describe block:
+  - Sessions sorted by `lastActiveAt` desc within a multi-session project dir
+
+### Files changed
+- `src/scanner/__tests__/fixtures/sorting-base/-Users-project-recent/aaaa0001-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jsonl` (new)
+- `src/scanner/__tests__/fixtures/sorting-base/-Users-project-old/bbbb0002-bbbb-bbbb-bbbb-bbbbbbbbbbbb.jsonl` (new)
+- `src/scanner/__tests__/fixtures/sorting-base/-Users-project-empty/.gitkeep` (new)
+- `src/scanner/__tests__/fixtures/sorting-base/-Users-multi-session/cccc0003-cccc-cccc-cccc-cccccccccccc.jsonl` (new)
+- `src/scanner/__tests__/fixtures/sorting-base/-Users-multi-session/dddd0004-dddd-dddd-dddd-dddddddddddd.jsonl` (new)
+- `src/scanner/__tests__/fixtures/sorting-base/-Users-multi-session/eeee0005-eeee-eeee-eeee-eeeeeeeeeeee.jsonl` (new)
+- `src/scanner/__tests__/scan-projects.test.ts` (extended with 2 tests)
+- `src/scanner/__tests__/scan-sessions.test.ts` (extended with 1 test)
+- `plans/project-scanner.md` (checked off 3 items)
+
+### Notes
+- All 417 tests pass (387 parser + 30 scanner), typecheck passes
+- No source code changes needed — sorting was already implemented; this task adds explicit test coverage
+- The multi-session fixture doubles as the data for both scanProjects (project-level lastActiveAt = most recent session) and scanSessions (session-level ordering)

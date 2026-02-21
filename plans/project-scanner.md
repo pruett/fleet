@@ -77,9 +77,9 @@
 - [x] Test: one missing base path + one valid → returns results from valid path only
 
 ### Sorting
-- [ ] Test: `scanProjects` returns projects sorted by `lastActiveAt` desc (most recent first)
-- [ ] Test: `scanSessions` returns sessions sorted by `lastActiveAt` desc
-- [ ] Test: project with `null` `lastActiveAt` (empty project) sorts last
+- [x] Test: `scanProjects` returns projects sorted by `lastActiveAt` desc (most recent first)
+- [x] Test: `scanSessions` returns sessions sorted by `lastActiveAt` desc
+- [x] Test: project with `null` `lastActiveAt` (empty project) sorts last
 
 ### Public API + Exports
 - [ ] Wire up `src/scanner/index.ts` — export `scanProjects`, `scanSessions`, `ProjectSummary`, `SessionSummary`

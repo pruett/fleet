@@ -8,6 +8,7 @@ const FILTERING_BASE = join(FIXTURES, "filtering-base");
 const RESILIENCE_BASE = join(FIXTURES, "resilience-base");
 const MULTI_SOURCE_BASE_1 = join(FIXTURES, "multi-source-base-1");
 const MULTI_SOURCE_BASE_2 = join(FIXTURES, "multi-source-base-2");
+const SORTING_BASE = join(FIXTURES, "sorting-base");
 
 describe("scanProjects", () => {
   it("returns one project from the fixture base path", async () => {
@@ -122,6 +123,38 @@ describe("scanProjects", () => {
       expect(projects).toHaveLength(1);
       expect(projects[0].id).toBe("-Users-shared-project");
       expect(projects[0].source).toBe(MULTI_SOURCE_BASE_2);
+    });
+  });
+
+  describe("sorting", () => {
+    it("returns projects sorted by lastActiveAt descending (most recent first)", async () => {
+      const projects = await scanProjects([SORTING_BASE]);
+
+      // sorting-base has 4 project dirs:
+      //   -Users-project-recent  (Feb 19)
+      //   -Users-multi-session   (Feb 16 — most recent of its 3 sessions)
+      //   -Users-project-old     (Feb 12)
+      //   -Users-project-empty   (null — no sessions)
+      expect(projects).toHaveLength(4);
+
+      expect(projects[0].id).toBe("-Users-project-recent");
+      expect(projects[0].lastActiveAt).toBe("2026-02-19T10:00:01.000Z");
+
+      expect(projects[1].id).toBe("-Users-multi-session");
+      expect(projects[1].lastActiveAt).toBe("2026-02-16T10:00:01.000Z");
+
+      expect(projects[2].id).toBe("-Users-project-old");
+      expect(projects[2].lastActiveAt).toBe("2026-02-12T10:00:01.000Z");
+    });
+
+    it("sorts projects with null lastActiveAt (empty project) last", async () => {
+      const projects = await scanProjects([SORTING_BASE]);
+
+      // The empty project has no sessions → lastActiveAt: null → sorts last
+      const last = projects[projects.length - 1];
+      expect(last.id).toBe("-Users-project-empty");
+      expect(last.lastActiveAt).toBeNull();
+      expect(last.sessionCount).toBe(0);
     });
   });
 });

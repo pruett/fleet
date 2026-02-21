@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-02-16T10:00:00.000Z","message":{"content":"Session C prompt"},"cwd":"/Users/multi/session"}
+{"type":"assistant","timestamp":"2026-02-16T10:00:01.000Z","message":{"id":"resp-c","model":"claude-sonnet-4-20250514","content":[{"type":"text","text":"response"}],"usage":{"input_tokens":10,"output_tokens":20}}}

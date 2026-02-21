@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-02-19T10:00:00.000Z","message":{"content":"Recent project prompt"},"cwd":"/Users/project/recent"}
+{"type":"assistant","timestamp":"2026-02-19T10:00:01.000Z","message":{"id":"resp-recent","model":"claude-sonnet-4-20250514","content":[{"type":"text","text":"response"}],"usage":{"input_tokens":10,"output_tokens":20}}}
