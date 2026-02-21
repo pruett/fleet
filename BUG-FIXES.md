@@ -196,7 +196,7 @@ if (tc.toolResultBlock?.isError) {
 
 ---
 
-### [ ] ISSUE-9: `Turn.isMeta` is always `false` (dead field)
+### [x] ISSUE-9: `Turn.isMeta` is always `false` (dead field)
 
 **File:** `src/parser/types.ts:52`, `src/parser/enrich-session.ts:37`
 

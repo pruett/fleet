@@ -48,7 +48,6 @@ export interface Turn {
   durationMs: number | null;
   responseCount: number;
   toolUseCount: number;
-  isMeta: boolean;
 }
 
 export interface ReconstitutedResponse {

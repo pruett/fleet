@@ -34,7 +34,6 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
         durationMs: null,
         responseCount: 0,
         toolUseCount: 0,
-        isMeta: false,
       });
     }
 

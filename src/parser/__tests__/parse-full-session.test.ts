@@ -134,7 +134,6 @@ describe("parseFullSession — minimal session", () => {
     expect(turn.durationMs).toBe(994);
     expect(turn.turnIndex).toBe(0);
     expect(turn.promptUuid).toBe("uuid-user-001");
-    expect(turn.isMeta).toBe(false);
   });
 
   it("reconstitutes 1 response with 1 text block and correct messageId", () => {
@@ -2572,11 +2571,6 @@ describe("parseFullSession — meta prompts interleaved with real prompts", () =
     expect(session.turns).toHaveLength(2);
     expect(session.turns[0].promptText).toBe("Real prompt 1");
     expect(session.turns[1].promptText).toBe("Real prompt 2");
-  });
-
-  it("neither turn is marked as meta", () => {
-    expect(session.turns[0].isMeta).toBe(false);
-    expect(session.turns[1].isMeta).toBe(false);
   });
 
   it("assistant response after meta prompt is attributed to turn 0", () => {
