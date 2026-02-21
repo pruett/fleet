@@ -120,3 +120,81 @@ describe("extractSessionSummary — header extraction edge cases", () => {
     expect(summary.firstPrompt!.length).toBe(200);
   });
 });
+
+describe("extractSessionSummary — resilience", () => {
+  it("silently skips malformed JSON lines, returning all null/zero", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "malformed-lines.jsonl"),
+      "test-malformed",
+    );
+
+    expect(summary.sessionId).toBe("test-malformed");
+    expect(summary.firstPrompt).toBeNull();
+    expect(summary.model).toBeNull();
+    expect(summary.startedAt).toBeNull();
+    expect(summary.lastActiveAt).toBeNull();
+    expect(summary.cwd).toBeNull();
+    expect(summary.gitBranch).toBeNull();
+    expect(summary.inputTokens).toBe(0);
+    expect(summary.outputTokens).toBe(0);
+    expect(summary.cacheCreationTokens).toBe(0);
+    expect(summary.cacheReadTokens).toBe(0);
+    expect(summary.cost).toBe(0);
+  });
+
+  it("returns all null/zero for an empty .jsonl file", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "empty-session.jsonl"),
+      "test-empty",
+    );
+
+    expect(summary.sessionId).toBe("test-empty");
+    expect(summary.firstPrompt).toBeNull();
+    expect(summary.model).toBeNull();
+    expect(summary.startedAt).toBeNull();
+    expect(summary.lastActiveAt).toBeNull();
+    expect(summary.cwd).toBeNull();
+    expect(summary.gitBranch).toBeNull();
+    expect(summary.inputTokens).toBe(0);
+    expect(summary.outputTokens).toBe(0);
+    expect(summary.cacheCreationTokens).toBe(0);
+    expect(summary.cacheReadTokens).toBe(0);
+    expect(summary.cost).toBe(0);
+  });
+
+  it("returns empty summary for a missing file path", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "does-not-exist.jsonl"),
+      "test-missing",
+    );
+
+    expect(summary.sessionId).toBe("test-missing");
+    expect(summary.firstPrompt).toBeNull();
+    expect(summary.model).toBeNull();
+    expect(summary.inputTokens).toBe(0);
+    expect(summary.outputTokens).toBe(0);
+    expect(summary.cost).toBe(0);
+  });
+
+  it("produces correct partial results from mixed valid and malformed lines", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "mixed-valid-malformed.jsonl"),
+      "test-mixed",
+    );
+
+    // Valid user record parsed correctly
+    expect(summary.firstPrompt).toBe("Hello world");
+    expect(summary.cwd).toBe("/home/user");
+    expect(summary.gitBranch).toBe("main");
+    expect(summary.startedAt).toBe("2026-02-18T10:00:00.000Z");
+
+    // Valid assistant record parsed correctly
+    expect(summary.model).toBe("claude-sonnet-4-20250514");
+    expect(summary.inputTokens).toBe(100);
+    expect(summary.outputTokens).toBe(20);
+    expect(summary.cost).toBeGreaterThan(0);
+
+    // lastActiveAt from the assistant record (last line with a timestamp)
+    expect(summary.lastActiveAt).toBe("2026-02-18T10:00:01.000Z");
+  });
+});

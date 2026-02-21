@@ -5,6 +5,7 @@ import { scanProjects } from "../scan-projects";
 const FIXTURES = join(import.meta.dir, "fixtures");
 const BASE_PATH = join(FIXTURES, "base-path");
 const FILTERING_BASE = join(FIXTURES, "filtering-base");
+const RESILIENCE_BASE = join(FIXTURES, "resilience-base");
 
 describe("scanProjects", () => {
   it("returns one project from the fixture base path", async () => {
@@ -51,6 +52,25 @@ describe("scanProjects", () => {
       expect(ids).not.toContain(".hidden");
       expect(projects).toHaveLength(1);
       expect(projects[0].id).toBe("-Users-test-project");
+    });
+  });
+
+  describe("resilience", () => {
+    it("returns sessionCount: 0 and lastActiveAt: null for an empty project directory", async () => {
+      const projects = await scanProjects([RESILIENCE_BASE]);
+
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("-Users-empty-project");
+      expect(projects[0].sessionCount).toBe(0);
+      expect(projects[0].lastActiveAt).toBeNull();
+    });
+
+    it("silently skips a missing base path without throwing", async () => {
+      const projects = await scanProjects([
+        join(FIXTURES, "nonexistent-path"),
+      ]);
+
+      expect(projects).toHaveLength(0);
     });
   });
 });

@@ -236,3 +236,36 @@ Added test coverage for all file and directory filtering behaviors in `scanSessi
 - All 405 tests pass (387 parser + 18 scanner), typecheck passes
 - All filtering logic was already implemented — this task adds explicit test coverage
 - Used `.gitkeep` files in directories so git tracks the empty fixture dirs
+
+## 2026-02-20 — Phase 2: Resilience
+
+Added test coverage for all resilience behaviors in `extractSessionSummary` and `scanProjects`.
+
+### What was done
+- Created 3 fixture files for resilience test scenarios:
+  - `malformed-lines.jsonl` — 4 lines of broken JSON (no valid records)
+  - `empty-session.jsonl` — completely empty file (0 bytes)
+  - `mixed-valid-malformed.jsonl` — 3 malformed lines interleaved with 1 valid user and 1 valid assistant record
+- Created `fixtures/resilience-base/-Users-empty-project/.gitkeep` — empty project directory fixture
+- Added 4 tests in `extract-session-summary.test.ts` under "resilience" describe block:
+  - Malformed JSON lines: all fields null/zero, no throw
+  - Empty file: all fields null/zero
+  - Missing file path: empty summary returned
+  - Mixed valid/malformed: correct partial results (firstPrompt, cwd, gitBranch, model, tokens, timestamps extracted from valid lines)
+- Added 2 tests in `scan-projects.test.ts` under "resilience" describe block:
+  - Empty project directory: sessionCount=0, lastActiveAt=null
+  - Missing base path: silently skipped, no throw
+
+### Files changed
+- `src/scanner/__tests__/fixtures/malformed-lines.jsonl` (new)
+- `src/scanner/__tests__/fixtures/empty-session.jsonl` (new)
+- `src/scanner/__tests__/fixtures/mixed-valid-malformed.jsonl` (new)
+- `src/scanner/__tests__/fixtures/resilience-base/-Users-empty-project/.gitkeep` (new)
+- `src/scanner/__tests__/extract-session-summary.test.ts` (extended with 4 tests)
+- `src/scanner/__tests__/scan-projects.test.ts` (extended with 2 tests)
+- `plans/project-scanner.md` (checked off 5 items)
+
+### Notes
+- All 411 tests pass (387 parser + 24 scanner), typecheck passes
+- All resilience behaviors were already implemented in the source code — this task adds explicit test coverage
+- Phase 2 (Edge Cases & Validation) is now fully complete

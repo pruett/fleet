@@ -60,11 +60,11 @@
 - [x] Test: dot-prefixed directories under base path are skipped (e.g., `.git`)
 
 ### Resilience
-- [ ] Malformed JSON lines → silently skip (no throw), fields remain null/zero
-- [ ] Empty `.jsonl` file → all nullable fields `null`, all numeric fields `0`
-- [ ] Completely empty project directory → `sessionCount: 0`, `lastActiveAt: null`
-- [ ] Missing or unreadable base path → silently skipped, no throw
-- [ ] Test: mixed valid and malformed lines produce correct partial results
+- [x] Malformed JSON lines → silently skip (no throw), fields remain null/zero
+- [x] Empty `.jsonl` file → all nullable fields `null`, all numeric fields `0`
+- [x] Completely empty project directory → `sessionCount: 0`, `lastActiveAt: null`
+- [x] Missing or unreadable base path → silently skipped, no throw
+- [x] Test: mixed valid and malformed lines produce correct partial results
 
 ---
 
