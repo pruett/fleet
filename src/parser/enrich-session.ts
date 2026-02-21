@@ -167,7 +167,9 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
       stat.errorCount++;
       stat.errorSamples.push({
         toolUseId: tc.toolUseId,
-        errorText: String(tc.toolResultBlock.content),
+        errorText: typeof tc.toolResultBlock.content === "string"
+          ? tc.toolResultBlock.content
+          : JSON.stringify(tc.toolResultBlock.content),
         turnIndex: tc.turnIndex,
       });
     }

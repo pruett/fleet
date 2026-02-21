@@ -1767,6 +1767,62 @@ describe("enrichSession — tool stats with mixed success/error calls", () => {
   });
 });
 
+describe("enrichSession — tool stats error samples with structured content", () => {
+  const structuredError = { type: "error", message: "not found", code: 404 };
+  const lines = [
+    toLine(makeUserPrompt("check it")),
+    toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_struct_err"), {
+      uuid: "uuid-asst-struct",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-struct-1",
+        type: "message",
+        role: "assistant",
+        content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_struct_err")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 5 },
+      },
+    })),
+    toLine(makeUserToolResult([makeToolResultItem("toolu_struct_err", structuredError, true)])),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("serializes structured error content as JSON instead of [object Object]", () => {
+    const bash = session.toolStats.find((s) => s.toolName === "Bash")!;
+    expect(bash.errorSamples).toHaveLength(1);
+    expect(bash.errorSamples[0].errorText).toBe(JSON.stringify(structuredError));
+    expect(bash.errorSamples[0].errorText).not.toContain("[object Object]");
+  });
+
+  it("still uses plain string for string error content", () => {
+    const stringLines = [
+      toLine(makeUserPrompt("try again")),
+      toLine(makeAssistantRecord(makeToolUseBlock("Bash", { command: "ls" }, "toolu_str_err"), {
+        uuid: "uuid-asst-str",
+        message: {
+          model: "claude-sonnet-4-20250514",
+          id: "msg-str-1",
+          type: "message",
+          role: "assistant",
+          content: [makeToolUseBlock("Bash", { command: "ls" }, "toolu_str_err")],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 10, output_tokens: 5 },
+        },
+      })),
+      toLine(makeUserToolResult([makeToolResultItem("toolu_str_err", "plain error text", true)])),
+    ];
+
+    const msgs = stringLines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+    const sess = enrichSession(msgs);
+    const bash = sess.toolStats.find((s) => s.toolName === "Bash")!;
+    expect(bash.errorSamples[0].errorText).toBe("plain error text");
+  });
+});
+
 describe("enrichSession — tool stats error samples have correct turnIndex", () => {
   const lines = [
     // Turn 0

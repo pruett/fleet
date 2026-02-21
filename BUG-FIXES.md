@@ -88,7 +88,7 @@ if (msg.kind === "system-turn-duration") {
 
 ---
 
-### [ ] ISSUE-3: `String(content)` produces `[object Object]` for structured errors
+### [x] ISSUE-3: `String(content)` produces `[object Object]` for structured errors
 
 **File:** `src/parser/enrich-session.ts:169`
 
