@@ -30,10 +30,10 @@
 ## Phase 1 — Core: Token Aggregation + Cost
 
 ### Usage Extraction with Deduplication
-- [ ] Extend `extract-session-summary.ts` — scan all lines, for each `"type":"assistant"` line: parse JSON, extract `message.id`, `message.model`, `message.usage`; deduplicate by `message.id` keeping last occurrence per response
-- [ ] Sum deduplicated usage across all responses: `inputTokens`, `outputTokens`, `cacheCreationTokens`, `cacheReadTokens`
-- [ ] Import `computeCost` from `src/parser/pricing.ts` to calculate `cost` from deduplicated per-response usage
-- [ ] Extract `model` from the first assistant record encountered
+- [x] Extend `extract-session-summary.ts` — scan all lines, for each `"type":"assistant"` line: parse JSON, extract `message.id`, `message.model`, `message.usage`; deduplicate by `message.id` keeping last occurrence per response
+- [x] Sum deduplicated usage across all responses: `inputTokens`, `outputTokens`, `cacheCreationTokens`, `cacheReadTokens`
+- [x] Import `computeCost` from `src/parser/pricing.ts` to calculate `cost` from deduplicated per-response usage
+- [x] Extract `model` from the first assistant record encountered
 
 ### Usage Tests
 - [ ] Create fixture with multi-block response (3 assistant lines sharing same `message.id` with different usage values) — verify only last block's usage counted

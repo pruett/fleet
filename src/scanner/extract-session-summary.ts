@@ -1,10 +1,20 @@
 import { readFile } from "node:fs/promises";
+import { computeCost } from "../parser/pricing";
 import type { SessionSummary } from "./types";
+
+interface ResponseUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+}
 
 /**
  * Extract a summary from a single `.jsonl` session file.
  * Reads selectively: header lines for metadata, last line for recency.
- * Token fields are stubbed to zero (implemented in Phase 1).
+ * Scans all assistant records for token usage, deduplicating by message.id
+ * (keeping last occurrence per response) and computing cost per response.
  */
 export async function extractSessionSummary(
   filePath: string,
@@ -26,8 +36,13 @@ export async function extractSessionSummary(
   let startedAt: string | null = null;
   let cwd: string | null = null;
   let gitBranch: string | null = null;
+  let model: string | null = null;
+  let headerDone = false;
 
-  // Scan header lines for metadata (up to first non-meta user record)
+  // Deduplicated usage per response: message.id → last occurrence's usage
+  const responseUsage = new Map<string, ResponseUsage>();
+
+  // Single forward pass: header extraction + assistant usage collection
   for (const line of lines) {
     let record: Record<string, unknown>;
     try {
@@ -36,32 +51,87 @@ export async function extractSessionSummary(
       continue;
     }
 
-    // Extract startedAt from earliest available timestamp
-    if (startedAt === null) {
-      if (typeof record.timestamp === "string") {
-        startedAt = record.timestamp;
-      } else if (
-        record.type === "file-history-snapshot" &&
-        typeof (record.snapshot as Record<string, unknown>)?.timestamp ===
-          "string"
-      ) {
-        startedAt = (record.snapshot as Record<string, unknown>)
-          .timestamp as string;
+    // --- Header extraction (until first non-meta user record) ---
+    if (!headerDone) {
+      if (startedAt === null) {
+        if (typeof record.timestamp === "string") {
+          startedAt = record.timestamp;
+        } else if (
+          record.type === "file-history-snapshot" &&
+          typeof (record.snapshot as Record<string, unknown>)?.timestamp ===
+            "string"
+        ) {
+          startedAt = (record.snapshot as Record<string, unknown>)
+            .timestamp as string;
+        }
+      }
+
+      if (record.type === "user") {
+        const msg = record.message as Record<string, unknown> | undefined;
+        if (typeof msg?.content === "string" && !record.isMeta) {
+          const text = msg.content as string;
+          firstPrompt = text.length > 200 ? text.slice(0, 200) : text;
+          cwd = typeof record.cwd === "string" ? record.cwd : null;
+          gitBranch =
+            typeof record.gitBranch === "string" ? record.gitBranch : null;
+          headerDone = true;
+        }
       }
     }
 
-    // Look for user records with string content (human prompts)
-    if (record.type !== "user") continue;
-    const msg = record.message as Record<string, unknown> | undefined;
-    if (typeof msg?.content !== "string") continue;
-    if (record.isMeta) continue;
+    // --- Assistant records: extract model + usage ---
+    if (record.type === "assistant") {
+      const msg = record.message as Record<string, unknown> | undefined;
+      if (msg) {
+        const msgId = msg.id as string | undefined;
+        const msgModel = msg.model as string | undefined;
+        const usage = msg.usage as Record<string, unknown> | undefined;
 
-    // First non-meta user record — extract header fields and stop
-    const text = msg.content as string;
-    firstPrompt = text.length > 200 ? text.slice(0, 200) : text;
-    cwd = typeof record.cwd === "string" ? record.cwd : null;
-    gitBranch = typeof record.gitBranch === "string" ? record.gitBranch : null;
-    break;
+        // First assistant record sets the session model
+        if (model === null && typeof msgModel === "string") {
+          model = msgModel;
+        }
+
+        if (typeof msgId === "string" && usage) {
+          responseUsage.set(msgId, {
+            model: typeof msgModel === "string" ? msgModel : "",
+            inputTokens:
+              typeof usage.input_tokens === "number" ? usage.input_tokens : 0,
+            outputTokens:
+              typeof usage.output_tokens === "number" ? usage.output_tokens : 0,
+            cacheCreationTokens:
+              typeof usage.cache_creation_input_tokens === "number"
+                ? usage.cache_creation_input_tokens
+                : 0,
+            cacheReadTokens:
+              typeof usage.cache_read_input_tokens === "number"
+                ? usage.cache_read_input_tokens
+                : 0,
+          });
+        }
+      }
+    }
+  }
+
+  // Sum deduplicated usage across all responses and compute cost per response
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cacheCreationTokens = 0;
+  let cacheReadTokens = 0;
+  let cost = 0;
+
+  for (const usage of responseUsage.values()) {
+    inputTokens += usage.inputTokens;
+    outputTokens += usage.outputTokens;
+    cacheCreationTokens += usage.cacheCreationTokens;
+    cacheReadTokens += usage.cacheReadTokens;
+    cost += computeCost(
+      usage.inputTokens,
+      usage.outputTokens,
+      usage.cacheCreationTokens,
+      usage.cacheReadTokens,
+      usage.model,
+    );
   }
 
   // Extract lastActiveAt: scan backwards for a line with a timestamp
@@ -82,16 +152,16 @@ export async function extractSessionSummary(
     sessionId,
     slug: null,
     firstPrompt,
-    model: null,
+    model,
     startedAt,
     lastActiveAt,
     cwd,
     gitBranch,
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheCreationTokens: 0,
-    cacheReadTokens: 0,
-    cost: 0,
+    inputTokens,
+    outputTokens,
+    cacheCreationTokens,
+    cacheReadTokens,
+    cost,
   };
 }
 

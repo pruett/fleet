@@ -124,3 +124,27 @@ Created the scanner test file covering `scanSessions`.
 ### Notes
 - All 393 tests pass (387 parser + 6 scanner), typecheck passes
 - Phase 0 (Tracer Bullet) is now fully complete
+
+## 2026-02-20 — Phase 1: Usage Extraction with Deduplication
+
+Implemented token aggregation, deduplication, cost computation, and model extraction in `extractSessionSummary`.
+
+### What was done
+- Extended `src/scanner/extract-session-summary.ts` with full usage extraction:
+  - Single forward pass now handles both header extraction and assistant record scanning
+  - For each `"type":"assistant"` line: extracts `message.id`, `message.model`, `message.usage`
+  - Deduplicates by `message.id` using a Map (last occurrence wins — handles streaming multi-block responses)
+  - Sums deduplicated usage across all responses: `inputTokens`, `outputTokens`, `cacheCreationTokens`, `cacheReadTokens`
+  - Imports `computeCost` from `src/parser/pricing.ts` to calculate cost per response, then sums
+  - Extracts `model` from the first assistant record encountered
+  - Handles missing/null usage fields gracefully (defaults to 0)
+
+### Files changed
+- `src/scanner/extract-session-summary.ts` (extended with usage extraction)
+- `plans/project-scanner.md` (checked off 4 items)
+
+### Notes
+- All 393 tests pass (387 parser + 6 scanner), typecheck passes
+- Existing Phase 0 tests unaffected — they don't assert on token/cost/model fields
+- Cost is computed per-response (using each response's own model), then summed — handles multi-model sessions correctly
+- `ResponseUsage` interface tracks per-response model to enable per-response cost calculation
