@@ -4,6 +4,7 @@ import { scanProjects } from "../scan-projects";
 
 const FIXTURES = join(import.meta.dir, "fixtures");
 const BASE_PATH = join(FIXTURES, "base-path");
+const FILTERING_BASE = join(FIXTURES, "filtering-base");
 
 describe("scanProjects", () => {
   it("returns one project from the fixture base path", async () => {
@@ -31,5 +32,25 @@ describe("scanProjects", () => {
 
     expect(projects).toHaveLength(1);
     expect(projects[0].id).toBe("-Users-foo-code-bar");
+  });
+
+  describe("directory filtering", () => {
+    it("skips the memory directory under base path", async () => {
+      // filtering-base/ contains memory/ dir — should be excluded
+      const projects = await scanProjects([FILTERING_BASE]);
+      const ids = projects.map((p) => p.id);
+      expect(ids).not.toContain("memory");
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("-Users-test-project");
+    });
+
+    it("skips dot-prefixed directories under base path", async () => {
+      // filtering-base/ contains .hidden/ dir — should be excluded
+      const projects = await scanProjects([FILTERING_BASE]);
+      const ids = projects.map((p) => p.id);
+      expect(ids).not.toContain(".hidden");
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("-Users-test-project");
+    });
   });
 });

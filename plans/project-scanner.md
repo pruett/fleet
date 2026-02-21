@@ -53,11 +53,11 @@
 - [x] Test: session with snapshot only (no user record) → `firstPrompt: null`, `model: null`, zero tokens
 
 ### File & Directory Filtering
-- [ ] Test: directories inside project dir are skipped (subagent companion dirs)
-- [ ] Test: non-`.jsonl` files are skipped
-- [ ] Test: files with non-UUID names are skipped (e.g., `notes.jsonl`, `memory.jsonl`)
-- [ ] Test: `memory` directory under base path is skipped
-- [ ] Test: dot-prefixed directories under base path are skipped (e.g., `.git`)
+- [x] Test: directories inside project dir are skipped (subagent companion dirs)
+- [x] Test: non-`.jsonl` files are skipped
+- [x] Test: files with non-UUID names are skipped (e.g., `notes.jsonl`, `memory.jsonl`)
+- [x] Test: `memory` directory under base path is skipped
+- [x] Test: dot-prefixed directories under base path are skipped (e.g., `.git`)
 
 ### Resilience
 - [ ] Malformed JSON lines → silently skip (no throw), fields remain null/zero

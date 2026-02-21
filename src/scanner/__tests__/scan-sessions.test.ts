@@ -4,6 +4,11 @@ import { scanSessions } from "../scan-sessions";
 
 const FIXTURES = join(import.meta.dir, "fixtures");
 const PROJECT_DIR = join(FIXTURES, "base-path", "-Users-foo-code-bar");
+const FILTERING_PROJECT_DIR = join(
+  FIXTURES,
+  "filtering-base",
+  "-Users-test-project",
+);
 
 describe("scanSessions", () => {
   it("returns one session from the fixture project dir", async () => {
@@ -33,5 +38,33 @@ describe("scanSessions", () => {
     const sessions = await scanSessions(FIXTURES);
     // fixtures/ contains only the base-path directory, no .jsonl files
     expect(sessions).toHaveLength(0);
+  });
+
+  describe("file & directory filtering", () => {
+    it("skips directories inside the project dir", async () => {
+      // filtering-base/-Users-test-project/ contains a subagent-companion/ dir
+      const sessions = await scanSessions(FILTERING_PROJECT_DIR);
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].sessionId).toBe(
+        "11111111-1111-1111-1111-111111111111",
+      );
+    });
+
+    it("skips non-.jsonl files", async () => {
+      // filtering-base/-Users-test-project/ contains notes.txt
+      const sessions = await scanSessions(FILTERING_PROJECT_DIR);
+      const ids = sessions.map((s) => s.sessionId);
+      expect(ids).not.toContain("notes");
+      expect(sessions).toHaveLength(1);
+    });
+
+    it("skips files with non-UUID names", async () => {
+      // filtering-base/-Users-test-project/ contains notes.jsonl and memory.jsonl
+      const sessions = await scanSessions(FILTERING_PROJECT_DIR);
+      const ids = sessions.map((s) => s.sessionId);
+      expect(ids).not.toContain("notes");
+      expect(ids).not.toContain("memory");
+      expect(sessions).toHaveLength(1);
+    });
   });
 });

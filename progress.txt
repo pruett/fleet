@@ -202,3 +202,37 @@ Added test coverage for header extraction edge cases in `extractSessionSummary`.
 - All 400 tests pass (387 parser + 13 scanner), typecheck passes
 - Both meta handling and truncation were already implemented in the Phase 0 `extractSessionSummary` code — this task confirmed correctness with dedicated tests
 - `lastActiveAt` is null for snapshot-only because the file-history-snapshot record lacks a top-level `timestamp` (it's nested under `snapshot.timestamp`)
+
+## 2026-02-20 — Phase 2: File & Directory Filtering
+
+Added test coverage for all file and directory filtering behaviors in `scanSessions` and `scanProjects`.
+
+### What was done
+- Created `fixtures/filtering-base/` fixture structure with:
+  - `-Users-test-project/` — valid project dir with 1 UUID session, 1 subdirectory (`subagent-companion/`), 1 `.txt` file, 2 non-UUID `.jsonl` files (`notes.jsonl`, `memory.jsonl`)
+  - `memory/` — directory that should be skipped by `scanProjects`
+  - `.hidden/` — dot-prefixed directory that should be skipped by `scanProjects`
+- Added 3 tests in `scan-sessions.test.ts` under "file & directory filtering" describe block:
+  - Directories inside project dir are skipped
+  - Non-`.jsonl` files are skipped
+  - Files with non-UUID names are skipped (e.g., `notes.jsonl`, `memory.jsonl`)
+- Added 2 tests in `scan-projects.test.ts` under "directory filtering" describe block:
+  - `memory` directory under base path is skipped
+  - Dot-prefixed directories under base path are skipped
+
+### Files changed
+- `src/scanner/__tests__/fixtures/filtering-base/-Users-test-project/11111111-1111-1111-1111-111111111111.jsonl` (new)
+- `src/scanner/__tests__/fixtures/filtering-base/-Users-test-project/subagent-companion/.gitkeep` (new)
+- `src/scanner/__tests__/fixtures/filtering-base/-Users-test-project/notes.txt` (new)
+- `src/scanner/__tests__/fixtures/filtering-base/-Users-test-project/notes.jsonl` (new)
+- `src/scanner/__tests__/fixtures/filtering-base/-Users-test-project/memory.jsonl` (new)
+- `src/scanner/__tests__/fixtures/filtering-base/memory/.gitkeep` (new)
+- `src/scanner/__tests__/fixtures/filtering-base/.hidden/.gitkeep` (new)
+- `src/scanner/__tests__/scan-sessions.test.ts` (extended with 3 tests)
+- `src/scanner/__tests__/scan-projects.test.ts` (extended with 2 tests)
+- `plans/project-scanner.md` (checked off 5 items)
+
+### Notes
+- All 405 tests pass (387 parser + 18 scanner), typecheck passes
+- All filtering logic was already implemented — this task adds explicit test coverage
+- Used `.gitkeep` files in directories so git tracks the empty fixture dirs
