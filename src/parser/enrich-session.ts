@@ -211,7 +211,9 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
 
   for (const response of responses) {
     if (response.isSynthetic) continue;
-    cumulativeInput += response.usage.input_tokens;
+    cumulativeInput += response.usage.input_tokens
+      + (response.usage.cache_read_input_tokens ?? 0)
+      + (response.usage.cache_creation_input_tokens ?? 0);
     cumulativeOutput += response.usage.output_tokens;
     contextSnapshots.push({
       messageId: response.messageId,

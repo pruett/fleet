@@ -37,7 +37,7 @@ Update tests to use real model IDs instead of fabricated ones.
 
 ---
 
-### [ ] BUG-2: Context snapshots omit cache tokens from cumulative input count
+### [x] BUG-2: Context snapshots omit cache tokens from cumulative input count
 
 **File:** `src/parser/enrich-session.ts:214`
 

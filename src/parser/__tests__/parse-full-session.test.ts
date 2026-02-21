@@ -2034,6 +2034,54 @@ describe("enrichSession — context snapshots across multiple turns", () => {
   });
 });
 
+describe("enrichSession — context snapshots include cache tokens in cumulative input", () => {
+  const lines = [
+    toLine(makeUserPrompt("cache token test")),
+    toLine(makeAssistantRecord(makeTextBlock("response with cache"), {
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-cache-A",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("response with cache")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 50, output_tokens: 30, cache_read_input_tokens: 400, cache_creation_input_tokens: 100 },
+      },
+    })),
+    toLine(makeAssistantRecord(makeTextBlock("response 2 with cache"), {
+      uuid: "uuid-asst-002",
+      message: {
+        model: "claude-sonnet-4-20250514",
+        id: "msg-cache-B",
+        type: "message",
+        role: "assistant",
+        content: [makeTextBlock("response 2 with cache")],
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 60, output_tokens: 20, cache_read_input_tokens: 500 },
+      },
+    })),
+  ];
+
+  const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
+  const session = enrichSession(messages);
+
+  it("first snapshot includes cache tokens in cumulative input", () => {
+    const snap = session.contextSnapshots[0];
+    // 50 input + 400 cache_read + 100 cache_creation = 550
+    expect(snap.cumulativeInputTokens).toBe(550);
+    expect(snap.cumulativeOutputTokens).toBe(30);
+  });
+
+  it("second snapshot accumulates cache tokens across responses", () => {
+    const snap = session.contextSnapshots[1];
+    // 550 + (60 input + 500 cache_read + 0 cache_creation) = 1110
+    expect(snap.cumulativeInputTokens).toBe(1110);
+    expect(snap.cumulativeOutputTokens).toBe(50);
+  });
+});
+
 describe("enrichSession — context snapshots with no responses", () => {
   const session = enrichSession([]);
 
