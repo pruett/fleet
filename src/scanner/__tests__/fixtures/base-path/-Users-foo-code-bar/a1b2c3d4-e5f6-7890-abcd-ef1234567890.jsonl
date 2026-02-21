@@ -1,0 +1,4 @@
+{"type":"file-history-snapshot","messageId":"msg-001","snapshot":{"messageId":"msg-001","trackedFileBackups":{},"timestamp":"2026-02-18T10:00:00.000Z"},"isSnapshotUpdate":false}
+{"type":"user","uuid":"uuid-user-001","parentUuid":null,"sessionId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","timestamp":"2026-02-18T10:00:01.000Z","message":{"role":"user","content":"What is 2+2?"}}
+{"type":"assistant","uuid":"uuid-asst-001","parentUuid":"uuid-user-001","sessionId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","timestamp":"2026-02-18T10:00:02.000Z","message":{"model":"claude-sonnet-4-20250514","id":"msg-resp-001","type":"message","role":"assistant","content":[{"type":"text","text":"2+2 equals 4."}],"stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":20}}}
+{"type":"system","subtype":"turn_duration","parentUuid":"uuid-user-001","durationMs":1000}

@@ -13,9 +13,9 @@
 > Scan one base path, find one project with one session file, return `ProjectSummary` and `SessionSummary` with basic header fields.
 
 ### Project Scaffolding + Types
-- [ ] Create `src/scanner/types.ts` — `ProjectSummary` and `SessionSummary` interfaces matching the spec
-- [ ] Create `src/scanner/index.ts` — placeholder public API re-exports
-- [ ] Create `src/scanner/__tests__/fixtures/` directory with a minimal test transcript store layout (one project dir containing one `.jsonl` file with 4 lines: snapshot, user prompt, assistant text, system turn_duration)
+- [x] Create `src/scanner/types.ts` — `ProjectSummary` and `SessionSummary` interfaces matching the spec
+- [x] Create `src/scanner/index.ts` — placeholder public API re-exports
+- [x] Create `src/scanner/__tests__/fixtures/` directory with a minimal test transcript store layout (one project dir containing one `.jsonl` file with 4 lines: snapshot, user prompt, assistant text, system turn_duration)
 
 ### Minimal scanProjects + scanSessions
 - [ ] Create `src/scanner/scan-projects.ts` — `scanProjects(basePaths)`: iterate base paths, read directory entries, skip non-dirs / `memory` / dot-prefixed, decode path (replace leading `-` then all `-` with `/`), return `ProjectSummary[]` sorted by `lastActiveAt` desc

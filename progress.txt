@@ -1,0 +1,18 @@
+## 2026-02-20 — Phase 0: Project Scaffolding + Types
+
+Implemented the first task group from Phase 0 (Tracer Bullet).
+
+### What was done
+- Created `src/scanner/types.ts` with `ProjectSummary` and `SessionSummary` interfaces matching the spec
+- Created `src/scanner/index.ts` with placeholder type re-exports
+- Created `src/scanner/__tests__/fixtures/base-path/-Users-foo-code-bar/a1b2c3d4-...jsonl` — minimal 4-line transcript (snapshot, user prompt, assistant text, turn_duration)
+
+### Files changed
+- `src/scanner/types.ts` (new)
+- `src/scanner/index.ts` (new)
+- `src/scanner/__tests__/fixtures/base-path/-Users-foo-code-bar/a1b2c3d4-e5f6-7890-abcd-ef1234567890.jsonl` (new)
+
+### Notes
+- `bun install` was needed (no `node_modules` in worktree)
+- Typecheck and all 387 existing parser tests pass
+- Fixture uses sessionId matching the UUID filename, model `claude-sonnet-4-20250514`, 10 input / 20 output tokens
