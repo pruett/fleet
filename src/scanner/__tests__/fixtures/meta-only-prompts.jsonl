@@ -1,0 +1,4 @@
+{"type":"file-history-snapshot","messageId":"msg-001","snapshot":{"messageId":"msg-001","trackedFileBackups":{},"timestamp":"2026-02-18T10:00:00.000Z"},"isSnapshotUpdate":false}
+{"type":"user","uuid":"uuid-user-meta-001","sessionId":"test-meta-only","timestamp":"2026-02-18T10:00:01.000Z","isMeta":true,"message":{"role":"user","content":"Session init metadata"}}
+{"type":"user","uuid":"uuid-user-meta-002","sessionId":"test-meta-only","timestamp":"2026-02-18T10:00:02.000Z","isMeta":true,"message":{"role":"user","content":"Environment context"}}
+{"type":"assistant","uuid":"uuid-asst-001","parentUuid":"uuid-user-meta-002","sessionId":"test-meta-only","timestamp":"2026-02-18T10:00:03.000Z","message":{"model":"claude-sonnet-4-20250514","id":"msg-resp-001","type":"message","role":"assistant","content":[{"type":"text","text":"Ready to help."}],"usage":{"input_tokens":50,"output_tokens":10}}}

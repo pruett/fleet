@@ -64,3 +64,59 @@ describe("extractSessionSummary — usage extraction", () => {
     expect(summary.cost).toBe(0);
   });
 });
+
+describe("extractSessionSummary — header extraction edge cases", () => {
+  it("skips meta user records and returns firstPrompt: null when only meta prompts exist", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "meta-only-prompts.jsonl"),
+      "test-meta-only",
+    );
+
+    expect(summary.firstPrompt).toBeNull();
+    expect(summary.cwd).toBeNull();
+    expect(summary.gitBranch).toBeNull();
+    // Assistant record still parsed for model and tokens
+    expect(summary.model).toBe("claude-sonnet-4-20250514");
+    expect(summary.inputTokens).toBe(50);
+    expect(summary.outputTokens).toBe(10);
+    // Timestamps still extracted
+    expect(summary.startedAt).toBe("2026-02-18T10:00:00.000Z");
+    expect(summary.lastActiveAt).toBe("2026-02-18T10:00:03.000Z");
+  });
+
+  it("returns firstPrompt: null, model: null, zero tokens for snapshot-only session", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "snapshot-only.jsonl"),
+      "test-snapshot-only",
+    );
+
+    expect(summary.firstPrompt).toBeNull();
+    expect(summary.model).toBeNull();
+    expect(summary.inputTokens).toBe(0);
+    expect(summary.outputTokens).toBe(0);
+    expect(summary.cacheCreationTokens).toBe(0);
+    expect(summary.cacheReadTokens).toBe(0);
+    expect(summary.cost).toBe(0);
+    // startedAt comes from the snapshot.timestamp
+    expect(summary.startedAt).toBe("2026-02-18T10:00:00.000Z");
+    // No line with a top-level timestamp → lastActiveAt null
+    expect(summary.lastActiveAt).toBeNull();
+  });
+
+  it("truncates firstPrompt to 200 characters", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "long-first-prompt.jsonl"),
+      "test-truncation",
+    );
+
+    const fullContent =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+      "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " +
+      "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris " +
+      "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in rep";
+
+    expect(fullContent.length).toBeGreaterThan(200);
+    expect(summary.firstPrompt).toBe(fullContent.slice(0, 200));
+    expect(summary.firstPrompt!.length).toBe(200);
+  });
+});

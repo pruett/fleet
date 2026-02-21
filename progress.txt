@@ -175,3 +175,30 @@ Created `extract-session-summary.test.ts` with 4 tests covering token aggregatio
 - All 397 tests pass (387 parser + 10 scanner), typecheck passes
 - Phase 1 (Core: Token Aggregation + Cost) is now fully complete
 - Used `toBeCloseTo` for float cost comparison to avoid IEEE 754 precision issues
+
+## 2026-02-20 — Phase 2: Header Extraction Edge Cases
+
+Added test coverage for header extraction edge cases in `extractSessionSummary`.
+
+### What was done
+- Created 3 fixture JSONL files:
+  - `meta-only-prompts.jsonl` — snapshot + 2 meta user records + 1 assistant (no non-meta user)
+  - `snapshot-only.jsonl` — snapshot record only (no user or assistant records)
+  - `long-first-prompt.jsonl` — user record with content >200 chars
+- Added 3 tests in `extract-session-summary.test.ts` under "header extraction edge cases" describe block:
+  - Meta-only prompts: verifies `firstPrompt: null`, `cwd: null`, but model/tokens/timestamps still extracted
+  - Snapshot-only: verifies `firstPrompt: null`, `model: null`, zero tokens, `startedAt` from snapshot.timestamp, `lastActiveAt: null`
+  - Truncation: verifies `firstPrompt` truncated to exactly 200 chars
+- Verified meta-handling (`isMeta` check) and truncation (200-char slice) were already implemented — this task adds test coverage
+
+### Files changed
+- `src/scanner/__tests__/fixtures/meta-only-prompts.jsonl` (new)
+- `src/scanner/__tests__/fixtures/snapshot-only.jsonl` (new)
+- `src/scanner/__tests__/fixtures/long-first-prompt.jsonl` (new)
+- `src/scanner/__tests__/extract-session-summary.test.ts` (extended with 3 tests)
+- `plans/project-scanner.md` (checked off 4 items)
+
+### Notes
+- All 400 tests pass (387 parser + 13 scanner), typecheck passes
+- Both meta handling and truncation were already implemented in the Phase 0 `extractSessionSummary` code — this task confirmed correctness with dedicated tests
+- `lastActiveAt` is null for snapshot-only because the file-history-snapshot record lacks a top-level `timestamp` (it's nested under `snapshot.timestamp`)

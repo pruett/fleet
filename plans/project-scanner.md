@@ -47,10 +47,10 @@
 ## Phase 2 — Edge Cases & Validation
 
 ### Header Extraction Edge Cases
-- [ ] Handle meta-only user records (`isMeta: true`) — skip when looking for `firstPrompt`, continue until first non-meta user with string content
-- [ ] Handle `firstPrompt` truncation (spec says "truncated" — truncate to 200 chars)
-- [ ] Test: session with only meta prompts → `firstPrompt: null`
-- [ ] Test: session with snapshot only (no user record) → `firstPrompt: null`, `model: null`, zero tokens
+- [x] Handle meta-only user records (`isMeta: true`) — skip when looking for `firstPrompt`, continue until first non-meta user with string content
+- [x] Handle `firstPrompt` truncation (spec says "truncated" — truncate to 200 chars)
+- [x] Test: session with only meta prompts → `firstPrompt: null`
+- [x] Test: session with snapshot only (no user record) → `firstPrompt: null`, `model: null`, zero tokens
 
 ### File & Directory Filtering
 - [ ] Test: directories inside project dir are skipped (subagent companion dirs)
