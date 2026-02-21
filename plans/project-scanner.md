@@ -36,11 +36,11 @@
 - [x] Extract `model` from the first assistant record encountered
 
 ### Usage Tests
-- [ ] Create fixture with multi-block response (3 assistant lines sharing same `message.id` with different usage values) — verify only last block's usage counted
-- [ ] Create fixture with multiple responses (2 different `message.id`s) — verify usage summed across both
-- [ ] Test: `cost` matches manual computation via pricing table for a known model
-- [ ] Test: unknown model → `cost: 0`, tokens still summed correctly
-- [ ] **Verify:** `bun test src/scanner` passes
+- [x] Create fixture with multi-block response (3 assistant lines sharing same `message.id` with different usage values) — verify only last block's usage counted
+- [x] Create fixture with multiple responses (2 different `message.id`s) — verify usage summed across both
+- [x] Test: `cost` matches manual computation via pricing table for a known model
+- [x] Test: unknown model → `cost: 0`, tokens still summed correctly
+- [x] **Verify:** `bun test src/scanner` passes
 
 ---
 

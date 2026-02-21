@@ -1,0 +1,6 @@
+{"type":"user","uuid":"uuid-user-001","sessionId":"test-session","timestamp":"2026-02-18T10:00:00.000Z","message":{"role":"user","content":"First question"}}
+{"type":"assistant","uuid":"uuid-asst-001","parentUuid":"uuid-user-001","sessionId":"test-session","timestamp":"2026-02-18T10:00:01.000Z","message":{"model":"claude-sonnet-4-20250514","id":"msg-resp-001","type":"message","role":"assistant","content":[{"type":"text","text":"Answer 1"}],"usage":{"input_tokens":1000,"output_tokens":200,"cache_creation_input_tokens":500,"cache_read_input_tokens":300}}}
+{"type":"system","subtype":"turn_duration","parentUuid":"uuid-user-001","durationMs":1000}
+{"type":"user","uuid":"uuid-user-002","sessionId":"test-session","timestamp":"2026-02-18T10:00:05.000Z","message":{"role":"user","content":"Second question"}}
+{"type":"assistant","uuid":"uuid-asst-002","parentUuid":"uuid-user-002","sessionId":"test-session","timestamp":"2026-02-18T10:00:06.000Z","message":{"model":"claude-sonnet-4-20250514","id":"msg-resp-002","type":"message","role":"assistant","content":[{"type":"text","text":"Answer 2"}],"usage":{"input_tokens":2000,"output_tokens":400,"cache_creation_input_tokens":0,"cache_read_input_tokens":800}}}
+{"type":"system","subtype":"turn_duration","parentUuid":"uuid-user-002","durationMs":1000}

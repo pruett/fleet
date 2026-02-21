@@ -148,3 +148,30 @@ Implemented token aggregation, deduplication, cost computation, and model extrac
 - Existing Phase 0 tests unaffected — they don't assert on token/cost/model fields
 - Cost is computed per-response (using each response's own model), then summed — handles multi-model sessions correctly
 - `ResponseUsage` interface tracks per-response model to enable per-response cost calculation
+
+## 2026-02-20 — Phase 1: Usage Tests
+
+Created `extract-session-summary.test.ts` with 4 tests covering token aggregation, deduplication, cost computation, and unknown model handling.
+
+### What was done
+- Created 3 fixture JSONL files for usage test scenarios:
+  - `multi-block-response.jsonl` — 3 assistant blocks sharing same `message.id` with escalating output tokens (10→30→50)
+  - `multiple-responses.jsonl` — 2 responses with different `message.id`s, including cache tokens
+  - `unknown-model.jsonl` — assistant with unrecognized model name
+- Created `src/scanner/__tests__/extract-session-summary.test.ts` with 4 tests:
+  - Multi-block deduplication: verifies only last block's usage counted (input=100, output=50)
+  - Multiple responses: verifies usage summed across both (input=3000, output=600, cacheCreation=500, cacheRead=1100)
+  - Cost verification: manual SONNET pricing computation → 0.020205 USD
+  - Unknown model: cost=0, tokens still summed correctly (input=500, output=100)
+
+### Files changed
+- `src/scanner/__tests__/fixtures/multi-block-response.jsonl` (new)
+- `src/scanner/__tests__/fixtures/multiple-responses.jsonl` (new)
+- `src/scanner/__tests__/fixtures/unknown-model.jsonl` (new)
+- `src/scanner/__tests__/extract-session-summary.test.ts` (new)
+- `plans/project-scanner.md` (checked off 5 items)
+
+### Notes
+- All 397 tests pass (387 parser + 10 scanner), typecheck passes
+- Phase 1 (Core: Token Aggregation + Cost) is now fully complete
+- Used `toBeCloseTo` for float cost comparison to avoid IEEE 754 precision issues
