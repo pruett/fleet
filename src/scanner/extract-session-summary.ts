@@ -12,9 +12,10 @@ interface ResponseUsage {
 
 /**
  * Extract a summary from a single `.jsonl` session file.
- * Reads selectively: header lines for metadata, last line for recency.
- * Scans all assistant records for token usage, deduplicating by message.id
- * (keeping last occurrence per response) and computing cost per response.
+ * Reads the entire file and performs a single forward pass to extract
+ * header metadata and collect assistant token usage (deduplicated by
+ * message.id, keeping last occurrence). A backward scan finds the most
+ * recent timestamp for `lastActiveAt`.
  */
 export async function extractSessionSummary(
   filePath: string,
@@ -68,13 +69,25 @@ export async function extractSessionSummary(
 
       if (record.type === "user") {
         const msg = record.message as Record<string, unknown> | undefined;
-        if (typeof msg?.content === "string" && !record.isMeta) {
-          const text = msg.content as string;
-          firstPrompt = text.length > 200 ? text.slice(0, 200) : text;
-          cwd = typeof record.cwd === "string" ? record.cwd : null;
-          gitBranch =
-            typeof record.gitBranch === "string" ? record.gitBranch : null;
-          headerDone = true;
+        if (msg && !record.isMeta) {
+          let text: string | null = null;
+          if (typeof msg.content === "string") {
+            text = msg.content;
+          } else if (Array.isArray(msg.content)) {
+            const textBlock = (msg.content as Array<Record<string, unknown>>).find(
+              (b) => b.type === "text" && typeof b.text === "string",
+            );
+            if (textBlock) {
+              text = textBlock.text as string;
+            }
+          }
+          if (text !== null) {
+            firstPrompt = text.length > 200 ? text.slice(0, 200) : text;
+            cwd = typeof record.cwd === "string" ? record.cwd : null;
+            gitBranch =
+              typeof record.gitBranch === "string" ? record.gitBranch : null;
+            headerDone = true;
+          }
         }
       }
     }

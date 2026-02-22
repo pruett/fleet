@@ -119,6 +119,17 @@ describe("extractSessionSummary — header extraction edge cases", () => {
     expect(summary.firstPrompt).toBe(fullContent.slice(0, 200));
     expect(summary.firstPrompt!.length).toBe(200);
   });
+
+  it("extracts firstPrompt from array-content (multi-modal) user messages", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "array-content-message.jsonl"),
+      "test-array-content",
+    );
+
+    expect(summary.firstPrompt).toBe("Explain this image");
+    expect(summary.cwd).toBe("/home/user");
+    expect(summary.gitBranch).toBe("main");
+  });
 });
 
 describe("extractSessionSummary — resilience", () => {
