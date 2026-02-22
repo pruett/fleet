@@ -14,6 +14,11 @@ const MULTI_SESSION_DIR = join(
   "sorting-base",
   "-Users-multi-session",
 );
+const NULL_SORT_DIR = join(
+  FIXTURES,
+  "null-sort-base",
+  "-Users-null-sort-project",
+);
 
 describe("scanSessions", () => {
   it("returns one session from the fixture project dir", async () => {
@@ -94,6 +99,20 @@ describe("scanSessions", () => {
         "cccc0003-cccc-cccc-cccc-cccccccccccc",
       );
       expect(sessions[2].lastActiveAt).toBe("2026-02-10T10:00:01.000Z");
+    });
+
+    it("sorts sessions with null lastActiveAt after those with timestamps", async () => {
+      const sessions = await scanSessions(NULL_SORT_DIR);
+
+      expect(sessions).toHaveLength(2);
+
+      // Session with a timestamp sorts first
+      expect(sessions[0].sessionId).toBe("11111111-2222-3333-4444-555555555555");
+      expect(sessions[0].lastActiveAt).toBe("2026-02-18T10:00:01.000Z");
+
+      // Session with null lastActiveAt sorts last
+      expect(sessions[1].sessionId).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+      expect(sessions[1].lastActiveAt).toBeNull();
     });
   });
 });

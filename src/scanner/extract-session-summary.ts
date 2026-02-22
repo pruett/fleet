@@ -6,8 +6,8 @@ interface ResponseUsage {
   model: string;
   inputTokens: number;
   outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
+  cacheCreationInputTokens: number;
+  cacheReadInputTokens: number;
 }
 
 /**
@@ -112,11 +112,11 @@ export async function extractSessionSummary(
               typeof usage.input_tokens === "number" ? usage.input_tokens : 0,
             outputTokens:
               typeof usage.output_tokens === "number" ? usage.output_tokens : 0,
-            cacheCreationTokens:
+            cacheCreationInputTokens:
               typeof usage.cache_creation_input_tokens === "number"
                 ? usage.cache_creation_input_tokens
                 : 0,
-            cacheReadTokens:
+            cacheReadInputTokens:
               typeof usage.cache_read_input_tokens === "number"
                 ? usage.cache_read_input_tokens
                 : 0,
@@ -129,20 +129,20 @@ export async function extractSessionSummary(
   // Sum deduplicated usage across all responses and compute cost per response
   let inputTokens = 0;
   let outputTokens = 0;
-  let cacheCreationTokens = 0;
-  let cacheReadTokens = 0;
+  let cacheCreationInputTokens = 0;
+  let cacheReadInputTokens = 0;
   let cost = 0;
 
   for (const usage of responseUsage.values()) {
     inputTokens += usage.inputTokens;
     outputTokens += usage.outputTokens;
-    cacheCreationTokens += usage.cacheCreationTokens;
-    cacheReadTokens += usage.cacheReadTokens;
+    cacheCreationInputTokens += usage.cacheCreationInputTokens;
+    cacheReadInputTokens += usage.cacheReadInputTokens;
     cost += computeCost(
       usage.inputTokens,
       usage.outputTokens,
-      usage.cacheCreationTokens,
-      usage.cacheReadTokens,
+      usage.cacheCreationInputTokens,
+      usage.cacheReadInputTokens,
       usage.model,
     );
   }
@@ -170,7 +170,6 @@ export async function extractSessionSummary(
 
   return {
     sessionId,
-    slug: null,
     firstPrompt,
     model,
     startedAt,
@@ -179,8 +178,8 @@ export async function extractSessionSummary(
     gitBranch,
     inputTokens,
     outputTokens,
-    cacheCreationTokens,
-    cacheReadTokens,
+    cacheCreationInputTokens,
+    cacheReadInputTokens,
     cost,
   };
 }
@@ -188,7 +187,6 @@ export async function extractSessionSummary(
 function emptySummary(sessionId: string): SessionSummary {
   return {
     sessionId,
-    slug: null,
     firstPrompt: null,
     model: null,
     startedAt: null,
@@ -197,8 +195,8 @@ function emptySummary(sessionId: string): SessionSummary {
     gitBranch: null,
     inputTokens: 0,
     outputTokens: 0,
-    cacheCreationTokens: 0,
-    cacheReadTokens: 0,
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens: 0,
     cost: 0,
   };
 }

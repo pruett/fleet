@@ -35,9 +35,9 @@ export interface SessionSummary {
   /** Output tokens (deduplicated by response) */
   outputTokens: number;
   /** Cache creation input tokens — maps to API `cache_creation_input_tokens` field */
-  cacheCreationTokens: number;
+  cacheCreationInputTokens: number;
   /** Cache read input tokens — maps to API `cache_read_input_tokens` field */
-  cacheReadTokens: number;
+  cacheReadInputTokens: number;
   /** Estimated cost in USD */
   cost: number;
 }

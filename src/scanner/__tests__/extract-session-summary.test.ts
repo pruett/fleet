@@ -17,8 +17,8 @@ describe("extractSessionSummary — usage extraction", () => {
 
     expect(summary.inputTokens).toBe(100);
     expect(summary.outputTokens).toBe(50);
-    expect(summary.cacheCreationTokens).toBe(0);
-    expect(summary.cacheReadTokens).toBe(0);
+    expect(summary.cacheCreationInputTokens).toBe(0);
+    expect(summary.cacheReadInputTokens).toBe(0);
     expect(summary.model).toBe("claude-sonnet-4-20250514");
   });
 
@@ -33,8 +33,8 @@ describe("extractSessionSummary — usage extraction", () => {
 
     expect(summary.inputTokens).toBe(3000);
     expect(summary.outputTokens).toBe(600);
-    expect(summary.cacheCreationTokens).toBe(500);
-    expect(summary.cacheReadTokens).toBe(1100);
+    expect(summary.cacheCreationInputTokens).toBe(500);
+    expect(summary.cacheReadInputTokens).toBe(1100);
   });
 
   it("computes cost matching manual pricing table calculation", async () => {
@@ -94,8 +94,8 @@ describe("extractSessionSummary — header extraction edge cases", () => {
     expect(summary.model).toBeNull();
     expect(summary.inputTokens).toBe(0);
     expect(summary.outputTokens).toBe(0);
-    expect(summary.cacheCreationTokens).toBe(0);
-    expect(summary.cacheReadTokens).toBe(0);
+    expect(summary.cacheCreationInputTokens).toBe(0);
+    expect(summary.cacheReadInputTokens).toBe(0);
     expect(summary.cost).toBe(0);
     // startedAt comes from the snapshot.timestamp
     expect(summary.startedAt).toBe("2026-02-18T10:00:00.000Z");
@@ -148,8 +148,8 @@ describe("extractSessionSummary — resilience", () => {
     expect(summary.gitBranch).toBeNull();
     expect(summary.inputTokens).toBe(0);
     expect(summary.outputTokens).toBe(0);
-    expect(summary.cacheCreationTokens).toBe(0);
-    expect(summary.cacheReadTokens).toBe(0);
+    expect(summary.cacheCreationInputTokens).toBe(0);
+    expect(summary.cacheReadInputTokens).toBe(0);
     expect(summary.cost).toBe(0);
   });
 
@@ -168,8 +168,8 @@ describe("extractSessionSummary — resilience", () => {
     expect(summary.gitBranch).toBeNull();
     expect(summary.inputTokens).toBe(0);
     expect(summary.outputTokens).toBe(0);
-    expect(summary.cacheCreationTokens).toBe(0);
-    expect(summary.cacheReadTokens).toBe(0);
+    expect(summary.cacheCreationInputTokens).toBe(0);
+    expect(summary.cacheReadInputTokens).toBe(0);
     expect(summary.cost).toBe(0);
   });
 
