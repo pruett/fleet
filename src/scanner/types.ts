@@ -18,8 +18,6 @@ export interface ProjectSummary {
 export interface SessionSummary {
   /** UUID from the session filename */
   sessionId: string;
-  /** Human-readable session name */
-  slug: string | null;
   /** First non-meta user message, truncated to 200 chars */
   firstPrompt: string | null;
   /** Model used, e.g. "claude-opus-4-6" */
@@ -32,13 +30,13 @@ export interface SessionSummary {
   cwd: string | null;
   /** Git branch at session start */
   gitBranch: string | null;
-  /** Input tokens (deduplicated by response) */
+  /** Input tokens excluding cached tokens — maps to API `input_tokens` field (deduplicated by response) */
   inputTokens: number;
   /** Output tokens (deduplicated by response) */
   outputTokens: number;
-  /** Cache creation input tokens */
+  /** Cache creation input tokens — maps to API `cache_creation_input_tokens` field */
   cacheCreationTokens: number;
-  /** Cache read input tokens */
+  /** Cache read input tokens — maps to API `cache_read_input_tokens` field */
   cacheReadTokens: number;
   /** Estimated cost in USD */
   cost: number;
