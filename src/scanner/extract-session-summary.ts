@@ -143,6 +143,13 @@ export async function extractSessionSummary(
         lastActiveAt = record.timestamp;
         break;
       }
+      if (
+        record.type === "file-history-snapshot" &&
+        typeof (record.snapshot as Record<string, unknown>)?.timestamp === "string"
+      ) {
+        lastActiveAt = (record.snapshot as Record<string, unknown>).timestamp as string;
+        break;
+      }
     } catch {
       continue;
     }

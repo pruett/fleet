@@ -99,8 +99,8 @@ describe("extractSessionSummary — header extraction edge cases", () => {
     expect(summary.cost).toBe(0);
     // startedAt comes from the snapshot.timestamp
     expect(summary.startedAt).toBe("2026-02-18T10:00:00.000Z");
-    // No line with a top-level timestamp → lastActiveAt null
-    expect(summary.lastActiveAt).toBeNull();
+    // lastActiveAt now falls back to snapshot.timestamp
+    expect(summary.lastActiveAt).toBe("2026-02-18T10:00:00.000Z");
   });
 
   it("truncates firstPrompt to 200 characters", async () => {
