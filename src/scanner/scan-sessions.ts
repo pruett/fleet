@@ -21,19 +21,17 @@ export async function scanSessions(
     return [];
   }
 
-  const sessions: SessionSummary[] = [];
+  const candidates = entries.filter((e) => {
+    if (e.isDirectory()) return false;
+    if (extname(e.name) !== ".jsonl") return false;
+    return UUID_RE.test(basename(e.name, ".jsonl"));
+  });
 
-  for (const entry of entries) {
-    if (entry.isDirectory()) continue;
-    if (extname(entry.name) !== ".jsonl") continue;
-
-    const stem = basename(entry.name, ".jsonl");
-    if (!UUID_RE.test(stem)) continue;
-
-    const filePath = join(projectDir, entry.name);
-    const summary = await extractSessionSummary(filePath, stem);
-    sessions.push(summary);
-  }
+  const sessions = await Promise.all(
+    candidates.map((e) =>
+      extractSessionSummary(join(projectDir, e.name), basename(e.name, ".jsonl")),
+    ),
+  );
 
   // Sort by lastActiveAt descending; nulls sort last
   sessions.sort((a, b) => {
