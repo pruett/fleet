@@ -216,7 +216,12 @@ export function createTransport(options: TransportOptions): Transport {
     handleOpen,
     handleMessage,
     handleClose,
-    broadcastLifecycleEvent: () => {},
+    broadcastLifecycleEvent: (event) => {
+      const frame = JSON.stringify(event);
+      for (const client of clients.values()) {
+        client.ws.send(frame);
+      }
+    },
     getClientCount: () => clients.size,
     getSessionSubscriberCount: () => 0,
     shutdown: () => {},

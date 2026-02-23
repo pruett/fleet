@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { createTransport } from "../create-transport";
 import type { ParsedMessage } from "../../parser";
 import type { WatchBatch } from "../../watcher";
+import type { LifecycleEvent } from "../types";
 import {
   createMockWebSocket,
   createMockTransportOptions,
@@ -404,5 +405,80 @@ describe("createTransport — Phase 0 tracer bullet", () => {
 
     // No new watcher started
     expect(mock.watches).toHaveLength(1);
+  });
+});
+
+describe("createTransport — Phase 1 lifecycle broadcast", () => {
+  it("broadcasts lifecycle event to all connected clients regardless of subscription", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    // Client 1: subscribed to a session
+    const ws1 = createMockWebSocket();
+    transport.handleOpen(ws1.ws);
+    transport.handleMessage(
+      ws1.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Client 2: connected but NOT subscribed
+    const ws2 = createMockWebSocket();
+    transport.handleOpen(ws2.ws);
+
+    // Client 3: subscribed to a different session
+    const ws3 = createMockWebSocket();
+    transport.handleOpen(ws3.ws);
+    transport.handleMessage(
+      ws3.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(transport.getClientCount()).toBe(3);
+
+    // Broadcast a lifecycle event
+    const event: LifecycleEvent = {
+      type: "session:started",
+      sessionId: VALID_SESSION_ID,
+      projectId: "proj-001",
+      cwd: "/mock/project",
+      startedAt: "2026-02-23T12:00:00.000Z",
+    };
+
+    transport.broadcastLifecycleEvent(event);
+
+    // All three clients should receive the event
+    for (const mock of [ws1, ws2, ws3]) {
+      const frames = mock.sent.map((s) => JSON.parse(s));
+      const lifecycleFrames = frames.filter(
+        (f: Record<string, unknown>) =>
+          typeof f.type === "string" && f.type.startsWith("session:"),
+      );
+      expect(lifecycleFrames).toHaveLength(1);
+      expect(lifecycleFrames[0]).toEqual(event);
+    }
+
+    // All three received the exact same serialized string (serialize once)
+    const lifecycleFrame1 = ws1.sent[ws1.sent.length - 1];
+    const lifecycleFrame2 = ws2.sent[ws2.sent.length - 1];
+    const lifecycleFrame3 = ws3.sent[ws3.sent.length - 1];
+    expect(lifecycleFrame1).toBe(lifecycleFrame2);
+    expect(lifecycleFrame2).toBe(lifecycleFrame3);
+  });
+
+  it("broadcast to zero clients is a no-op", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    const event: LifecycleEvent = {
+      type: "session:stopped",
+      sessionId: VALID_SESSION_ID,
+      reason: "completed",
+      stoppedAt: "2026-02-23T12:05:00.000Z",
+    };
+
+    // Should not throw
+    transport.broadcastLifecycleEvent(event);
   });
 });

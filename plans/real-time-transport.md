@@ -33,12 +33,12 @@
 - [x] Write tests: unsubscribe stops watcher when last subscriber leaves; re-subscribe to different session cleans up old subscription
 
 ### Multi-Client Fan-Out
-- [ ] Verify `relayBatch` sends single serialized frame to all subscribers of a session (serialize once, send N times)
-- [ ] Write test: two clients subscribed to same session both receive the batch; second subscriber does not start a new watcher
+- [x] Verify `relayBatch` sends single serialized frame to all subscribers of a session (serialize once, send N times)
+- [x] Write test: two clients subscribed to same session both receive the batch; second subscriber does not start a new watcher
 
 ### Lifecycle Broadcast
-- [ ] Implement `broadcastLifecycleEvent` — serialize event, send to every connected client regardless of subscription
-- [ ] Write test: broadcast reaches all connected clients (subscribed and unsubscribed)
+- [x] Implement `broadcastLifecycleEvent` — serialize event, send to every connected client regardless of subscription
+- [x] Write test: broadcast reaches all connected clients (subscribed and unsubscribed)
 
 ### Shutdown
 - [ ] Implement `shutdown` — close all WebSocket connections with code 1001, stop all watchers, clear `clients`/`sessions`/`watchers` maps

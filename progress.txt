@@ -196,3 +196,25 @@ Tests added:
 Notes:
 - The guard is `client.sessionId !== null && client.sessionId !== sessionId` — subscribing to the same session is a separate concern (Phase 3 duplicate idempotency)
 - All 487 tests pass (2 new + 485 existing), TypeScript clean
+
+## 2026-02-23 — Phase 1: Lifecycle Broadcast
+
+Implemented `broadcastLifecycleEvent` in `createTransport`:
+- Serializes the `LifecycleEvent` once via `JSON.stringify`
+- Iterates all connected clients (regardless of subscription state) and sends the pre-serialized frame
+- Replaced the no-op stub `broadcastLifecycleEvent: () => {}` with the real implementation
+
+Also checked off Multi-Client Fan-Out plan items — these were already implemented and tested in Phase 0 (test at line 191 of create-transport.test.ts verifies: one watcher for two subscribers, both receive the batch, reference equality confirms serialize-once).
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — replaced broadcastLifecycleEvent no-op)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 2 new tests, imported LifecycleEvent type)
+- `plans/real-time-transport.md` (updated checkboxes)
+
+Tests added:
+1. Broadcast reaches all connected clients (subscribed, unsubscribed, different sessions) — verifies all 3 receive the event and reference equality of sent frames
+2. Broadcast to zero clients is a no-op (no throw)
+
+Notes:
+- Implementation is 4 lines — serialize once, iterate clients.values(), send to each
+- All 489 tests pass (2 new + 487 existing), TypeScript clean, Biome clean
