@@ -40,10 +40,10 @@
 ## Phase 2 — Control Routes
 
 ### POST /api/sessions (start)
-- [ ] Add route — parse JSON body, validate `projectDir` required, delegate to `controller.startSession`, return 201 on success
-- [ ] Return 400 `{ "error": "projectDir is required" }` when missing
-- [ ] Return 500 with controller error when `ok: false`
-- [ ] Add tests: happy path (201), missing projectDir (400), controller failure (500)
+- [x] Add route — parse JSON body, validate `projectDir` required, delegate to `controller.startSession`, return 201 on success
+- [x] Return 400 `{ "error": "projectDir is required" }` when missing
+- [x] Return 500 with controller error when `ok: false`
+- [x] Add tests: happy path (201), missing projectDir (400), controller failure (500)
 
 ### POST /api/sessions/:sessionId/stop
 - [ ] Add route — delegate to `controller.stopSession(sessionId)`, return 200 on success, 500 on failure

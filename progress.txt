@@ -77,3 +77,21 @@ Added the single-session read route with file resolution, Bun file reading, and 
 ### Verification
 - typecheck: pass
 - tests: 438 pass, 0 fail (2 new route tests + 436 existing)
+
+## Phase 2 — POST /api/sessions (start) (2026-02-22)
+
+Added the start-session control route with body validation and controller delegation.
+
+### What was done
+- Added `POST /api/sessions` route in `create-app.ts` — parses JSON body, validates `projectDir` required, delegates to `controller.startSession`, returns 201 with `{ sessionId }` on success
+- Returns 400 `{ "error": "projectDir is required" }` when `projectDir` is missing from body
+- Returns 500 with controller error message when `result.ok` is false
+- Added 3 tests: happy path (201 + verifies opts passed to controller), missing projectDir (400), controller failure (500)
+
+### Files changed
+- `src/api/create-app.ts` (updated — added POST /api/sessions route)
+- `src/api/__tests__/create-app.test.ts` (updated — added 3 tests for start-session route)
+
+### Verification
+- typecheck: pass
+- tests: 441 pass, 0 fail (3 new route tests + 438 existing)

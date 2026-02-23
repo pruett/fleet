@@ -10,6 +10,22 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ projects });
   });
 
+  app.post("/api/sessions", async (c) => {
+    const body = await c.req.json();
+    if (!body.projectDir) {
+      return c.json({ error: "projectDir is required" }, 400);
+    }
+    const result = await deps.controller.startSession({
+      projectDir: body.projectDir,
+      prompt: body.prompt,
+      cwd: body.cwd,
+    });
+    if (!result.ok) {
+      return c.json({ error: result.error ?? "Failed to start session" }, 500);
+    }
+    return c.json({ sessionId: result.sessionId }, 201);
+  });
+
   app.get("/api/sessions/:sessionId", async (c) => {
     const sessionId = c.req.param("sessionId");
     const sessionFile = await resolveSessionFile(deps.basePaths, sessionId);

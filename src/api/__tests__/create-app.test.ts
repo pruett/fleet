@@ -66,6 +66,80 @@ describe("GET /api/projects", () => {
   });
 });
 
+describe("POST /api/sessions", () => {
+  test("returns 201 with sessionId on success", async () => {
+    let receivedOpts: any = null;
+
+    const deps = createMockDeps({
+      controller: {
+        startSession: async (opts) => {
+          receivedOpts = opts;
+          return { ok: true, sessionId: "new-session-123" };
+        },
+        stopSession: async () => ({ ok: true, sessionId: "" }),
+        resumeSession: async () => ({ ok: true, sessionId: "" }),
+        sendMessage: async () => ({ ok: true, sessionId: "" }),
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectDir: "/Users/test/project", prompt: "hello" }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body).toEqual({ sessionId: "new-session-123" });
+    expect(receivedOpts).toEqual({
+      projectDir: "/Users/test/project",
+      prompt: "hello",
+      cwd: undefined,
+    });
+  });
+
+  test("returns 400 when projectDir is missing", async () => {
+    const deps = createMockDeps();
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "hello" }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toEqual({ error: "projectDir is required" });
+  });
+
+  test("returns 500 when controller fails", async () => {
+    const deps = createMockDeps({
+      controller: {
+        startSession: async () => ({
+          ok: false,
+          sessionId: "",
+          error: "spawn failed",
+        }),
+        stopSession: async () => ({ ok: true, sessionId: "" }),
+        resumeSession: async () => ({ ok: true, sessionId: "" }),
+        sendMessage: async () => ({ ok: true, sessionId: "" }),
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectDir: "/Users/test/project" }),
+    });
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: "spawn failed" });
+  });
+});
+
 describe("GET /api/sessions/:sessionId", () => {
   test("returns 200 with parsed session", async () => {
     const enriched = createEmptyEnrichedSession();
