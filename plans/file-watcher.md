@@ -9,9 +9,9 @@
 > Minimal end-to-end: fs.watch fires → Bun.file().slice().text() reads new bytes → parseLine → deliver batch to callback
 
 ### Types & Skeleton
-- [ ] Create `src/watcher/types.ts` with `WatchOptions`, `WatchHandle`, `WatchBatch`, `WatchError` types (mirror spec definitions exactly)
-- [ ] Import `ParsedMessage` from `src/parser` for the `WatchBatch.messages` field
-- [ ] Create `src/watcher/index.ts` barrel exporting `watchSession`, `stopWatching`, `stopAll`, and all types
+- [x] Create `src/watcher/types.ts` with `WatchOptions`, `WatchHandle`, `WatchBatch`, `WatchError` types (mirror spec definitions exactly)
+- [x] Import `ParsedMessage` from `src/parser` for the `WatchBatch.messages` field
+- [x] Create `src/watcher/index.ts` barrel exporting `watchSession`, `stopWatching`, `stopAll`, and all types
 
 ### Core Read Loop
 - [ ] Create `src/watcher/watch-session.ts` exporting `watchSession(options: WatchOptions): WatchHandle`
