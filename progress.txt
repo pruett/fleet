@@ -12,3 +12,17 @@ Files changed:
 - src/watcher/watch-session.ts (new)
 
 Verified: typecheck passes, all 421 tests pass.
+
+## 2026-02-22 — Phase 0: Core Read Loop
+
+Implemented:
+- Implemented `watchSession()` in `src/watcher/watch-session.ts`: on init reads file size, sets `byteOffset`, registers `fs.watch` listener, returns `WatchHandle`
+- On fs.watch change: reads new bytes via `Bun.file().slice().text()`, splits on `\n`, passes lines to `parseLine()`, collects non-null results
+- Flushes immediately (no debounce) — calls `onMessages` with `WatchBatch` containing parsed messages and `byteRange`
+- Added internal `WatcherState` type to track FSWatcher alongside handle
+- Implemented minimal `stopWatching()` (closes fs.watch, removes from registry, sets stopped=true) and `stopAll()` for teardown
+
+Files changed:
+- src/watcher/watch-session.ts (rewritten from stub)
+
+Verified: typecheck passes, all 421 tests pass.

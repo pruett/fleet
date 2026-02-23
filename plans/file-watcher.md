@@ -14,11 +14,11 @@
 - [x] Create `src/watcher/index.ts` barrel exporting `watchSession`, `stopWatching`, `stopAll`, and all types
 
 ### Core Read Loop
-- [ ] Create `src/watcher/watch-session.ts` exporting `watchSession(options: WatchOptions): WatchHandle`
-- [ ] On init: get initial size via `Bun.file(filePath).size`, set `byteOffset = size`, register `fs.watch` listener, return `WatchHandle`
-- [ ] On fs.watch change event: check `Bun.file(filePath).size`, if `currentSize > byteOffset` read new bytes via `Bun.file(filePath).slice(byteOffset, currentSize).text()`
-- [ ] Split on `\n`, pass complete lines to `parseLine()` from `src/parser`, collect non-null results
-- [ ] Flush immediately (no debounce yet) — call `onMessages` with a `WatchBatch` containing collected messages and `byteRange`
+- [x] Create `src/watcher/watch-session.ts` exporting `watchSession(options: WatchOptions): WatchHandle`
+- [x] On init: get initial size via `Bun.file(filePath).size`, set `byteOffset = size`, register `fs.watch` listener, return `WatchHandle`
+- [x] On fs.watch change event: check `Bun.file(filePath).size`, if `currentSize > byteOffset` read new bytes via `Bun.file(filePath).slice(byteOffset, currentSize).text()`
+- [x] Split on `\n`, pass complete lines to `parseLine()` from `src/parser`, collect non-null results
+- [x] Flush immediately (no debounce yet) — call `onMessages` with a `WatchBatch` containing collected messages and `byteRange`
 
 ### Tracer Bullet Test
 - [ ] Create `src/watcher/__tests__/helpers.ts` with temp file utilities (create temp `.jsonl`, append lines, cleanup)
