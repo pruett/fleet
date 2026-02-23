@@ -319,3 +319,18 @@ Notes:
 - The guard placement is intentional — it runs after format validation but before `resolveSessionPath` to avoid wasted async resolution
 - Renumbered inline comments (steps 3-7 → 3-8) to account for the new step 2
 - All 498 tests pass (1 new + 497 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 3: Add transport to AppDependencies
+
+Added `transport: Transport` to the `AppDependencies` interface in `src/api/types.ts`, making the transport a required dependency of the application. Updated the test helper `createMockDeps` to include a no-op mock `Transport` so all existing API tests continue to pass.
+
+Files changed:
+- `src/api/types.ts` (modified — added `import type { Transport }` and `transport: Transport` field)
+- `src/api/__tests__/helpers.ts` (modified — added `import type { Transport }`, created `mockTransport` no-op object in `createMockDeps`)
+- `plans/real-time-transport.md` (updated checkbox)
+
+Notes:
+- Transport is a required (not optional) field — every `AppDependencies` consumer must provide it
+- The no-op mock transport in `createMockDeps` follows the same pattern as the other mock dependencies (stubs returning empty/default values)
+- `createApp` does not use `deps.transport` yet — it's available for future API routes that need transport state (e.g., subscriber counts, lifecycle broadcasting from controller hooks)
+- All 498 tests pass (0 new + 498 existing), TypeScript clean, Biome clean

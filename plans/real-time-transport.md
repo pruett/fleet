@@ -76,7 +76,7 @@
 - [x] Create `src/transport/__tests__/helpers.ts` with mock WebSocket factory, mock `TransportOptions` builder, and utility to simulate watcher callbacks
 
 ### Integration with API Layer
-- [ ] Update `src/api/types.ts` `AppDependencies` to include `transport: Transport` (or expose WebSocket upgrade handler)
+- [x] Update `src/api/types.ts` `AppDependencies` to include `transport: Transport` (or expose WebSocket upgrade handler)
 - [ ] Wire `createTransport` into the Bun server's WebSocket upgrade path in `create-app.ts` or a new server entry point
 - [ ] Add `resolveSessionPath` adapter that wraps `resolveSessionFile` from `src/api/resolve.ts`
 
