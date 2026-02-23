@@ -29,5 +29,4 @@ yarn-debug.log*
 yarn-error.log*
 
 .worktrees/
-.claude/worktrees/
 .claude/.worktrees/
