@@ -47,12 +47,12 @@
 - [x] Test: call `watchSession` twice with same `sessionId` — assert same handle returned, single set of events per write
 
 ### Stop & Teardown
-- [ ] Implement `stopWatching(handle)`: close fs.watch listener, cancel timers, final flush if `pendingMessages` non-empty, set `handle.stopped = true`, remove from registry
-- [ ] Implement `stopAll()`: iterate registry, call `stopWatching` on each, clear registry
-- [ ] `stopWatching` on an already-stopped handle is a no-op
-- [ ] Test: append line then immediately `stopWatching` before debounce fires — assert `onMessages` called exactly once with pending message
-- [ ] Test: verify no callbacks fire after `stopWatching` even when file is appended to
-- [ ] Test: start 3 watchers, call `stopAll` — all handles have `stopped: true`, no further callbacks
+- [x] Implement `stopWatching(handle)`: close fs.watch listener, cancel timers, final flush if `pendingMessages` non-empty, set `handle.stopped = true`, remove from registry
+- [x] Implement `stopAll()`: iterate registry, call `stopWatching` on each, clear registry
+- [x] `stopWatching` on an already-stopped handle is a no-op
+- [x] Test: append line then immediately `stopWatching` before debounce fires — assert `onMessages` called exactly once with pending message
+- [x] Test: verify no callbacks fire after `stopWatching` even when file is appended to
+- [x] Test: start 3 watchers, call `stopAll` — all handles have `stopped: true`, no further callbacks
 
 ---
 

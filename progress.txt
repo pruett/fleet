@@ -99,3 +99,21 @@ Files changed:
 - src/watcher/__tests__/watch-session.test.ts (modified — added 1 test)
 
 Verified: typecheck passes, all 428 tests pass (427 existing + 1 new).
+
+## 2026-02-22 — Phase 1: Stop & Teardown
+
+Implemented:
+- Refactored `stopAll()` to delegate to `stopWatching()` instead of duplicating teardown logic — collects handles from registry first, then iterates to avoid modifying the map mid-iteration
+- `stopWatching()` was already correct from Phase 0: closes fs.watch, cancels timers via `flush()`, final-flushes pending messages, sets `handle.stopped = true`, removes from registry
+- `stopWatching()` on already-stopped handle is a no-op (early return guard)
+
+Tests added:
+- "final-flushes pending messages on stopWatching before debounce fires" — uses 5s debounce, appends a line, waits for fs.watch processing, calls `stopWatching` before debounce fires, asserts exactly one batch with the pending message
+- "no callbacks fire after stopWatching even when file is appended to" — delivers one message, stops watcher, appends another line, asserts callback count stays at 1
+- "stopAll stops all watchers and prevents further callbacks" — starts 3 watchers on separate temp files, delivers one message each, calls `stopAll`, verifies all handles stopped, appends more lines, asserts no further callbacks
+
+Files changed:
+- src/watcher/watch-session.ts (modified — refactored stopAll to delegate to stopWatching)
+- src/watcher/__tests__/watch-session.test.ts (modified — added 3 tests)
+
+Verified: typecheck passes, all 431 tests pass (428 existing + 3 new).

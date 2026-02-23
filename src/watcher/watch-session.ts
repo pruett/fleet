@@ -190,10 +190,8 @@ export function stopWatching(handle: WatchHandle): void {
  * Stop all active watchers. Used during server shutdown.
  */
 export function stopAll(): void {
-  for (const [, state] of registry) {
-    state.watcher.close();
-    flush(state);
-    state.handle.stopped = true;
+  const handles = [...registry.values()].map((s) => s.handle);
+  for (const handle of handles) {
+    stopWatching(handle);
   }
-  registry.clear();
 }

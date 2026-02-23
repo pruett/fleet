@@ -324,6 +324,141 @@ describe("watchSession — partial line buffering", () => {
   });
 });
 
+describe("watchSession — stop & teardown", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("final-flushes pending messages on stopWatching before debounce fires", async () => {
+    tmp = await createTempJsonl();
+
+    const batches: WatchBatch[] = [];
+
+    handle = watchSession({
+      sessionId: "test-stop-flush",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+      },
+      onError: () => {},
+      debounceMs: 5_000, // Very long so it won't fire naturally
+      maxWaitMs: 10_000,
+    });
+
+    // Append a line
+    await appendLines(tmp.path, [toLine(makeUserPrompt("Pending"))]);
+
+    // Wait for fs.watch to fire and process the write (but debounce won't flush)
+    await new Promise((r) => setTimeout(r, 200));
+
+    // No batch delivered yet (debounce is 5 seconds)
+    expect(batches).toHaveLength(0);
+
+    // Stop the watcher — should final-flush the pending message
+    stopWatching(handle!);
+
+    expect(batches).toHaveLength(1);
+    expect(batches[0].messages).toHaveLength(1);
+    expect(batches[0].messages[0].kind).toBe("user-prompt");
+    expect(handle!.stopped).toBe(true);
+  });
+
+  it("no callbacks fire after stopWatching even when file is appended to", async () => {
+    tmp = await createTempJsonl();
+
+    let callbackCount = 0;
+
+    handle = watchSession({
+      sessionId: "test-stop-silence",
+      filePath: tmp.path,
+      onMessages: () => {
+        callbackCount++;
+      },
+      onError: () => {},
+      debounceMs: 50,
+      maxWaitMs: 100,
+    });
+
+    // Append and wait for delivery
+    await appendLines(tmp.path, [toLine(makeUserPrompt("Before stop"))]);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(callbackCount).toBe(1);
+
+    // Stop the watcher
+    stopWatching(handle!);
+    expect(handle!.stopped).toBe(true);
+
+    // Append more lines after stopping
+    await appendLines(tmp.path, [toLine(makeUserPrompt("After stop"))]);
+    await new Promise((r) => setTimeout(r, 300));
+
+    // No additional callbacks should have fired
+    expect(callbackCount).toBe(1);
+  });
+
+  it("stopAll stops all watchers and prevents further callbacks", async () => {
+    const tmps: TempJsonl[] = [];
+    const handles: WatchHandle[] = [];
+    let callbackCount = 0;
+
+    try {
+      for (let i = 0; i < 3; i++) {
+        const t = await createTempJsonl();
+        tmps.push(t);
+        const h = watchSession({
+          sessionId: `test-stop-all-${i}`,
+          filePath: t.path,
+          onMessages: () => {
+            callbackCount++;
+          },
+          onError: () => {},
+          debounceMs: 50,
+          maxWaitMs: 100,
+        });
+        handles.push(h);
+      }
+
+      // Append a line to each and wait for delivery
+      for (const t of tmps) {
+        await appendLines(t.path, [
+          toLine(makeUserPrompt("Before stopAll")),
+        ]);
+      }
+      await new Promise((r) => setTimeout(r, 300));
+      expect(callbackCount).toBe(3);
+
+      // Stop all
+      stopAll();
+
+      // All handles should be stopped
+      for (const h of handles) {
+        expect(h.stopped).toBe(true);
+      }
+
+      // Append more lines after stopAll
+      for (const t of tmps) {
+        await appendLines(t.path, [
+          toLine(makeUserPrompt("After stopAll")),
+        ]);
+      }
+      await new Promise((r) => setTimeout(r, 300));
+
+      // No additional callbacks
+      expect(callbackCount).toBe(3);
+    } finally {
+      for (const t of tmps) {
+        await t.cleanup();
+      }
+    }
+  });
+});
+
 describe("watchSession — registry & duplicate prevention", () => {
   let tmp: TempJsonl | null = null;
   let handle: WatchHandle | null = null;
