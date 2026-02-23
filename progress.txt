@@ -162,3 +162,20 @@ Added Hono middleware that logs every request with method, path, status code, an
 ### Verification
 - typecheck: pass
 - tests: 448 pass, 0 fail (all existing tests still pass)
+
+## Phase 3 — Global Error Handling (2026-02-22)
+
+Added global error handling: onError handler, 404 catch-all, and invalid JSON detection.
+
+### What was done
+- Added `app.onError` handler in `create-app.ts` — catches thrown errors, returns 400 `{ "error": "Invalid JSON" }` for SyntaxError, 500 `{ "error": "Internal server error" }` for everything else (no stack traces or internal details leaked)
+- Added `app.notFound` handler in `create-app.ts` — returns 404 `{ "error": "Not found" }` for unmatched routes
+- Added 3 tests: scanner throws → 500 opaque error, invalid JSON body → 400, unmatched API route → 404
+
+### Files changed
+- `src/api/create-app.ts` (updated — added onError and notFound handlers)
+- `src/api/__tests__/create-app.test.ts` (updated — added 3 error handling tests)
+
+### Verification
+- typecheck: pass
+- tests: 451 pass, 0 fail (3 new error handling tests + 448 existing)

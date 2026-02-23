@@ -66,10 +66,10 @@
 - [x] Add Hono middleware in `create-app.ts` — log `METHOD /path STATUS DURATIONms` for every request (info for 2xx, warn for 4xx, error for 5xx)
 
 ### Global Error Handling
-- [ ] Add Hono `onError` handler — catch thrown errors, return 500 `{ "error": "Internal server error" }` (no stack traces or internal details in response)
-- [ ] Add 404 catch-all for unmatched `/api/*` routes — return 404 `{ "error": "Not found" }`
-- [ ] Handle invalid JSON body — return 400 `{ "error": "Invalid JSON" }`
-- [ ] Add tests: scanner throws (500 opaque), invalid JSON body (400), unmatched API route (404)
+- [x] Add Hono `onError` handler — catch thrown errors, return 500 `{ "error": "Internal server error" }` (no stack traces or internal details in response)
+- [x] Add 404 catch-all for unmatched `/api/*` routes — return 404 `{ "error": "Not found" }`
+- [x] Handle invalid JSON body — return 400 `{ "error": "Invalid JSON" }`
+- [x] Add tests: scanner throws (500 opaque), invalid JSON body (400), unmatched API route (404)
 
 ### Static File Serving
 - [ ] Add static file middleware in `create-app.ts` (only when `staticDir` is non-null), registered after API routes

@@ -21,6 +21,20 @@ export function createApp(deps: AppDependencies): Hono {
     }
   });
 
+  // Global error handler
+  app.onError((err, c) => {
+    if (err instanceof SyntaxError) {
+      return c.json({ error: "Invalid JSON" }, 400);
+    }
+    console.error("Unhandled error:", err);
+    return c.json({ error: "Internal server error" }, 500);
+  });
+
+  // 404 catch-all for unmatched routes
+  app.notFound((c) => {
+    return c.json({ error: "Not found" }, 404);
+  });
+
   app.get("/api/projects", async (c) => {
     const projects = await deps.scanner.scanProjects(deps.basePaths);
     return c.json({ projects });

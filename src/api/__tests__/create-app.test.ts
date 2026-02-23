@@ -361,6 +361,51 @@ describe("GET /api/sessions/:sessionId", () => {
   });
 });
 
+describe("Global error handling", () => {
+  test("returns 500 with opaque error when scanner throws", async () => {
+    const deps = createMockDeps({
+      scanner: {
+        scanProjects: async () => {
+          throw new Error("database connection failed");
+        },
+        scanSessions: async () => [],
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/projects");
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Internal server error" });
+    expect(JSON.stringify(body)).not.toContain("database");
+  });
+
+  test("returns 400 for invalid JSON body", async () => {
+    const deps = createMockDeps();
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not valid json{{{",
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Invalid JSON" });
+  });
+
+  test("returns 404 for unmatched API route", async () => {
+    const deps = createMockDeps();
+    const app = createApp(deps);
+    const res = await app.request("/api/nonexistent/route");
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Not found" });
+  });
+});
+
 describe("GET /api/projects/:projectId/sessions", () => {
   test("returns 200 with sessions array", async () => {
     const sessions = [
