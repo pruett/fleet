@@ -603,6 +603,112 @@ describe("watchSession — file truncation recovery", () => {
   });
 });
 
+describe("watchSession — blank & malformed lines", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("skips blank lines without advancing lineIndex or flushing a batch", async () => {
+    tmp = await createTempJsonl();
+
+    const batches: WatchBatch[] = [];
+
+    handle = watchSession({
+      sessionId: "test-blank-lines",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+      },
+      onError: () => {},
+      debounceMs: 50,
+      maxWaitMs: 100,
+    });
+
+    expect(handle.byteOffset).toBe(0);
+    expect(handle.lineIndex).toBe(0);
+
+    // Append two blank lines (just newlines)
+    await appendRaw(tmp.path, "\n\n");
+
+    // Wait for fs.watch to fire and process
+    await new Promise((r) => setTimeout(r, 300));
+
+    // No batch should have been flushed (blank lines produce no messages)
+    expect(batches).toHaveLength(0);
+
+    // byteOffset should have advanced past the two newline bytes
+    expect(handle.byteOffset).toBe(2);
+
+    // lineIndex should not have advanced (blank lines are skipped)
+    expect(handle.lineIndex).toBe(0);
+  });
+
+  it("delivers MalformedRecord for invalid JSON with correct lineIndex", async () => {
+    tmp = await createTempJsonl();
+
+    const batches: WatchBatch[] = [];
+    let totalMessages = 0;
+    let resolve: () => void;
+    const allReceived = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-malformed",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        totalMessages += batch.messages.length;
+        if (totalMessages >= 2) resolve();
+      },
+      onError: () => {},
+    });
+
+    // Append invalid JSON followed by a valid line
+    await appendRaw(tmp.path, "this is not valid json\n");
+
+    // Wait for the malformed message to be processed
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Append a valid line to verify watcher continues
+    const validLine = toLine(makeUserPrompt("After malformed"));
+    await appendLines(tmp.path, [validLine]);
+
+    await Promise.race([
+      allReceived,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for onMessages")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    const allMessages = batches.flatMap((b) => b.messages);
+    expect(allMessages).toHaveLength(2);
+
+    // First message should be a MalformedRecord at lineIndex 0
+    expect(allMessages[0].kind).toBe("malformed");
+    expect(allMessages[0].lineIndex).toBe(0);
+    expect((allMessages[0] as { raw: string }).raw).toBe(
+      "this is not valid json",
+    );
+
+    // Second message should be the valid user-prompt at lineIndex 1
+    expect(allMessages[1].kind).toBe("user-prompt");
+    expect(allMessages[1].lineIndex).toBe(1);
+
+    // lineIndex should have advanced past both lines
+    expect(handle!.lineIndex).toBe(2);
+  });
+});
+
 describe("watchSession — error resilience", () => {
   let tmp: TempJsonl | null = null;
   let handle: WatchHandle | null = null;

@@ -158,3 +158,19 @@ Gotchas:
 - `Bun.file(path).size` uses `stat()` which doesn't require read permission, so it works even with `chmod 0o200`
 
 Verified: typecheck passes, all 434 tests pass (432 existing + 2 new).
+
+## 2026-02-22 — Phase 2: Blank & Malformed Lines
+
+Implemented:
+- Verified blank-line skip behavior: watcher's `line === ""` guard (line 119) prevents blank lines from reaching `parseLine`, so `lineIndex` does not advance and no batch is flushed, while `byteOffset` still advances past the newline bytes
+- Verified malformed JSON behavior: `parseLine` returns `MalformedRecord` (not null) for invalid JSON, so it gets pushed to `pendingMessages` and `lineIndex` increments — watcher continues processing subsequent lines normally
+
+Tests added:
+- "skips blank lines without advancing lineIndex or flushing a batch" — appends `"\n\n"`, asserts no batch flushed, `byteOffset` advanced to 2, `lineIndex` remains 0
+- "delivers MalformedRecord for invalid JSON with correct lineIndex" — appends invalid JSON then a valid line, asserts first message is `MalformedRecord` at lineIndex 0, second is valid `user-prompt` at lineIndex 1, watcher continues normally
+
+Files changed:
+- src/watcher/__tests__/watch-session.test.ts (modified — added 2 tests in new "blank & malformed lines" describe block)
+- plans/file-watcher.md (modified — checked off 4 items)
+
+Verified: typecheck passes, all 436 tests pass (434 existing + 2 new).

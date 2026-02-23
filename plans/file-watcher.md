@@ -70,10 +70,10 @@
 - [x] Test: `fs.watch` error — assert watcher auto-stops and `handle.stopped = true`
 
 ### Blank & Malformed Lines
-- [ ] Verify blank lines (`\n\n`) are skipped: `lineIndex` does not advance, no batch flushed
-- [ ] Verify malformed JSON produces `MalformedRecord` in batch with correct `lineIndex`
-- [ ] Test: append `"\n\n"` — assert no batch flushed, `byteOffset` still advances
-- [ ] Test: append invalid JSON — assert batch contains `MalformedRecord`, `lineIndex` increments, watcher continues
+- [x] Verify blank lines (`\n\n`) are skipped: `lineIndex` does not advance, no batch flushed
+- [x] Verify malformed JSON produces `MalformedRecord` in batch with correct `lineIndex`
+- [x] Test: append `"\n\n"` — assert no batch flushed, `byteOffset` still advances
+- [x] Test: append invalid JSON — assert batch contains `MalformedRecord`, `lineIndex` increments, watcher continues
 
 ---
 
