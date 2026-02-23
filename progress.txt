@@ -159,3 +159,20 @@ Notes:
 - Guard ordering: check client exists, check sessionId is non-null, then proceed with cleanup
 - The function is also reusable for `handleClose` wiring (next task) and implicit unsubscribe on re-subscribe
 - All 483 tests pass, TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 1: Wire unsubscribe into handleClose
+
+Wired `handleUnsubscribe(ws)` call into `handleClose`, executed before removing the client from the registry maps. This ensures that when a client disconnects, its session subscription is cleaned up — removing it from the `sessions` inverse map and stopping the watcher when the last subscriber for a session leaves.
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — added `handleUnsubscribe(ws)` call in `handleClose`)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 2 new tests)
+
+Tests added:
+1. handleClose triggers unsubscribe and stops watcher when last subscriber disconnects
+2. handleClose does not stop watcher when other subscribers remain (multi-client scenario)
+
+Notes:
+- Ordering is critical: `handleUnsubscribe` must run before `clients.delete`/`wsToClientId.delete` since it needs both maps to resolve the client
+- `handleUnsubscribe` already handles the no-subscription case (early return if `client.sessionId === null`), so no extra guard needed
+- All 485 tests pass (2 new + 483 existing), TypeScript clean, Biome clean

@@ -240,6 +240,66 @@ describe("createTransport — Phase 0 tracer bullet", () => {
     expect(frame.sessionId).toBe(VALID_SESSION_ID);
   });
 
+  it("handleClose triggers unsubscribe and stops watcher when last subscriber disconnects", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+    const { ws } = createMockWebSocket();
+
+    transport.handleOpen(ws);
+    transport.handleMessage(
+      ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(mock.watches).toHaveLength(1);
+    expect(mock.stopped).toHaveLength(0);
+
+    // Disconnect — should trigger unsubscribe and stop the watcher
+    transport.handleClose(ws);
+
+    expect(transport.getClientCount()).toBe(0);
+    expect(mock.stopped).toHaveLength(1);
+    expect(mock.stopped[0]).toBe(VALID_SESSION_ID);
+    expect(mock.watches[0].handle.stopped).toBe(true);
+  });
+
+  it("handleClose does not stop watcher when other subscribers remain", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+    const ws1 = createMockWebSocket();
+    const ws2 = createMockWebSocket();
+
+    transport.handleOpen(ws1.ws);
+    transport.handleOpen(ws2.ws);
+
+    const subscribeMsg = JSON.stringify({
+      type: "subscribe",
+      sessionId: VALID_SESSION_ID,
+    });
+
+    transport.handleMessage(ws1.ws, subscribeMsg);
+    await new Promise((r) => setTimeout(r, 10));
+    transport.handleMessage(ws2.ws, subscribeMsg);
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(mock.watches).toHaveLength(1);
+
+    // First client disconnects — watcher should continue (ws2 still subscribed)
+    transport.handleClose(ws1.ws);
+
+    expect(transport.getClientCount()).toBe(1);
+    expect(mock.stopped).toHaveLength(0);
+    expect(mock.watches[0].handle.stopped).toBe(false);
+
+    // Second client disconnects — now watcher should stop
+    transport.handleClose(ws2.ws);
+
+    expect(transport.getClientCount()).toBe(0);
+    expect(mock.stopped).toHaveLength(1);
+    expect(mock.stopped[0]).toBe(VALID_SESSION_ID);
+  });
+
   it("handleClose is idempotent — second call is a no-op", () => {
     const mock = createMockTransportOptions();
     const transport = createTransport(mock.options);

@@ -203,7 +203,9 @@ export function createTransport(options: TransportOptions): Transport {
     const clientId = wsToClientId.get(ws);
     if (clientId === undefined) return; // already removed or unknown
 
-    // NOTE: subscription cleanup (sessions map) is deferred to Phase 1
+    // Clean up subscription before removing client from registry
+    handleUnsubscribe(ws);
+
     clients.delete(clientId);
     wsToClientId.delete(ws);
   }
