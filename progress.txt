@@ -61,3 +61,26 @@ Files changed:
 - src/watcher/__tests__/watch-session.test.ts (modified — added 2 tests)
 
 Verified: typecheck passes, all 425 tests pass (423 existing + 2 new).
+
+## 2026-02-22 — Phase 1: Two-Phase Debounce
+
+Implemented:
+- Added `scheduleBatchFlush()` with trailing-edge timer (`debounceMs`, default 100ms) that resets on each new write, coalescing rapid bursts into single deliveries
+- Added max-wait ceiling timer (`maxWaitMs`, default 500ms) that fires once and does not reset, bounding worst-case latency during sustained writes
+- Added `flush()` function: clears both timers, delivers `WatchBatch` with correct `byteRange` (from `batchStartOffset` to current `byteOffset`), resets `pendingMessages` and `batchStartOffset`
+- Replaced immediate flush in read loop with message accumulation in `state.pendingMessages` + `scheduleBatchFlush()` call
+- Updated `stopWatching()` and `stopAll()` to cancel timers and perform final flush of pending messages
+- Added `processing` guard flag with re-check loop to prevent concurrent async `fs.watch` callbacks from causing data loss during rapid writes
+
+Tests added:
+- "coalesces rapid writes into few batches with default debounce" — writes 10 lines in tight loop, asserts 1–2 batches totaling 10 messages
+- "max-wait ceiling ensures periodic flushes during sustained writes" — writes 1 line every 50ms for 2s with maxWaitMs: 500, asserts at least 4 flushes totaling 40 messages
+
+Files changed:
+- src/watcher/watch-session.ts (modified — added debounce state, scheduleBatchFlush, flush, processing guard)
+- src/watcher/__tests__/watch-session.test.ts (modified — added 2 tests)
+
+Gotchas:
+- Concurrent async `fs.watch` callbacks: when multiple writes occur in a tight loop, `fs.watch` can fire multiple callbacks that run concurrently (each yields at `await .text()`). Without a processing guard + re-check loop, callbacks can read overlapping byte ranges or miss data written during in-flight reads. Solution: `state.processing` boolean serializes callbacks, and a `while` loop re-checks file size after each read.
+
+Verified: typecheck passes, all 427 tests pass (425 existing + 2 new).

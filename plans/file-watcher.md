@@ -35,11 +35,11 @@
 - [x] Test: verify `lineBuffer` is empty string (not partial content) after a complete-line write
 
 ### Two-Phase Debounce
-- [ ] Implement `scheduleBatchFlush()` with trailing-edge timer (`debounceMs`) that resets on each new write
-- [ ] Implement max-wait ceiling timer (`maxWaitMs`) that fires once and does not reset
-- [ ] On flush: clear both timers, deliver `WatchBatch` with correct `byteRange` (`batchStartOffset` to current `byteOffset`), reset `pendingMessages` and `batchStartOffset`
-- [ ] Test: write 10 lines in tight loop with default debounce — assert 1–2 batches totaling 10 messages
-- [ ] Test: write 1 line every 50ms for 2s with `maxWaitMs: 500` — assert at least 4 flushes
+- [x] Implement `scheduleBatchFlush()` with trailing-edge timer (`debounceMs`) that resets on each new write
+- [x] Implement max-wait ceiling timer (`maxWaitMs`) that fires once and does not reset
+- [x] On flush: clear both timers, deliver `WatchBatch` with correct `byteRange` (`batchStartOffset` to current `byteOffset`), reset `pendingMessages` and `batchStartOffset`
+- [x] Test: write 10 lines in tight loop with default debounce — assert 1–2 batches totaling 10 messages
+- [x] Test: write 1 line every 50ms for 2s with `maxWaitMs: 500` — assert at least 4 flushes
 
 ### Watcher Registry & Duplicate Prevention
 - [ ] Add module-level `Map<string, WatchHandle>` registry keyed by `sessionId`
