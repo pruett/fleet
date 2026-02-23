@@ -115,3 +115,28 @@ Notes:
 - Uses `batch.sessionId` (not the `_sessionId` parameter) for consistency with the batch's own identity
 - `try/catch` around `ws.send` for broken pipe handling is deferred to Phase 2 (Send Failures task)
 - Bun's `ServerWebSocket.send()` doesn't throw on closed sockets in typical usage, but the Phase 2 guard will add resilience
+
+## 2026-02-23 — Phase 0: Transport unit tests
+
+Created test infrastructure and Phase 0 tracer bullet test for `createTransport`:
+
+- `src/transport/__tests__/helpers.ts` — mock WebSocket factory (`createMockWebSocket`), mock `TransportOptions` builder (`createMockTransportOptions`) that captures `watchSession` calls and allows manual triggering of watcher callbacks
+- `src/transport/__tests__/create-transport.test.ts` — 9 tests covering the full Phase 0 surface:
+  1. **Tracer bullet**: open → subscribe → watcher fires batch → client receives `{ type: "messages", sessionId, messages, byteRange }` frame with correct shape
+  2. Client count tracking across open/close
+  3. Binary frame rejection (close 1003)
+  4. Invalid JSON error response
+  5. Unknown message type error response
+  6. Invalid sessionId format error response
+  7. Unknown session (resolveSessionPath returns null) error response
+  8. Multi-client fan-out: two subscribers, one watcher, both receive the batch
+  9. handleClose idempotency (double-close is a no-op)
+
+Files changed:
+- `src/transport/__tests__/helpers.ts` (new)
+- `src/transport/__tests__/create-transport.test.ts` (new)
+
+Notes:
+- `ParsedMessage` schema requires `isMeta` on user-prompt, `contentBlock` (singular) on assistant-block, and snake_case `input_tokens`/`output_tokens` on usage — matching Zod schemas exactly
+- Mock WebSocket `closed` state exposed via getter (not plain property) to avoid destructuring capturing stale null value
+- All 483 tests pass (9 new + 474 existing), TypeScript clean
