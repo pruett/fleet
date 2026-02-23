@@ -467,7 +467,7 @@ describe("createTransport — Phase 1 lifecycle broadcast", () => {
     expect(lifecycleFrame2).toBe(lifecycleFrame3);
   });
 
-  it("broadcast to zero clients is a no-op", () => {
+  it("broadcast to zero clients is a no-op (does not throw)", () => {
     const mock = createMockTransportOptions();
     const transport = createTransport(mock.options);
 
@@ -480,5 +480,65 @@ describe("createTransport — Phase 1 lifecycle broadcast", () => {
 
     // Should not throw
     transport.broadcastLifecycleEvent(event);
+  });
+});
+
+describe("createTransport — Phase 1 shutdown", () => {
+  it("shutdown closes all clients with 1001, stops all watchers, and clears state", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    // Connect three clients, subscribe two to different sessions
+    const ws1 = createMockWebSocket();
+    const ws2 = createMockWebSocket();
+    const ws3 = createMockWebSocket();
+
+    transport.handleOpen(ws1.ws);
+    transport.handleOpen(ws2.ws);
+    transport.handleOpen(ws3.ws);
+
+    transport.handleMessage(
+      ws1.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    transport.handleMessage(
+      ws2.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    // ws3 is connected but not subscribed
+    expect(transport.getClientCount()).toBe(3);
+    expect(mock.watches).toHaveLength(2);
+    expect(mock.stopped).toHaveLength(0);
+
+    // Shutdown
+    transport.shutdown();
+
+    // All watchers stopped
+    expect(mock.stopped).toHaveLength(2);
+    expect(mock.watches[0].handle.stopped).toBe(true);
+    expect(mock.watches[1].handle.stopped).toBe(true);
+
+    // All clients closed with 1001
+    expect(ws1.closed).toEqual({ code: 1001, reason: "Server shutting down" });
+    expect(ws2.closed).toEqual({ code: 1001, reason: "Server shutting down" });
+    expect(ws3.closed).toEqual({ code: 1001, reason: "Server shutting down" });
+
+    // Internal state cleared
+    expect(transport.getClientCount()).toBe(0);
+  });
+
+  it("shutdown with no clients or watchers is a no-op", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    // Should not throw
+    transport.shutdown();
+
+    expect(transport.getClientCount()).toBe(0);
+    expect(mock.stopped).toHaveLength(0);
   });
 });

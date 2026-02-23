@@ -41,8 +41,8 @@
 - [x] Write test: broadcast reaches all connected clients (subscribed and unsubscribed)
 
 ### Shutdown
-- [ ] Implement `shutdown` — close all WebSocket connections with code 1001, stop all watchers, clear `clients`/`sessions`/`watchers` maps
-- [ ] Write test: shutdown disconnects all clients and stops all watchers
+- [x] Implement `shutdown` — close all WebSocket connections with code 1001, stop all watchers, clear `clients`/`sessions`/`watchers` maps
+- [x] Write test: shutdown disconnects all clients and stops all watchers
 
 ### Utility Methods
 - [ ] Implement `getClientCount` and `getSessionSubscriberCount`

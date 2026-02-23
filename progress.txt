@@ -218,3 +218,23 @@ Tests added:
 Notes:
 - Implementation is 4 lines — serialize once, iterate clients.values(), send to each
 - All 489 tests pass (2 new + 487 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 1: Shutdown
+
+Implemented `shutdown` in `createTransport`:
+- Stops all watchers by iterating the `watchers` map and calling `options.stopWatching(handle)` for each
+- Closes all WebSocket connections with code 1001 ("Going Away") and reason "Server shutting down"
+- Clears all internal state maps: `clients`, `sessions`, `watchers`, `wsToClientId`
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — replaced shutdown no-op with real implementation)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 2 new tests in "Phase 1 shutdown" describe block)
+
+Tests added:
+1. Shutdown with 3 clients (2 subscribed to different sessions, 1 unsubscribed): verifies all watchers stopped, all clients closed with 1001, internal state cleared
+2. Shutdown with no clients or watchers is a no-op (does not throw)
+
+Notes:
+- Watchers are stopped before closing WebSocket connections — prevents race where a watcher callback fires after client close but before cleanup
+- Ordering: stop watchers → close connections → clear maps
+- All 491 tests pass (2 new + 489 existing), TypeScript clean, Biome clean

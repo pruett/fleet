@@ -224,6 +224,22 @@ export function createTransport(options: TransportOptions): Transport {
     },
     getClientCount: () => clients.size,
     getSessionSubscriberCount: () => 0,
-    shutdown: () => {},
+    shutdown: () => {
+      // 1. Stop all watchers
+      for (const [sessionId, handle] of watchers) {
+        options.stopWatching(handle);
+        watchers.delete(sessionId);
+      }
+
+      // 2. Close all WebSocket connections with 1001 (Going Away)
+      for (const client of clients.values()) {
+        client.ws.close(1001, "Server shutting down");
+      }
+
+      // 3. Clear all internal state
+      clients.clear();
+      sessions.clear();
+      wsToClientId.clear();
+    },
   };
 }
