@@ -147,3 +147,18 @@ Added the send-message control route with body validation and controller delegat
 ### Verification
 - typecheck: pass
 - tests: 448 pass, 0 fail (3 new route tests + 445 existing)
+
+## Phase 3 — Request Logging Middleware (2026-02-22)
+
+Added Hono middleware that logs every request with method, path, status code, and duration.
+
+### What was done
+- Added `app.use("*", ...)` middleware in `create-app.ts` before all routes — uses `performance.now()` for timing, logs `METHOD /path STATUS DURATIONms`
+- Log level varies by status: `console.info` for 2xx, `console.warn` for 4xx, `console.error` for 5xx
+
+### Files changed
+- `src/api/create-app.ts` (updated — added request logging middleware)
+
+### Verification
+- typecheck: pass
+- tests: 448 pass, 0 fail (all existing tests still pass)

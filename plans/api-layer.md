@@ -63,7 +63,7 @@
 ## Phase 3 — Middleware + Error Handling
 
 ### Request Logging Middleware
-- [ ] Add Hono middleware in `create-app.ts` — log `METHOD /path STATUS DURATIONms` for every request (info for 2xx, warn for 4xx, error for 5xx)
+- [x] Add Hono middleware in `create-app.ts` — log `METHOD /path STATUS DURATIONms` for every request (info for 2xx, warn for 4xx, error for 5xx)
 
 ### Global Error Handling
 - [ ] Add Hono `onError` handler — catch thrown errors, return 500 `{ "error": "Internal server error" }` (no stack traces or internal details in response)

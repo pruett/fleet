@@ -5,6 +5,22 @@ import { resolveProjectDir, resolveSessionFile } from "./resolve";
 export function createApp(deps: AppDependencies): Hono {
   const app = new Hono();
 
+  // Request logging middleware
+  app.use("*", async (c, next) => {
+    const start = performance.now();
+    await next();
+    const duration = Math.round(performance.now() - start);
+    const status = c.res.status;
+    const line = `${c.req.method} ${c.req.path} ${status} ${duration}ms`;
+    if (status >= 500) {
+      console.error(line);
+    } else if (status >= 400) {
+      console.warn(line);
+    } else {
+      console.info(line);
+    }
+  });
+
   app.get("/api/projects", async (c) => {
     const projects = await deps.scanner.scanProjects(deps.basePaths);
     return c.json({ projects });
