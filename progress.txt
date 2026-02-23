@@ -1,0 +1,24 @@
+## Phase 0 — Tracer Bullet: Scaffold + GET /api/projects (2026-02-22)
+
+Implemented the minimal Hono API layer with dependency injection and the first read route.
+
+### What was done
+- Added `hono` dependency to package.json
+- Created `src/api/types.ts` — `AppDependencies`, `ControlResult`, `StartSessionOpts` interfaces
+- Created `src/api/create-app.ts` — `createApp(deps)` with `GET /api/projects` route
+- Created `src/api/index.ts` — barrel re-exports
+- Created `src/api/__tests__/helpers.ts` — mock factories (`createMockDeps`, `createMockProject`, `createMockSession`, `createEmptyEnrichedSession`)
+- Created `src/api/__tests__/create-app.test.ts` — 3 tests for GET /api/projects (happy path, basePaths forwarding, empty projects)
+
+### Files changed
+- `package.json` (added hono dep)
+- `bun.lock` (updated)
+- `src/api/types.ts` (new)
+- `src/api/create-app.ts` (new)
+- `src/api/index.ts` (new)
+- `src/api/__tests__/helpers.ts` (new)
+- `src/api/__tests__/create-app.test.ts` (new)
+
+### Verification
+- typecheck: pass
+- tests: 424 pass, 0 fail (3 new API tests + 421 existing)

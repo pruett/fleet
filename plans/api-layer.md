@@ -9,12 +9,12 @@
 > Minimal Hono app with dependency injection, one read route (GET /api/projects), and one test proving the wiring works end-to-end.
 
 ### Scaffold + GET /api/projects
-- [ ] Add `hono` to `package.json` dependencies and install
-- [ ] Create `src/api/types.ts` — define `AppDependencies`, `ControlResult`, `StartSessionOpts` interfaces
-- [ ] Create `src/api/create-app.ts` — `createApp(deps: AppDependencies)` returning a Hono instance with `GET /api/projects` that delegates to `deps.scanner.scanProjects(deps.basePaths)` and returns `{ projects: [...] }`
-- [ ] Create `src/api/index.ts` — re-export `createApp` and types
-- [ ] Create `src/api/__tests__/helpers.ts` — factory functions for mock `AppDependencies` (fake scanner, parser, controller)
-- [ ] Create `src/api/__tests__/create-app.test.ts` — test `GET /api/projects` returns 200 with correct shape using `app.request()` (Hono test utility, no real server)
+- [x] Add `hono` to `package.json` dependencies and install
+- [x] Create `src/api/types.ts` — define `AppDependencies`, `ControlResult`, `StartSessionOpts` interfaces
+- [x] Create `src/api/create-app.ts` — `createApp(deps: AppDependencies)` returning a Hono instance with `GET /api/projects` that delegates to `deps.scanner.scanProjects(deps.basePaths)` and returns `{ projects: [...] }`
+- [x] Create `src/api/index.ts` — re-export `createApp` and types
+- [x] Create `src/api/__tests__/helpers.ts` — factory functions for mock `AppDependencies` (fake scanner, parser, controller)
+- [x] Create `src/api/__tests__/create-app.test.ts` — test `GET /api/projects` returns 200 with correct shape using `app.request()` (Hono test utility, no real server)
 
 ---
 
