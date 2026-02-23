@@ -95,3 +95,20 @@ Added the start-session control route with body validation and controller delega
 ### Verification
 - typecheck: pass
 - tests: 441 pass, 0 fail (3 new route tests + 438 existing)
+
+## Phase 2 — POST /api/sessions/:sessionId/stop (2026-02-22)
+
+Added the stop-session control route with controller delegation.
+
+### What was done
+- Added `POST /api/sessions/:sessionId/stop` route in `create-app.ts` — extracts sessionId param, delegates to `controller.stopSession`, returns 200 with `{ sessionId }` on success
+- Returns 500 with controller error message when `result.ok` is false
+- Added 2 tests: happy path (200 + verifies sessionId passed to controller), controller failure (500)
+
+### Files changed
+- `src/api/create-app.ts` (updated — added stop route)
+- `src/api/__tests__/create-app.test.ts` (updated — added 2 tests for stop route)
+
+### Verification
+- typecheck: pass
+- tests: 443 pass, 0 fail (2 new route tests + 441 existing)

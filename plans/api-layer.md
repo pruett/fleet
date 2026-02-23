@@ -46,8 +46,8 @@
 - [x] Add tests: happy path (201), missing projectDir (400), controller failure (500)
 
 ### POST /api/sessions/:sessionId/stop
-- [ ] Add route — delegate to `controller.stopSession(sessionId)`, return 200 on success, 500 on failure
-- [ ] Add tests: happy path (200), controller failure (500)
+- [x] Add route — delegate to `controller.stopSession(sessionId)`, return 200 on success, 500 on failure
+- [x] Add tests: happy path (200), controller failure (500)
 
 ### POST /api/sessions/:sessionId/resume
 - [ ] Add route — delegate to `controller.resumeSession(sessionId)`, return 200 on success, 500 on failure

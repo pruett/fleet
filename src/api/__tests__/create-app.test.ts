@@ -140,6 +140,58 @@ describe("POST /api/sessions", () => {
   });
 });
 
+describe("POST /api/sessions/:sessionId/stop", () => {
+  test("returns 200 with sessionId on success", async () => {
+    let receivedId = "";
+
+    const deps = createMockDeps({
+      controller: {
+        startSession: async () => ({ ok: true, sessionId: "" }),
+        stopSession: async (id) => {
+          receivedId = id;
+          return { ok: true, sessionId: id };
+        },
+        resumeSession: async () => ({ ok: true, sessionId: "" }),
+        sendMessage: async () => ({ ok: true, sessionId: "" }),
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions/sess-abc-123/stop", {
+      method: "POST",
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ sessionId: "sess-abc-123" });
+    expect(receivedId).toBe("sess-abc-123");
+  });
+
+  test("returns 500 when controller fails", async () => {
+    const deps = createMockDeps({
+      controller: {
+        startSession: async () => ({ ok: true, sessionId: "" }),
+        stopSession: async () => ({
+          ok: false,
+          sessionId: "",
+          error: "process not found",
+        }),
+        resumeSession: async () => ({ ok: true, sessionId: "" }),
+        sendMessage: async () => ({ ok: true, sessionId: "" }),
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions/sess-abc-123/stop", {
+      method: "POST",
+    });
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: "process not found" });
+  });
+});
+
 describe("GET /api/sessions/:sessionId", () => {
   test("returns 200 with parsed session", async () => {
     const enriched = createEmptyEnrichedSession();

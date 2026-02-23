@@ -37,6 +37,15 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ session });
   });
 
+  app.post("/api/sessions/:sessionId/stop", async (c) => {
+    const sessionId = c.req.param("sessionId");
+    const result = await deps.controller.stopSession(sessionId);
+    if (!result.ok) {
+      return c.json({ error: result.error ?? "Failed to stop session" }, 500);
+    }
+    return c.json({ sessionId: result.sessionId });
+  });
+
   app.get("/api/projects/:projectId/sessions", async (c) => {
     const projectId = c.req.param("projectId");
     const projectDir = await resolveProjectDir(deps.basePaths, projectId);
