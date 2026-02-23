@@ -76,3 +76,24 @@ Notes:
 - Subscribe/unsubscribe case bodies are TODO stubs — those are separate plan tasks
 - Binary detection uses `typeof data !== "string"` which matches Bun's WebSocket callback signature (`string | Buffer`)
 - Error frames follow the spec's `{ type: "error", code, message }` shape
+
+## 2026-02-23 — Phase 0: Subscribe handler
+
+Implemented `handleSubscribe` in `createTransport`:
+- Validates `sessionId` format using UUID v4 regex; sends `INVALID_MESSAGE` error if invalid
+- Calls `resolveSessionPath(sessionId)` (async); sends `UNKNOWN_SESSION` error if null
+- Sets `client.sessionId` and adds `clientId` to `sessions` inverse map
+- For first subscriber to a session, calls `options.watchSession()` with `onMessages` wired to `relayBatch` stub, stores `WatchHandle` in `watchers` map
+- Subsequent subscribers to the same session are no-ops (watcher already running)
+- Added `watchers` map (`sessionId → WatchHandle`) to internal state
+- `relayBatch` is defined as a no-op stub — full implementation is the next plan task
+- Removed `_` prefix from `options` parameter (now consumed by subscribe handler)
+
+Files changed:
+- `src/transport/create-transport.ts` (modified)
+
+Notes:
+- `handleSubscribe` is async (calls `resolveSessionPath`); called fire-and-forget from synchronous `handleMessage` dispatch
+- `WatchOptions` does not have a `byteOffset` field — the watcher starts from current file size. Client-side dedup by `lineIndex` handles any overlap (per spec)
+- Implicit unsubscribe on re-subscribe is deferred to Phase 1 (unsubscribe handler)
+- UUID v4 regex: `/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i`

@@ -1,17 +1,101 @@
 import type { ServerWebSocket } from "bun";
 import type { ConnectedClient, Transport, TransportOptions } from "./types";
+import type { WatchHandle, WatchBatch } from "../watcher";
+
+/** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */
+const UUID_V4_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Create a real-time WebSocket transport that relays session watcher
  * batches to subscribed clients.
  */
-export function createTransport(_options: TransportOptions): Transport {
+export function createTransport(options: TransportOptions): Transport {
   // --- Internal state (ClientRegistry) ---
   const clients = new Map<string, ConnectedClient>();
   const sessions = new Map<string, Set<string>>();
+  const watchers = new Map<string, WatchHandle>();
 
   // Reverse lookup: ws reference → clientId (needed by handleMessage/handleClose)
   const wsToClientId = new Map<ServerWebSocket<unknown>, string>();
+
+  // --- Relay ---
+
+  function relayBatch(_sessionId: string, _batch: WatchBatch): void {
+    // TODO: implement full relay logic (Phase 0 — relayBatch task)
+  }
+
+  // --- Subscribe ---
+
+  async function handleSubscribe(
+    ws: ServerWebSocket<unknown>,
+    msg: { sessionId?: unknown },
+  ): Promise<void> {
+    const clientId = wsToClientId.get(ws);
+    if (clientId === undefined) return;
+    const client = clients.get(clientId);
+    if (!client) return;
+
+    const { sessionId } = msg;
+
+    // 1. Validate sessionId format (UUID v4)
+    if (typeof sessionId !== "string" || !UUID_V4_RE.test(sessionId)) {
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          code: "INVALID_MESSAGE",
+          message: "Invalid sessionId format",
+        }),
+      );
+      return;
+    }
+
+    // 2. Resolve session file path
+    const filePath = await options.resolveSessionPath(sessionId);
+    if (filePath === null) {
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          code: "UNKNOWN_SESSION",
+          message: `Session not found: ${sessionId}`,
+        }),
+      );
+      return;
+    }
+
+    // 3. If already subscribed to a different session, implicit unsubscribe
+    // (unsubscribe logic deferred to Phase 1)
+
+    // 4. Set client.sessionId
+    client.sessionId = sessionId;
+
+    // 5. Add to sessions inverse map
+    let subscriberSet = sessions.get(sessionId);
+    if (!subscriberSet) {
+      subscriberSet = new Set();
+      sessions.set(sessionId, subscriberSet);
+    }
+    subscriberSet.add(clientId);
+
+    // 6. Start watcher for first subscriber
+    if (subscriberSet.size === 1) {
+      const watchHandle = options.watchSession({
+        sessionId,
+        filePath,
+        onMessages: (batch) => relayBatch(sessionId, batch),
+        onError: (err) => {
+          console.error(
+            `[transport] watcher error for session ${sessionId}:`,
+            err.message,
+          );
+        },
+      });
+      watchers.set(sessionId, watchHandle);
+    }
+    // 7. If watcher already running (size > 1): no-op — fan-out happens via relayBatch
+  }
+
+  // --- Connection lifecycle ---
 
   function handleOpen(ws: ServerWebSocket<unknown>): void {
     const clientId = crypto.randomUUID();
@@ -51,10 +135,10 @@ export function createTransport(_options: TransportOptions): Transport {
     }
 
     // 3. Dispatch on message.type
-    const msg = message as { type?: string };
+    const msg = message as Record<string, unknown>;
     switch (msg.type) {
       case "subscribe":
-        // TODO: implement subscribe handler (Phase 0 — Subscribe & Relay)
+        handleSubscribe(ws, msg);
         break;
       case "unsubscribe":
         // TODO: implement unsubscribe handler (Phase 1)

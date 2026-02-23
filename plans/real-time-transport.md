@@ -18,7 +18,7 @@
 - [x] Implement `handleMessage` — parse JSON, reject binary frames (close with 1003), dispatch on `message.type`
 
 ### Subscribe & Relay (Single Client, Single Session)
-- [ ] Implement subscribe handler — validate sessionId format, call `resolveSessionPath`, set `client.sessionId`, add to `sessions` inverse map, call `watchSession` for first subscriber, store `WatchHandle` in `watchers` map
+- [x] Implement subscribe handler — validate sessionId format, call `resolveSessionPath`, set `client.sessionId`, add to `sessions` inverse map, call `watchSession` for first subscriber, store `WatchHandle` in `watchers` map
 - [ ] Implement `relayBatch` — serialize `WatchBatch` to `{ type: "messages", sessionId, messages, byteRange }` frame, send to all subscribers of the session
 - [ ] Write test: connect a mock WebSocket, send subscribe message, trigger watcher callback, assert client receives the messages frame with correct shape
 
