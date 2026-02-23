@@ -10,7 +10,7 @@
 
 ### Types & Factory
 - [x] Create `src/transport/types.ts` with `ConnectedClient`, `ClientRegistry`, `TransportOptions`, `Transport`, and `LifecycleEvent` type definitions
-- [ ] Create `src/transport/create-transport.ts` with `createTransport()` stub returning the `Transport` interface (all methods as no-ops)
+- [x] Create `src/transport/create-transport.ts` with `createTransport()` stub returning the `Transport` interface (all methods as no-ops)
 
 ### Connection Lifecycle (Happy Path)
 - [ ] Implement `handleOpen` — generate clientId (UUID v4), create `ConnectedClient`, store in `clients` map

@@ -14,3 +14,19 @@ Notes:
 - `ServerWebSocket` must be explicitly imported from `"bun"` (not globally available despite `"types": ["bun"]` in tsconfig)
 - `resolveSessionPath` typed as async (`Promise<string | null>`) since `resolveSessionFile` in the API module is async
 - Used `ServerWebSocket<unknown>` to match Bun's server-side WebSocket type
+
+## 2026-02-23 — Phase 0: createTransport() factory stub
+
+Created `src/transport/create-transport.ts` with `createTransport()` factory function:
+- Accepts `TransportOptions` (dependency injection for watchSession, stopWatching, resolveSessionPath)
+- Returns `Transport` interface with all methods as no-ops (stubs for later phases)
+- Added `src/transport/index.ts` barrel export following project convention
+
+Files changed:
+- `src/transport/create-transport.ts` (new)
+- `src/transport/index.ts` (new)
+
+Notes:
+- Followed the `createApp(deps)` factory pattern from `src/api/create-app.ts`
+- Options parameter prefixed with `_` since it's unused in the stub phase
+- Barrel index re-exports both runtime (`createTransport`) and all types
