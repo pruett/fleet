@@ -30,3 +30,4 @@ yarn-error.log*
 
 .worktrees/
 .claude/worktrees/
+.claude/.worktrees/
