@@ -77,7 +77,7 @@
 
 ### Integration with API Layer
 - [x] Update `src/api/types.ts` `AppDependencies` to include `transport: Transport` (or expose WebSocket upgrade handler)
-- [ ] Wire `createTransport` into the Bun server's WebSocket upgrade path in `create-app.ts` or a new server entry point
+- [x] Wire `createTransport` into the Bun server's WebSocket upgrade path in `create-app.ts` or a new server entry point
 - [x] Add `resolveSessionPath` adapter that wraps `resolveSessionFile` from `src/api/resolve.ts`
 
 ### Close Handler Idempotency

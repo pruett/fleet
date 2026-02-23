@@ -354,3 +354,39 @@ Notes:
 - Bridges the gap between the two-argument `resolveSessionFile(basePaths, sessionId)` and the single-argument `resolveSessionPath(sessionId)` expected by `TransportOptions`
 - Will be consumed when wiring `createTransport` into the server entry point (next task)
 - All 500 tests pass (2 new + 498 existing), TypeScript clean
+
+## 2026-02-23 — Phase 3: Wire createTransport into Bun server WebSocket upgrade path
+
+Created `src/api/create-server.ts` with a `createServer(deps)` function that composes the Hono HTTP app with WebSocket transport handling into a Bun-compatible server configuration.
+
+The function returns `{ fetch, websocket }` — an object that can be spread into `Bun.serve({ port, ...createServer(deps) })`:
+- `fetch` routes requests to `/ws` through Bun's `server.upgrade()` for WebSocket handshake; all other requests fall through to the Hono app
+- `websocket.open/message/close` delegate directly to `transport.handleOpen/handleMessage/handleClose`
+
+Also exported `ServerOptions` interface and `createServer` from the `src/api/index.ts` barrel.
+
+Files changed:
+- `src/api/create-server.ts` (new — `createServer` function + `ServerOptions` interface)
+- `src/api/index.ts` (modified — added `createServer` and `ServerOptions` exports)
+- `src/api/__tests__/create-server.test.ts` (new — 11 tests)
+- `plans/real-time-transport.md` (updated checkbox)
+
+Tests added:
+1. Returns object with fetch and websocket properties
+2. Upgrades requests to /ws path (calls server.upgrade, returns undefined)
+3. Returns 400 when upgrade fails
+4. Does not upgrade requests to other paths (falls through to Hono)
+5. Does not upgrade /ws/ with trailing slash
+6. Does not upgrade /ws/sub-path
+7. open delegates to transport.handleOpen
+8. message delegates to transport.handleMessage
+9. close delegates to transport.handleClose
+10. Non-WebSocket requests pass through to Hono app (verifies /api/projects returns data)
+11. 404 for unknown API routes
+
+Notes:
+- Used `Server<undefined>` (not `Server<unknown>`) because Bun's `Server.upgrade()` requires a `data` argument when the generic param is not `undefined`
+- The `ServerOptions` interface is structurally compatible with `Bun.serve()` — callers spread it alongside `port`, `hostname`, etc.
+- WebSocket upgrade path is exactly `/ws` (no trailing slash, no sub-paths) per spec: "The server upgrades a single well-known path (e.g., `/ws`) to WebSocket"
+- All 511 tests pass (11 new + 500 existing), TypeScript clean, Biome clean
+- This completes all plan items — the entire real-time transport implementation plan is done
