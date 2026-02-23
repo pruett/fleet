@@ -1,6 +1,9 @@
+import { join, resolve } from "node:path";
 import { Hono } from "hono";
 import type { AppDependencies } from "./types";
 import { resolveProjectDir, resolveSessionFile } from "./resolve";
+
+const HASHED_ASSET_RE = /[.-][a-zA-Z0-9]{8,}\.\w+$/;
 
 export function createApp(deps: AppDependencies): Hono {
   const app = new Hono();
@@ -107,6 +110,54 @@ export function createApp(deps: AppDependencies): Hono {
     const sessions = await deps.scanner.scanSessions(projectDir);
     return c.json({ sessions });
   });
+
+  // Static file serving (only when staticDir is configured)
+  if (deps.staticDir) {
+    const staticDir = resolve(deps.staticDir);
+
+    app.get("*", async (c) => {
+      const pathname = new URL(c.req.url).pathname;
+
+      // API routes are handled by specific handlers above
+      if (pathname.startsWith("/api/")) {
+        return c.json({ error: "Not found" }, 404);
+      }
+
+      const filePath = resolve(join(staticDir, pathname));
+
+      // Prevent path traversal
+      if (!filePath.startsWith(staticDir + "/") && filePath !== staticDir) {
+        return c.json({ error: "Not found" }, 404);
+      }
+
+      const file = Bun.file(filePath);
+      if (await file.exists()) {
+        const isIndex = pathname.endsWith("/index.html");
+        const isHashed = HASHED_ASSET_RE.test(pathname);
+        const cacheControl = isIndex
+          ? "no-cache"
+          : isHashed
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=86400";
+
+        return new Response(await file.arrayBuffer(), {
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+            "Cache-Control": cacheControl,
+          },
+        });
+      }
+
+      // SPA fallback: serve index.html for non-file paths
+      const indexFile = Bun.file(join(staticDir, "index.html"));
+      return new Response(await indexFile.arrayBuffer(), {
+        headers: {
+          "Content-Type": "text/html;charset=utf-8",
+          "Cache-Control": "no-cache",
+        },
+      });
+    });
+  }
 
   return app;
 }

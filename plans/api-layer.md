@@ -72,8 +72,8 @@
 - [x] Add tests: scanner throws (500 opaque), invalid JSON body (400), unmatched API route (404)
 
 ### Static File Serving
-- [ ] Add static file middleware in `create-app.ts` (only when `staticDir` is non-null), registered after API routes
-- [ ] Serve files from `staticDir` with correct Content-Type
-- [ ] SPA fallback: serve `staticDir/index.html` for non-file paths
-- [ ] Cache headers: `no-cache` for `index.html`, `public, max-age=31536000, immutable` for hashed assets, `public, max-age=86400` for other files
-- [ ] Add tests: serves static file, SPA fallback to index.html, cache headers per file type, API routes take priority over static files
+- [x] Add static file middleware in `create-app.ts` (only when `staticDir` is non-null), registered after API routes
+- [x] Serve files from `staticDir` with correct Content-Type
+- [x] SPA fallback: serve `staticDir/index.html` for non-file paths
+- [x] Cache headers: `no-cache` for `index.html`, `public, max-age=31536000, immutable` for hashed assets, `public, max-age=86400` for other files
+- [x] Add tests: serves static file, SPA fallback to index.html, cache headers per file type, API routes take priority over static files

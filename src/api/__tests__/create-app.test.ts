@@ -455,3 +455,76 @@ describe("GET /api/projects/:projectId/sessions", () => {
     expect(body).toEqual({ error: "Project not found" });
   });
 });
+
+describe("Static file serving", () => {
+  const STATIC_DIR = join(FIXTURES, "static");
+
+  test("serves static file with correct Content-Type", async () => {
+    const deps = createMockDeps({ staticDir: STATIC_DIR });
+    const app = createApp(deps);
+    const res = await app.request("/style.css");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/css");
+    const text = await res.text();
+    expect(text).toContain("body");
+  });
+
+  test("SPA fallback serves index.html for non-existent paths", async () => {
+    const deps = createMockDeps({ staticDir: STATIC_DIR });
+    const app = createApp(deps);
+    const res = await app.request("/nonexistent/deep/path");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    const text = await res.text();
+    expect(text).toContain("Hello Fleet");
+  });
+
+  test("sets no-cache for index.html", async () => {
+    const deps = createMockDeps({ staticDir: STATIC_DIR });
+    const app = createApp(deps);
+    const res = await app.request("/index.html");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+  });
+
+  test("sets immutable cache for hashed assets", async () => {
+    const deps = createMockDeps({ staticDir: STATIC_DIR });
+    const app = createApp(deps);
+    const res = await app.request("/assets/app.a1b2c3d4.js");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+  });
+
+  test("sets 1-day cache for other static files", async () => {
+    const deps = createMockDeps({ staticDir: STATIC_DIR });
+    const app = createApp(deps);
+    const res = await app.request("/style.css");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
+  });
+
+  test("API routes take priority over static files", async () => {
+    const projects = [createMockProject({ id: "test-project" })];
+    const deps = createMockDeps({
+      staticDir: STATIC_DIR,
+      scanner: {
+        scanProjects: async () => projects,
+        scanSessions: async () => [],
+      },
+    });
+    const app = createApp(deps);
+    const res = await app.request("/api/projects");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ projects });
+  });
+});
