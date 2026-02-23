@@ -95,18 +95,33 @@ export function createTransport(options: TransportOptions): Transport {
 
     // 6. Start watcher for first subscriber
     if (subscriberSet.size === 1) {
-      const watchHandle = options.watchSession({
-        sessionId,
-        filePath,
-        onMessages: (batch) => relayBatch(sessionId, batch),
-        onError: (err) => {
-          console.error(
-            `[transport] watcher error for session ${sessionId}:`,
-            err.message,
-          );
-        },
-      });
-      watchers.set(sessionId, watchHandle);
+      try {
+        const watchHandle = options.watchSession({
+          sessionId,
+          filePath,
+          onMessages: (batch) => relayBatch(sessionId, batch),
+          onError: (err) => {
+            console.error(
+              `[transport] watcher error for session ${sessionId}:`,
+              err.message,
+            );
+          },
+        });
+        watchers.set(sessionId, watchHandle);
+      } catch {
+        // Revert subscription state — this was the first (and only) subscriber
+        subscriberSet.delete(clientId);
+        sessions.delete(sessionId);
+        client.sessionId = null;
+
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            code: "WATCH_FAILED",
+            message: `Failed to watch session: ${sessionId}`,
+          }),
+        );
+      }
     }
     // 7. If watcher already running (size > 1): no-op — fan-out happens via relayBatch
   }

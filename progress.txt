@@ -258,3 +258,25 @@ Tests added:
 
 Notes:
 - All 494 tests pass (3 new + 491 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 2: Handle watchSession throwing
+
+Implemented error handling for `watchSession` throwing in `handleSubscribe`:
+- Wrapped `options.watchSession()` call in try/catch
+- On failure: sends `{ type: "error", code: "WATCH_FAILED" }` to the client
+- Reverts subscription state: removes clientId from `sessions` set, deletes session entry, resets `client.sessionId = null`
+- Also checked off Phase 2 Client Message Validation items (binary rejection, invalid JSON, unknown type, sessionId validation) — all were already implemented in Phase 0
+- Checked off Phase 3 items already done: test helpers, handleClose idempotency
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — wrapped watchSession in try/catch with state revert)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 1 new test in "Phase 2 subscribe error cases" describe block)
+- `plans/real-time-transport.md` (updated checkboxes)
+
+Tests added:
+1. watchSession throw sends WATCH_FAILED error, reverts state, and allows successful re-subscribe
+
+Notes:
+- The catch block can unconditionally delete the session entry (no size check needed) because the watcher is only started for the first subscriber (`subscriberSet.size === 1`), so after removing the one subscriber the set is always empty
+- TypeScript correctly narrowed `subscriberSet.size` to literal `1` from the outer guard, making a `=== 0` check a type error — simplified by removing the redundant check
+- All 495 tests pass (1 new + 494 existing), TypeScript clean, Biome clean

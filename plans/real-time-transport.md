@@ -53,16 +53,16 @@
 ## Phase 2 — Error Handling & Validation
 
 ### Client Message Validation
-- [ ] Reject binary frames — close connection with status 1003
-- [ ] Handle invalid JSON — send `{ type: "error", code: "INVALID_MESSAGE" }` error to client
-- [ ] Handle unknown message type — send `INVALID_MESSAGE` error to client
-- [ ] Validate sessionId is UUID v4 format on subscribe — send `INVALID_MESSAGE` error if invalid
-- [ ] Write tests for each invalid input scenario
+- [x] Reject binary frames — close connection with status 1003
+- [x] Handle invalid JSON — send `{ type: "error", code: "INVALID_MESSAGE" }` error to client
+- [x] Handle unknown message type — send `INVALID_MESSAGE` error to client
+- [x] Validate sessionId is UUID v4 format on subscribe — send `INVALID_MESSAGE` error if invalid
+- [x] Write tests for each invalid input scenario
 
 ### Subscribe Error Cases
-- [ ] Handle `resolveSessionPath` returning null — send `UNKNOWN_SESSION` error, do not modify subscription state
-- [ ] Handle `watchSession` throwing — send `WATCH_FAILED` error, revert subscription state (remove from `sessions` map)
-- [ ] Write tests: unknown session returns error; watcher failure reverts state
+- [x] Handle `resolveSessionPath` returning null — send `UNKNOWN_SESSION` error, do not modify subscription state
+- [x] Handle `watchSession` throwing — send `WATCH_FAILED` error, revert subscription state (remove from `sessions` map)
+- [x] Write tests: unknown session returns error; watcher failure reverts state
 
 ### Send Failures
 - [ ] Wrap `ws.send` in try/catch in `relayBatch` and `broadcastLifecycleEvent` — catch broken pipe, continue to next client
@@ -73,7 +73,7 @@
 ## Phase 3 — Integration & Test Helpers
 
 ### Test Helpers
-- [ ] Create `src/transport/__tests__/helpers.ts` with mock WebSocket factory, mock `TransportOptions` builder, and utility to simulate watcher callbacks
+- [x] Create `src/transport/__tests__/helpers.ts` with mock WebSocket factory, mock `TransportOptions` builder, and utility to simulate watcher callbacks
 
 ### Integration with API Layer
 - [ ] Update `src/api/types.ts` `AppDependencies` to include `transport: Transport` (or expose WebSocket upgrade handler)
@@ -81,8 +81,8 @@
 - [ ] Add `resolveSessionPath` adapter that wraps `resolveSessionFile` from `src/api/resolve.ts`
 
 ### Close Handler Idempotency
-- [ ] Ensure `handleClose` is idempotent — second call for same client is a no-op
-- [ ] Write test: calling handleClose twice does not throw or double-remove
+- [x] Ensure `handleClose` is idempotent — second call for same client is a no-op
+- [x] Write test: calling handleClose twice does not throw or double-remove
 
 ### Duplicate Subscribe Idempotency
 - [ ] Handle subscribing to the same session twice — no-op (no duplicate watcher, no double-add to set)

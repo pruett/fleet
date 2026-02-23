@@ -408,6 +408,53 @@ describe("createTransport — Phase 0 tracer bullet", () => {
   });
 });
 
+describe("createTransport — Phase 2 subscribe error cases", () => {
+  it("sends WATCH_FAILED and reverts state when watchSession throws", async () => {
+    const mock = createMockTransportOptions();
+    // Override watchSession to throw on the first call
+    const originalWatchSession = mock.options.watchSession;
+    let callCount = 0;
+    mock.options.watchSession = (opts) => {
+      callCount++;
+      if (callCount === 1) {
+        throw new Error("Simulated watcher failure");
+      }
+      return originalWatchSession(opts);
+    };
+
+    const transport = createTransport(mock.options);
+    const { ws, sent } = createMockWebSocket();
+
+    transport.handleOpen(ws);
+
+    // Subscribe — watchSession will throw
+    transport.handleMessage(
+      ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Client should receive WATCH_FAILED error
+    expect(sent).toHaveLength(1);
+    const error = JSON.parse(sent[0]);
+    expect(error.type).toBe("error");
+    expect(error.code).toBe("WATCH_FAILED");
+
+    // Subscription state should be reverted
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
+
+    // Client should be able to subscribe again successfully (state was cleaned up)
+    transport.handleMessage(
+      ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+    expect(mock.watches).toHaveLength(1); // Only the second call succeeded
+  });
+});
+
 describe("createTransport — Phase 1 lifecycle broadcast", () => {
   it("broadcasts lifecycle event to all connected clients regardless of subscription", async () => {
     const mock = createMockTransportOptions();
