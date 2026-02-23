@@ -223,7 +223,8 @@ export function createTransport(options: TransportOptions): Transport {
       }
     },
     getClientCount: () => clients.size,
-    getSessionSubscriberCount: () => 0,
+    getSessionSubscriberCount: (sessionId: string) =>
+      sessions.get(sessionId)?.size ?? 0,
     shutdown: () => {
       // 1. Stop all watchers
       for (const [sessionId, handle] of watchers) {

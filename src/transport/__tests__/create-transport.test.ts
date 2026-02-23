@@ -483,6 +483,91 @@ describe("createTransport — Phase 1 lifecycle broadcast", () => {
   });
 });
 
+describe("createTransport — Phase 1 utility methods", () => {
+  it("getClientCount reflects connected clients", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    expect(transport.getClientCount()).toBe(0);
+
+    const ws1 = createMockWebSocket();
+    const ws2 = createMockWebSocket();
+    const ws3 = createMockWebSocket();
+
+    transport.handleOpen(ws1.ws);
+    expect(transport.getClientCount()).toBe(1);
+
+    transport.handleOpen(ws2.ws);
+    transport.handleOpen(ws3.ws);
+    expect(transport.getClientCount()).toBe(3);
+
+    transport.handleClose(ws2.ws);
+    expect(transport.getClientCount()).toBe(2);
+  });
+
+  it("getSessionSubscriberCount returns 0 for unknown session", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
+  });
+
+  it("getSessionSubscriberCount tracks subscribers accurately", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    const ws1 = createMockWebSocket();
+    const ws2 = createMockWebSocket();
+    const ws3 = createMockWebSocket();
+
+    transport.handleOpen(ws1.ws);
+    transport.handleOpen(ws2.ws);
+    transport.handleOpen(ws3.ws);
+
+    // No subscribers yet
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
+
+    // First subscriber
+    transport.handleMessage(
+      ws1.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+
+    // Second subscriber to same session
+    transport.handleMessage(
+      ws2.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
+
+    // Third client subscribes to a different session
+    transport.handleMessage(
+      ws3.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID_2)).toBe(1);
+
+    // Unsubscribe one from first session
+    transport.handleMessage(
+      ws1.ws,
+      JSON.stringify({ type: "unsubscribe" }),
+    );
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+
+    // Disconnect last subscriber from first session
+    transport.handleClose(ws2.ws);
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
+
+    // Second session still has its subscriber
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID_2)).toBe(1);
+  });
+});
+
 describe("createTransport — Phase 1 shutdown", () => {
   it("shutdown closes all clients with 1001, stops all watchers, and clears state", async () => {
     const mock = createMockTransportOptions();

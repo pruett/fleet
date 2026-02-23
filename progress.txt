@@ -238,3 +238,23 @@ Notes:
 - Watchers are stopped before closing WebSocket connections — prevents race where a watcher callback fires after client close but before cleanup
 - Ordering: stop watchers → close connections → clear maps
 - All 491 tests pass (2 new + 489 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 1: Utility Methods
+
+Implemented `getSessionSubscriberCount` in `createTransport`:
+- Looks up the subscriber set from the `sessions` inverse map for the given `sessionId`
+- Returns `set.size` if found, `0` if no subscribers or unknown session
+- `getClientCount` was already correctly implemented as `clients.size` — no changes needed
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — replaced hardcoded `() => 0` with real lookup)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 3 new tests in "Phase 1 utility methods" describe block)
+- `plans/real-time-transport.md` (updated checkboxes)
+
+Tests added:
+1. `getClientCount` reflects connected clients across open/close
+2. `getSessionSubscriberCount` returns 0 for unknown session
+3. `getSessionSubscriberCount` tracks subscribers accurately through subscribe/unsubscribe/disconnect lifecycle
+
+Notes:
+- All 494 tests pass (3 new + 491 existing), TypeScript clean, Biome clean

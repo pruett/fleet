@@ -45,8 +45,8 @@
 - [x] Write test: shutdown disconnects all clients and stops all watchers
 
 ### Utility Methods
-- [ ] Implement `getClientCount` and `getSessionSubscriberCount`
-- [ ] Write tests for utility methods
+- [x] Implement `getClientCount` and `getSessionSubscriberCount`
+- [x] Write tests for utility methods
 
 ---
 
