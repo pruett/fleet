@@ -300,3 +300,22 @@ Tests added:
 Notes:
 - The catch blocks are intentionally empty — there's no useful recovery action for a broken pipe during fan-out
 - All 497 tests pass (2 new + 495 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 3: Duplicate Subscribe Idempotency
+
+Implemented duplicate subscribe idempotency in `handleSubscribe` — when a client sends a subscribe for the session it's already subscribed to, the request is a no-op. No duplicate watcher is started, no double-add to the subscriber set, and no error is sent.
+
+Added an early return guard after sessionId format validation: `if (client.sessionId === sessionId) return;`. This check runs before `resolveSessionPath` so it avoids unnecessary async work.
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — added early return for same-session subscribe)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 1 new test in "Phase 3 duplicate subscribe idempotency" describe block)
+- `plans/real-time-transport.md` (updated checkboxes)
+
+Tests added:
+1. Duplicate subscribe to same session is a no-op: no second watcher, subscriber count stays at 1, no error sent, relay still delivers
+
+Notes:
+- The guard placement is intentional — it runs after format validation but before `resolveSessionPath` to avoid wasted async resolution
+- Renumbered inline comments (steps 3-7 → 3-8) to account for the new step 2
+- All 498 tests pass (1 new + 497 existing), TypeScript clean, Biome clean

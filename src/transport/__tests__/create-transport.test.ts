@@ -676,6 +676,57 @@ describe("createTransport — Phase 1 shutdown", () => {
   });
 });
 
+describe("createTransport — Phase 3 duplicate subscribe idempotency", () => {
+  it("duplicate subscribe to the same session is a no-op — no second watcher, no double-add", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+    const { ws, sent } = createMockWebSocket();
+
+    transport.handleOpen(ws);
+
+    const subscribeMsg = JSON.stringify({
+      type: "subscribe",
+      sessionId: VALID_SESSION_ID,
+    });
+
+    // First subscribe — should start a watcher
+    transport.handleMessage(ws, subscribeMsg);
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(mock.watches).toHaveLength(1);
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+
+    // Second subscribe to the SAME session — should be a no-op
+    transport.handleMessage(ws, subscribeMsg);
+    await new Promise((r) => setTimeout(r, 10));
+
+    // No additional watcher started
+    expect(mock.watches).toHaveLength(1);
+    // Subscriber count unchanged (no double-add)
+    expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+    // No error sent to client
+    const errors = sent.filter((s) => {
+      const f = JSON.parse(s);
+      return f.type === "error";
+    });
+    expect(errors).toHaveLength(0);
+
+    // Watcher still works — relay still delivers
+    const batch: WatchBatch = {
+      sessionId: VALID_SESSION_ID,
+      messages: [],
+      byteRange: { start: 0, end: 50 },
+    };
+    mock.watches[0].options.onMessages(batch);
+
+    const messageFrames = sent.filter((s) => {
+      const f = JSON.parse(s);
+      return f.type === "messages";
+    });
+    expect(messageFrames).toHaveLength(1);
+  });
+});
+
 describe("createTransport — Phase 2 send failures", () => {
   it("relayBatch skips broken client and delivers to remaining clients", async () => {
     const mock = createMockTransportOptions();

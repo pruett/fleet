@@ -68,7 +68,10 @@ export function createTransport(options: TransportOptions): Transport {
       return;
     }
 
-    // 2. Resolve session file path
+    // 2. Already subscribed to this session — no-op
+    if (client.sessionId === sessionId) return;
+
+    // 3. Resolve session file path
     const filePath = await options.resolveSessionPath(sessionId);
     if (filePath === null) {
       ws.send(
@@ -81,15 +84,15 @@ export function createTransport(options: TransportOptions): Transport {
       return;
     }
 
-    // 3. If already subscribed to a different session, implicit unsubscribe
+    // 4. If already subscribed to a different session, implicit unsubscribe
     if (client.sessionId !== null && client.sessionId !== sessionId) {
       handleUnsubscribe(ws);
     }
 
-    // 4. Set client.sessionId
+    // 5. Set client.sessionId
     client.sessionId = sessionId;
 
-    // 5. Add to sessions inverse map
+    // 6. Add to sessions inverse map
     let subscriberSet = sessions.get(sessionId);
     if (!subscriberSet) {
       subscriberSet = new Set();
@@ -97,7 +100,7 @@ export function createTransport(options: TransportOptions): Transport {
     }
     subscriberSet.add(clientId);
 
-    // 6. Start watcher for first subscriber
+    // 7. Start watcher for first subscriber
     if (subscriberSet.size === 1) {
       try {
         const watchHandle = options.watchSession({
@@ -127,7 +130,7 @@ export function createTransport(options: TransportOptions): Transport {
         );
       }
     }
-    // 7. If watcher already running (size > 1): no-op — fan-out happens via relayBatch
+    // 8. If watcher already running (size > 1): no-op — fan-out happens via relayBatch
   }
 
   // --- Unsubscribe ---

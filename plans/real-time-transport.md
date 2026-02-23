@@ -85,5 +85,5 @@
 - [x] Write test: calling handleClose twice does not throw or double-remove
 
 ### Duplicate Subscribe Idempotency
-- [ ] Handle subscribing to the same session twice — no-op (no duplicate watcher, no double-add to set)
-- [ ] Write test: duplicate subscribe does not create second watcher
+- [x] Handle subscribing to the same session twice — no-op (no duplicate watcher, no double-add to set)
+- [x] Write test: duplicate subscribe does not create second watcher
