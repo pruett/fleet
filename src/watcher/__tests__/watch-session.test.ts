@@ -323,3 +323,69 @@ describe("watchSession — partial line buffering", () => {
     expect(handle!.lineIndex).toBe(1);
   });
 });
+
+describe("watchSession — registry & duplicate prevention", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("returns existing handle when watchSession is called twice with same sessionId", async () => {
+    tmp = await createTempJsonl();
+
+    const batches: WatchBatch[] = [];
+    let totalMessages = 0;
+    let resolve: () => void;
+    const received = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    const sharedOpts = {
+      sessionId: "test-duplicate",
+      filePath: tmp.path,
+      onError: () => {},
+    };
+
+    // First call — creates the watcher
+    handle = watchSession({
+      ...sharedOpts,
+      onMessages: (batch) => {
+        batches.push(batch);
+        totalMessages += batch.messages.length;
+        if (totalMessages >= 1) resolve();
+      },
+    });
+
+    // Second call with the same sessionId — should return the same handle
+    const handle2 = watchSession({
+      ...sharedOpts,
+      onMessages: () => {
+        throw new Error("Second onMessages should never be called");
+      },
+    });
+
+    expect(handle2).toBe(handle);
+
+    // Append a line — only the first callback should fire
+    await appendLines(tmp.path, [toLine(makeUserPrompt("Dedup test"))]);
+
+    await Promise.race([
+      received,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for onMessages")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    const allMessages = batches.flatMap((b) => b.messages);
+    expect(allMessages).toHaveLength(1);
+    expect(allMessages[0].kind).toBe("user-prompt");
+  });
+});

@@ -84,3 +84,18 @@ Gotchas:
 - Concurrent async `fs.watch` callbacks: when multiple writes occur in a tight loop, `fs.watch` can fire multiple callbacks that run concurrently (each yields at `await .text()`). Without a processing guard + re-check loop, callbacks can read overlapping byte ranges or miss data written during in-flight reads. Solution: `state.processing` boolean serializes callbacks, and a `while` loop re-checks file size after each read.
 
 Verified: typecheck passes, all 427 tests pass (425 existing + 2 new).
+
+## 2026-02-22 — Phase 1: Watcher Registry & Duplicate Prevention
+
+Implemented:
+- Added duplicate prevention guard at the top of `watchSession()`: if `sessionId` already exists in the module-level `registry` Map, return the existing handle immediately without creating a new watcher
+- The `Map<string, WatcherState>` registry (keyed by sessionId) was already in place from the core read loop implementation; this task adds the dedup check that makes it effective
+
+Tests added:
+- "returns existing handle when watchSession is called twice with same sessionId" — calls `watchSession` twice with same `sessionId`, asserts identical handle reference (`toBe`), appends a line and verifies only the first callback fires (second callback throws if invoked)
+
+Files changed:
+- src/watcher/watch-session.ts (modified — added early-return guard for duplicate sessionId)
+- src/watcher/__tests__/watch-session.test.ts (modified — added 1 test)
+
+Verified: typecheck passes, all 428 tests pass (427 existing + 1 new).

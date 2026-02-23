@@ -42,9 +42,9 @@
 - [x] Test: write 1 line every 50ms for 2s with `maxWaitMs: 500` — assert at least 4 flushes
 
 ### Watcher Registry & Duplicate Prevention
-- [ ] Add module-level `Map<string, WatchHandle>` registry keyed by `sessionId`
-- [ ] In `watchSession`: if `sessionId` already in registry, return existing handle without creating a duplicate watcher
-- [ ] Test: call `watchSession` twice with same `sessionId` — assert same handle returned, single set of events per write
+- [x] Add module-level `Map<string, WatchHandle>` registry keyed by `sessionId`
+- [x] In `watchSession`: if `sessionId` already in registry, return existing handle without creating a duplicate watcher
+- [x] Test: call `watchSession` twice with same `sessionId` — assert same handle returned, single set of events per write
 
 ### Stop & Teardown
 - [ ] Implement `stopWatching(handle)`: close fs.watch listener, cancel timers, final flush if `pendingMessages` non-empty, set `handle.stopped = true`, remove from registry

@@ -34,6 +34,10 @@ const registry = new Map<string, WatcherState>();
 export function watchSession(options: WatchOptions): WatchHandle {
   const { sessionId, filePath } = options;
 
+  // Return existing handle if this session is already being watched
+  const existing = registry.get(sessionId);
+  if (existing) return existing.handle;
+
   // Get initial file size to start tailing from end
   const initialSize = Bun.file(filePath).size;
 
