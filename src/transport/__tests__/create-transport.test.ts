@@ -7,6 +7,7 @@ import {
   createMockWebSocket,
   createBrokenMockWebSocket,
   createMockTransportOptions,
+  flushAsync,
   VALID_SESSION_ID,
   VALID_SESSION_ID_2,
 } from "./helpers";
@@ -28,7 +29,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
     );
 
     // Allow async subscribe handler to complete (resolveSessionPath is async)
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // 3. Verify watchSession was called with correct args
     expect(mock.watches).toHaveLength(1);
@@ -160,7 +161,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
       JSON.stringify({ type: "subscribe", sessionId: "not-a-uuid" }),
     );
 
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(sent).toHaveLength(1);
     const error = JSON.parse(sent[0]);
@@ -181,7 +182,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
 
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(sent).toHaveLength(1);
     const error = JSON.parse(sent[0]);
@@ -205,10 +206,10 @@ describe("createTransport — Phase 0 tracer bullet", () => {
     });
 
     transport.handleMessage(ws1.ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     transport.handleMessage(ws2.ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // Only one watcher should have been started
     expect(mock.watches).toHaveLength(1);
@@ -253,7 +254,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
       ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
     expect(mock.stopped).toHaveLength(0);
@@ -282,9 +283,9 @@ describe("createTransport — Phase 0 tracer bullet", () => {
     });
 
     transport.handleMessage(ws1.ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
     transport.handleMessage(ws2.ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
 
@@ -331,7 +332,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
       ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
     expect(mock.watches[0].options.sessionId).toBe(VALID_SESSION_ID);
@@ -341,7 +342,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
       ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // Old watcher should have been stopped (last subscriber left)
     expect(mock.stopped).toHaveLength(1);
@@ -389,7 +390,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
       ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
 
@@ -398,7 +399,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
       ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // Old watcher should NOT have been stopped — the client stays on the old session
     expect(mock.stopped).toHaveLength(0);
@@ -433,7 +434,7 @@ describe("createTransport — Phase 2 subscribe error cases", () => {
       ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // Client should receive WATCH_FAILED error
     expect(sent).toHaveLength(1);
@@ -449,7 +450,7 @@ describe("createTransport — Phase 2 subscribe error cases", () => {
       ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
     expect(mock.watches).toHaveLength(1); // Only the second call succeeded
@@ -468,7 +469,7 @@ describe("createTransport — Phase 1 lifecycle broadcast", () => {
       ws1.ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // Client 2: connected but NOT subscribed
     const ws2 = createMockWebSocket();
@@ -481,7 +482,7 @@ describe("createTransport — Phase 1 lifecycle broadcast", () => {
       ws3.ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(transport.getClientCount()).toBe(3);
 
@@ -580,7 +581,7 @@ describe("createTransport — Phase 1 utility methods", () => {
       ws1.ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
     expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
 
     // Second subscriber to same session
@@ -588,7 +589,7 @@ describe("createTransport — Phase 1 utility methods", () => {
       ws2.ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
     expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
 
     // Third client subscribes to a different session
@@ -596,7 +597,7 @@ describe("createTransport — Phase 1 utility methods", () => {
       ws3.ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
     expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
     expect(transport.getSessionSubscriberCount(VALID_SESSION_ID_2)).toBe(1);
 
@@ -634,13 +635,13 @@ describe("createTransport — Phase 1 shutdown", () => {
       ws1.ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     transport.handleMessage(
       ws2.ws,
       JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
     );
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // ws3 is connected but not subscribed
     expect(transport.getClientCount()).toBe(3);
@@ -691,14 +692,14 @@ describe("createTransport — Phase 3 duplicate subscribe idempotency", () => {
 
     // First subscribe — should start a watcher
     transport.handleMessage(ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
     expect(transport.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
 
     // Second subscribe to the SAME session — should be a no-op
     transport.handleMessage(ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     // No additional watcher started
     expect(mock.watches).toHaveLength(1);
@@ -751,11 +752,11 @@ describe("createTransport — Phase 2 send failures", () => {
     });
 
     transport.handleMessage(ws1.ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
     transport.handleMessage(ws2.ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
     transport.handleMessage(ws3.ws, subscribeMsg);
-    await new Promise((r) => setTimeout(r, 10));
+    await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
 

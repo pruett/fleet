@@ -21,7 +21,7 @@ export function createTransport(options: TransportOptions): Transport {
 
   // --- Relay ---
 
-  function relayBatch(_sessionId: string, batch: WatchBatch): void {
+  function relayBatch(batch: WatchBatch): void {
     const subscriberIds = sessions.get(batch.sessionId);
     if (!subscriberIds || subscriberIds.size === 0) return;
 
@@ -74,15 +74,23 @@ export function createTransport(options: TransportOptions): Transport {
     // 3. Resolve session file path
     const filePath = await options.resolveSessionPath(sessionId);
     if (filePath === null) {
-      ws.send(
-        JSON.stringify({
-          type: "error",
-          code: "UNKNOWN_SESSION",
-          message: `Session not found: ${sessionId}`,
-        }),
-      );
+      try {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            code: "UNKNOWN_SESSION",
+            message: `Session not found: ${sessionId}`,
+          }),
+        );
+      } catch {
+        // Broken pipe / closed socket — skip
+      }
       return;
     }
+
+    // Re-validate state after async gap — client may have disconnected or already subscribed
+    if (!clients.has(clientId)) return;
+    if (client.sessionId === sessionId) return;
 
     // 4. If already subscribed to a different session, implicit unsubscribe
     if (client.sessionId !== null && client.sessionId !== sessionId) {
@@ -106,7 +114,7 @@ export function createTransport(options: TransportOptions): Transport {
         const watchHandle = options.watchSession({
           sessionId,
           filePath,
-          onMessages: (batch) => relayBatch(sessionId, batch),
+          onMessages: (batch) => relayBatch(batch),
           onError: (err) => {
             console.error(
               `[transport] watcher error for session ${sessionId}:`,
@@ -192,13 +200,17 @@ export function createTransport(options: TransportOptions): Transport {
     try {
       message = JSON.parse(data);
     } catch {
-      ws.send(
-        JSON.stringify({
-          type: "error",
-          code: "INVALID_MESSAGE",
-          message: "Invalid JSON",
-        }),
-      );
+      try {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            code: "INVALID_MESSAGE",
+            message: "Invalid JSON",
+          }),
+        );
+      } catch {
+        // Broken pipe / closed socket — skip
+      }
       return;
     }
 
@@ -206,19 +218,25 @@ export function createTransport(options: TransportOptions): Transport {
     const msg = message as Record<string, unknown>;
     switch (msg.type) {
       case "subscribe":
-        handleSubscribe(ws, msg);
+        handleSubscribe(ws, msg).catch((err) => {
+          console.error("[transport] handleSubscribe error:", err);
+        });
         break;
       case "unsubscribe":
         handleUnsubscribe(ws);
         break;
       default:
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            code: "INVALID_MESSAGE",
-            message: `Unknown message type: ${String(msg.type)}`,
-          }),
-        );
+        try {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              code: "INVALID_MESSAGE",
+              message: `Unknown message type: ${String(msg.type)}`,
+            }),
+          );
+        } catch {
+          // Broken pipe / closed socket — skip
+        }
         break;
     }
   }
@@ -253,10 +271,10 @@ export function createTransport(options: TransportOptions): Transport {
       sessions.get(sessionId)?.size ?? 0,
     shutdown: () => {
       // 1. Stop all watchers
-      for (const [sessionId, handle] of watchers) {
+      for (const handle of watchers.values()) {
         options.stopWatching(handle);
-        watchers.delete(sessionId);
       }
+      watchers.clear();
 
       // 2. Close all WebSocket connections with 1001 (Going Away)
       for (const client of clients.values()) {
