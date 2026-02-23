@@ -30,3 +30,19 @@ Notes:
 - Followed the `createApp(deps)` factory pattern from `src/api/create-app.ts`
 - Options parameter prefixed with `_` since it's unused in the stub phase
 - Barrel index re-exports both runtime (`createTransport`) and all types
+
+## 2026-02-23 — Phase 0: handleOpen connection lifecycle
+
+Implemented `handleOpen` in `createTransport`:
+- Initializes `ClientRegistry` internal state (`clients` map, `sessions` inverse map)
+- Adds `wsToClientId` reverse lookup map (`ServerWebSocket` → `clientId`) for O(1) client lookup in handleMessage/handleClose
+- `handleOpen` generates UUID v4 via `crypto.randomUUID()`, creates `ConnectedClient`, stores in both maps
+- `getClientCount` now returns `clients.size` (was hardcoded 0)
+
+Files changed:
+- `src/transport/create-transport.ts` (modified)
+
+Notes:
+- `crypto.randomUUID()` is globally available in Bun — no import needed
+- `sessions` map initialized but unused until subscribe is implemented
+- `_options` parameter still unused — will be consumed when subscribe/relay logic is added
