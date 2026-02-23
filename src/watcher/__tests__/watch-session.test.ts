@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "bun:test";
 import { watchSession, stopWatching, stopAll } from "..";
 import type { WatchBatch, WatchHandle } from "../types";
-import { createTempJsonl, appendLines, type TempJsonl } from "./helpers";
+import { createTempJsonl, appendLines, appendRaw, type TempJsonl } from "./helpers";
 import {
   makeUserPrompt,
   makeAssistantRecord,
@@ -136,5 +136,110 @@ describe("watchSession — tracer bullet", () => {
 
     // byteRange should start where the pre-existing content ended
     expect(batches[0].byteRange.start).toBe(initialSize);
+  });
+});
+
+describe("watchSession — partial line buffering", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("buffers partial line and delivers only after completing newline", async () => {
+    tmp = await createTempJsonl();
+
+    const batches: WatchBatch[] = [];
+    let resolve: () => void;
+    const received = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-partial-buffer",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        resolve();
+      },
+      onError: () => {},
+    });
+
+    // Write first half of a JSON line (no trailing newline)
+    const fullLine = toLine(makeUserPrompt("Split line"));
+    const half1 = fullLine.slice(0, Math.floor(fullLine.length / 2));
+    const half2 = fullLine.slice(Math.floor(fullLine.length / 2)) + "\n";
+
+    await appendRaw(tmp.path, half1);
+
+    // Give fs.watch time to fire and process the partial write
+    await new Promise((r) => setTimeout(r, 200));
+
+    // No messages should have been delivered yet (line is incomplete)
+    expect(batches).toHaveLength(0);
+
+    // Now complete the line with the second half + newline
+    await appendRaw(tmp.path, half2);
+
+    await Promise.race([
+      received,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for onMessages")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    // Exactly one message should be delivered now
+    const allMessages = batches.flatMap((b) => b.messages);
+    expect(allMessages).toHaveLength(1);
+    expect(allMessages[0].kind).toBe("user-prompt");
+    expect(allMessages[0].lineIndex).toBe(0);
+  });
+
+  it("lineBuffer is empty after a complete-line write", async () => {
+    tmp = await createTempJsonl();
+
+    const batches: WatchBatch[] = [];
+    let resolve: () => void;
+    const received = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-complete-line",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        resolve();
+      },
+      onError: () => {},
+    });
+
+    // Append a complete line (with trailing newline)
+    const line = toLine(makeUserPrompt("Complete"));
+    await appendLines(tmp.path, [line]);
+
+    await Promise.race([
+      received,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for onMessages")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    expect(batches.flatMap((b) => b.messages)).toHaveLength(1);
+
+    // After processing a complete line, byteOffset should equal file size
+    // (meaning no leftover partial bytes were buffered)
+    expect(handle!.byteOffset).toBe(Bun.file(tmp.path).size);
+    expect(handle!.lineIndex).toBe(1);
   });
 });

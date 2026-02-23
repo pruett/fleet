@@ -7,6 +7,8 @@ interface WatcherState {
   handle: WatchHandle;
   watcher: FSWatcher;
   options: WatchOptions;
+  /** Buffered partial line from previous read (incomplete — no trailing \n). */
+  lineBuffer: string;
 }
 
 /**
@@ -33,6 +35,13 @@ export function watchSession(options: WatchOptions): WatchHandle {
     stopped: false,
   };
 
+  const state: WatcherState = {
+    handle,
+    watcher: null as unknown as FSWatcher, // assigned immediately below
+    options,
+    lineBuffer: "",
+  };
+
   // Register fs.watch listener for file changes
   const fsWatcher = watch(filePath, async (eventType) => {
     if (handle.stopped) return;
@@ -47,11 +56,16 @@ export function watchSession(options: WatchOptions): WatchHandle {
       .text();
     handle.byteOffset = currentSize;
 
-    // Split on newlines and parse each complete line
-    const lines = newText.split("\n");
+    // Prepend any buffered partial line from previous read
+    const text = state.lineBuffer + newText;
+
+    // Split on newlines; last segment may be incomplete (no trailing \n)
+    const segments = text.split("\n");
+    state.lineBuffer = segments.pop()!;
+
     const messages = [];
 
-    for (const line of lines) {
+    for (const line of segments) {
       const parsed = parseLine(line, handle.lineIndex);
       if (parsed !== null) {
         messages.push(parsed);
@@ -59,7 +73,7 @@ export function watchSession(options: WatchOptions): WatchHandle {
       }
     }
 
-    // Flush immediately (no debounce in Phase 0)
+    // Flush immediately (no debounce yet)
     if (messages.length > 0) {
       const batch: WatchBatch = {
         sessionId,
@@ -70,7 +84,8 @@ export function watchSession(options: WatchOptions): WatchHandle {
     }
   });
 
-  registry.set(sessionId, { handle, watcher: fsWatcher, options });
+  state.watcher = fsWatcher;
+  registry.set(sessionId, state);
 
   return handle;
 }

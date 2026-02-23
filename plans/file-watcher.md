@@ -29,10 +29,10 @@
 ## Phase 1 — Core Logic
 
 ### Partial Line Buffering
-- [ ] Add `lineBuffer: string` to internal watcher state, persisting across reads
-- [ ] Prepend `lineBuffer` to text from `.text()` before splitting; pop last segment as new `lineBuffer`
-- [ ] Test: write a line in two halves (first without `\n`, second with `\n`) — assert one message produced only after second write
-- [ ] Test: verify `lineBuffer` is empty string (not partial content) after a complete-line write
+- [x] Add `lineBuffer: string` to internal watcher state, persisting across reads
+- [x] Prepend `lineBuffer` to text from `.text()` before splitting; pop last segment as new `lineBuffer`
+- [x] Test: write a line in two halves (first without `\n`, second with `\n`) — assert one message produced only after second write
+- [x] Test: verify `lineBuffer` is empty string (not partial content) after a complete-line write
 
 ### Two-Phase Debounce
 - [ ] Implement `scheduleBatchFlush()` with trailing-edge timer (`debounceMs`) that resets on each new write

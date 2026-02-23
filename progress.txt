@@ -41,3 +41,23 @@ Files changed:
 - src/watcher/__tests__/watch-session.test.ts (new)
 
 Verified: typecheck passes, all 423 tests pass (421 existing + 2 new).
+
+## 2026-02-22 — Phase 1: Partial Line Buffering
+
+Implemented:
+- Added `lineBuffer: string` field to `WatcherState` interface, initialized to `""` on watcher creation
+- Changed read-loop to prepend `lineBuffer` to new text before splitting on `\n`
+- After splitting, `segments.pop()` captures any trailing incomplete segment as the new `lineBuffer` — only complete lines (before a `\n`) are passed to `parseLine`
+- Refactored watcher creation to build `WatcherState` object before `fs.watch`, assigning `fsWatcher` after creation (avoids chicken-and-egg with closure needing state reference)
+- Added `appendRaw()` helper to test utilities for writing text without auto-appending `\n`
+
+Tests added:
+- "buffers partial line and delivers only after completing newline" — writes a JSON line in two halves, asserts no callback after first half, one message after second half
+- "lineBuffer is empty after a complete-line write" — writes a full line with `\n`, asserts message delivered and handle state correct
+
+Files changed:
+- src/watcher/watch-session.ts (modified — added lineBuffer to state, updated read loop)
+- src/watcher/__tests__/helpers.ts (modified — added appendRaw)
+- src/watcher/__tests__/watch-session.test.ts (modified — added 2 tests)
+
+Verified: typecheck passes, all 425 tests pass (423 existing + 2 new).

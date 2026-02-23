@@ -29,3 +29,8 @@ export async function createTempJsonl(): Promise<TempJsonl> {
 export async function appendLines(path: string, lines: string[]): Promise<void> {
   await appendFile(path, lines.map((l) => l + "\n").join(""));
 }
+
+/** Append raw text to a file (no automatic newline). */
+export async function appendRaw(path: string, text: string): Promise<void> {
+  await appendFile(path, text);
+}
