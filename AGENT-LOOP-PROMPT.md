@@ -1,5 +1,9 @@
+Note: This is a template
+Execution: This file should only execute within a worktree
+
+
 0. study the src/
-1. Study @plans/project-scanner.md
+1. Study @plans/link-to-plan.md
 2. Review @progress.txt
 3. Find the highest-priority task and implement it.
 4. Run type checks, tests, linting, and formatting (if applicable). Do NOT commit if any fail. Fix issues first.
