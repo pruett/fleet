@@ -25,10 +25,19 @@ export function createTransport(_options: TransportOptions): Transport {
     wsToClientId.set(ws, clientId);
   }
 
+  function handleClose(ws: ServerWebSocket<unknown>): void {
+    const clientId = wsToClientId.get(ws);
+    if (clientId === undefined) return; // already removed or unknown
+
+    // NOTE: subscription cleanup (sessions map) is deferred to Phase 1
+    clients.delete(clientId);
+    wsToClientId.delete(ws);
+  }
+
   return {
     handleOpen,
     handleMessage: () => {},
-    handleClose: () => {},
+    handleClose,
     broadcastLifecycleEvent: () => {},
     getClientCount: () => clients.size,
     getSessionSubscriberCount: () => 0,

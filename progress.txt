@@ -46,3 +46,17 @@ Notes:
 - `crypto.randomUUID()` is globally available in Bun — no import needed
 - `sessions` map initialized but unused until subscribe is implemented
 - `_options` parameter still unused — will be consumed when subscribe/relay logic is added
+
+## 2026-02-23 — Phase 0: handleClose connection lifecycle
+
+Implemented `handleClose` in `createTransport`:
+- Looks up `clientId` via `wsToClientId` reverse map (O(1))
+- Removes client from `clients` map and `wsToClientId` map
+- Early return (no-op) if ws is unknown/already removed — defensive against double-close
+
+Files changed:
+- `src/transport/create-transport.ts` (modified)
+
+Notes:
+- Subscription cleanup (removing from `sessions` map, stopping watchers) is deferred to Phase 1
+- Idempotency (handleClose called twice) is naturally handled by the early return guard
