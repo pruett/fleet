@@ -117,3 +117,20 @@ Files changed:
 - src/watcher/__tests__/watch-session.test.ts (modified — added 3 tests)
 
 Verified: typecheck passes, all 431 tests pass (428 existing + 3 new).
+
+## 2026-02-22 — Phase 2: File Truncation Recovery
+
+Implemented:
+- Added truncation detection in the read loop: when `currentSize < handle.byteOffset`, reset `byteOffset = 0`, `lineIndex = 0`, clear `lineBuffer`, discard `pendingMessages`, reset `batchStartOffset`, then `continue` to re-read from beginning
+- Changed the existing `currentSize <= handle.byteOffset` break condition to two separate checks: truncation recovery (`<`) and no-new-data break (`===`)
+- Added `truncateFile()` helper to test utilities
+
+Tests added:
+- "recovers from file truncation by resetting and re-reading from beginning" — pre-populates file to >500 bytes, starts watcher, truncates to 0, writes new content, asserts watcher delivers new content with `lineIndex` reset to 0
+
+Files changed:
+- src/watcher/watch-session.ts (modified — added truncation detection and state reset)
+- src/watcher/__tests__/helpers.ts (modified — added truncateFile)
+- src/watcher/__tests__/watch-session.test.ts (modified — added 1 test)
+
+Verified: typecheck passes, all 432 tests pass (431 existing + 1 new).

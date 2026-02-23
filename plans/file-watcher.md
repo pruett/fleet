@@ -59,8 +59,8 @@
 ## Phase 2 — Edge Cases & Error Handling
 
 ### File Truncation Recovery
-- [ ] If `currentSize < byteOffset`: reset `byteOffset = 0`, clear `lineBuffer`, reset `lineIndex = 0`, re-read from beginning
-- [ ] Test: start watcher at offset 500, truncate file to 0, write new content — assert watcher delivers new content with reset `lineIndex`
+- [x] If `currentSize < byteOffset`: reset `byteOffset = 0`, clear `lineBuffer`, reset `lineIndex = 0`, re-read from beginning
+- [x] Test: start watcher at offset 500, truncate file to 0, write new content — assert watcher delivers new content with reset `lineIndex`
 
 ### Error Resilience
 - [ ] Wrap `Bun.file().slice().text()` in try/catch — on failure emit `WatchError` with `code: "READ_ERROR"`, continue watching

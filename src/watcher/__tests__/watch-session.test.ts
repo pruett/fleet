@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "bun:test";
 import { watchSession, stopWatching, stopAll } from "..";
 import type { WatchBatch, WatchHandle } from "../types";
-import { createTempJsonl, appendLines, appendRaw, type TempJsonl } from "./helpers";
+import { createTempJsonl, appendLines, appendRaw, truncateFile, type TempJsonl } from "./helpers";
 import {
   makeUserPrompt,
   makeAssistantRecord,
@@ -522,5 +522,82 @@ describe("watchSession — registry & duplicate prevention", () => {
     const allMessages = batches.flatMap((b) => b.messages);
     expect(allMessages).toHaveLength(1);
     expect(allMessages[0].kind).toBe("user-prompt");
+  });
+});
+
+describe("watchSession — file truncation recovery", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("recovers from file truncation by resetting and re-reading from beginning", async () => {
+    tmp = await createTempJsonl();
+
+    // Pre-populate with enough content so the watcher starts at a high offset
+    const preLines = Array.from({ length: 8 }, (_, i) =>
+      toLine(makeUserPrompt(`Pre-truncate padding line ${i} with extra text`)),
+    );
+    await appendLines(tmp.path, preLines);
+    const preSize = Bun.file(tmp.path).size;
+    // Sanity: pre-populated file should be well over 500 bytes
+    expect(preSize).toBeGreaterThan(500);
+
+    const batches: WatchBatch[] = [];
+    let totalMessages = 0;
+    let resolve: () => void;
+    const received = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-truncation",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        totalMessages += batch.messages.length;
+        if (totalMessages >= 1) resolve();
+      },
+      onError: () => {},
+    });
+
+    // Watcher should start at the end of the pre-existing content
+    expect(handle.byteOffset).toBe(preSize);
+
+    // Truncate the file to zero bytes
+    await truncateFile(tmp.path);
+
+    // Give fs.watch time to process the truncation event
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Write new content after truncation
+    const newLine = toLine(
+      makeAssistantRecord(makeTextBlock("After truncation")),
+    );
+    await appendLines(tmp.path, [newLine]);
+
+    await Promise.race([
+      received,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for onMessages")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    // Verify new content was delivered with reset lineIndex
+    const allMessages = batches.flatMap((b) => b.messages);
+    expect(allMessages).toHaveLength(1);
+    expect(allMessages[0].kind).toBe("assistant-block");
+    expect(allMessages[0].lineIndex).toBe(0); // lineIndex reset after truncation
+
+    // Handle state should reflect the reset
+    expect(handle!.lineIndex).toBe(1);
   });
 });

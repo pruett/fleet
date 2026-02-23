@@ -73,7 +73,20 @@ export function watchSession(options: WatchOptions): WatchHandle {
       // This handles data written while a previous read was in-flight.
       while (!handle.stopped) {
         const currentSize = Bun.file(filePath).size;
-        if (currentSize <= handle.byteOffset) break;
+
+        // File truncation: size shrank below our read cursor.
+        // Discard any pending messages (they reference content that no longer
+        // exists), reset state, and re-read from the beginning.
+        if (currentSize < handle.byteOffset) {
+          handle.byteOffset = 0;
+          handle.lineIndex = 0;
+          state.lineBuffer = "";
+          state.pendingMessages = [];
+          state.batchStartOffset = null;
+          continue;
+        }
+
+        if (currentSize === handle.byteOffset) break;
 
         const readStart = handle.byteOffset;
         const newText = await Bun.file(filePath)

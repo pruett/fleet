@@ -34,3 +34,8 @@ export async function appendLines(path: string, lines: string[]): Promise<void> 
 export async function appendRaw(path: string, text: string): Promise<void> {
   await appendFile(path, text);
 }
+
+/** Truncate a file to zero bytes. */
+export async function truncateFile(path: string): Promise<void> {
+  await Bun.write(path, "");
+}
