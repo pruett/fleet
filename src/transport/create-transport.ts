@@ -78,7 +78,9 @@ export function createTransport(options: TransportOptions): Transport {
     }
 
     // 3. If already subscribed to a different session, implicit unsubscribe
-    // (unsubscribe logic deferred to Phase 1)
+    if (client.sessionId !== null && client.sessionId !== sessionId) {
+      handleUnsubscribe(ws);
+    }
 
     // 4. Set client.sessionId
     client.sessionId = sessionId;

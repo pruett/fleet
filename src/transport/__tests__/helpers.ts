@@ -119,6 +119,9 @@ export function createMockTransportOptions(): MockTransportOptions {
 /** A valid UUID v4 for use in tests. */
 export const VALID_SESSION_ID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
 
+/** A second valid UUID v4 for re-subscribe / multi-session tests. */
+export const VALID_SESSION_ID_2 = "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e";
+
 /** Create a minimal WatchBatch for testing relay. */
 export function createMockBatch(
   sessionId: string,

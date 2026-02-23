@@ -6,6 +6,7 @@ import {
   createMockWebSocket,
   createMockTransportOptions,
   VALID_SESSION_ID,
+  VALID_SESSION_ID_2,
 } from "./helpers";
 
 describe("createTransport — Phase 0 tracer bullet", () => {
@@ -314,5 +315,94 @@ describe("createTransport — Phase 0 tracer bullet", () => {
     // Second close should not throw
     transport.handleClose(ws);
     expect(transport.getClientCount()).toBe(0);
+  });
+
+  it("re-subscribe to different session unsubscribes from old session and stops its watcher", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+    const { ws, sent } = createMockWebSocket();
+
+    transport.handleOpen(ws);
+
+    // Subscribe to first session
+    transport.handleMessage(
+      ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(mock.watches).toHaveLength(1);
+    expect(mock.watches[0].options.sessionId).toBe(VALID_SESSION_ID);
+
+    // Re-subscribe to a different session
+    transport.handleMessage(
+      ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Old watcher should have been stopped (last subscriber left)
+    expect(mock.stopped).toHaveLength(1);
+    expect(mock.stopped[0]).toBe(VALID_SESSION_ID);
+    expect(mock.watches[0].handle.stopped).toBe(true);
+
+    // New watcher should have been started
+    expect(mock.watches).toHaveLength(2);
+    expect(mock.watches[1].options.sessionId).toBe(VALID_SESSION_ID_2);
+    expect(mock.watches[1].handle.stopped).toBe(false);
+
+    // Client should now receive batches from the new session only
+    const batch = {
+      sessionId: VALID_SESSION_ID_2,
+      messages: [],
+      byteRange: { start: 0, end: 50 },
+    };
+    mock.watches[1].options.onMessages(batch);
+
+    // Filter out any error messages — only look for the relay frame
+    const frames = sent.map((s) => JSON.parse(s));
+    const messageFrames = frames.filter(
+      (f: Record<string, unknown>) => f.type === "messages",
+    );
+    expect(messageFrames).toHaveLength(1);
+    expect(messageFrames[0].sessionId).toBe(VALID_SESSION_ID_2);
+  });
+
+  it("re-subscribe does not unsubscribe if new session fails to resolve", async () => {
+    const mock = createMockTransportOptions();
+    let callCount = 0;
+    mock.resolveSessionPath(async (id) => {
+      callCount++;
+      // First call succeeds (initial subscribe), second call fails (re-subscribe)
+      if (callCount === 1) return `/mock/sessions/${id}.jsonl`;
+      return null;
+    });
+    const transport = createTransport(mock.options);
+    const { ws } = createMockWebSocket();
+
+    transport.handleOpen(ws);
+
+    // Subscribe to first session — should succeed
+    transport.handleMessage(
+      ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(mock.watches).toHaveLength(1);
+
+    // Re-subscribe to a different session — resolve fails
+    transport.handleMessage(
+      ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Old watcher should NOT have been stopped — the client stays on the old session
+    expect(mock.stopped).toHaveLength(0);
+    expect(mock.watches[0].handle.stopped).toBe(false);
+
+    // No new watcher started
+    expect(mock.watches).toHaveLength(1);
   });
 });

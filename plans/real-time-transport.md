@@ -29,8 +29,8 @@
 ### Unsubscribe & Cleanup
 - [x] Implement unsubscribe handler — clear `client.sessionId`, remove from `sessions` set, stop watcher when last subscriber leaves
 - [x] Wire unsubscribe into `handleClose` — run unsubscribe logic before removing client from registry
-- [ ] Implement implicit unsubscribe on re-subscribe — if client already subscribed to different session, unsubscribe first
-- [ ] Write tests: unsubscribe stops watcher when last subscriber leaves; re-subscribe to different session cleans up old subscription
+- [x] Implement implicit unsubscribe on re-subscribe — if client already subscribed to different session, unsubscribe first
+- [x] Write tests: unsubscribe stops watcher when last subscriber leaves; re-subscribe to different session cleans up old subscription
 
 ### Multi-Client Fan-Out
 - [ ] Verify `relayBatch` sends single serialized frame to all subscribers of a session (serialize once, send N times)

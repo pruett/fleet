@@ -176,3 +176,23 @@ Notes:
 - Ordering is critical: `handleUnsubscribe` must run before `clients.delete`/`wsToClientId.delete` since it needs both maps to resolve the client
 - `handleUnsubscribe` already handles the no-subscription case (early return if `client.sessionId === null`), so no extra guard needed
 - All 485 tests pass (2 new + 483 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 1: Implicit unsubscribe on re-subscribe
+
+Implemented implicit unsubscribe in `handleSubscribe` — when a client already subscribed to session A sends a subscribe for session B, the old subscription is cleaned up first (watcher stopped if last subscriber, client removed from old session's inverse map).
+
+Key design decision: the implicit unsubscribe happens **after** validating the new sessionId format and resolving the new session path. This prevents accidentally unsubscribing a client from a working session if the new subscription fails validation or resolution.
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — added implicit unsubscribe guard in `handleSubscribe`)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 2 new tests)
+- `src/transport/__tests__/helpers.ts` (modified — added `VALID_SESSION_ID_2` constant)
+- `plans/real-time-transport.md` (updated checkboxes)
+
+Tests added:
+1. Re-subscribe to different session unsubscribes from old session and stops its watcher
+2. Re-subscribe does not unsubscribe if new session fails to resolve
+
+Notes:
+- The guard is `client.sessionId !== null && client.sessionId !== sessionId` — subscribing to the same session is a separate concern (Phase 3 duplicate idempotency)
+- All 487 tests pass (2 new + 485 existing), TypeScript clean
