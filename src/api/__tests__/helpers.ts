@@ -1,6 +1,7 @@
 import type { AppDependencies, ControlResult } from "../types";
 import type { ProjectSummary, SessionSummary } from "../../scanner/types";
 import type { EnrichedSession } from "../../parser/types";
+import type { Transport } from "../../transport";
 
 /**
  * Creates a mock AppDependencies with sensible defaults.
@@ -13,6 +14,16 @@ export function createMockDeps(
   const defaultResult: ControlResult = {
     ok: true,
     sessionId: "mock-session-id",
+  };
+
+  const mockTransport: Transport = {
+    handleOpen: () => {},
+    handleMessage: () => {},
+    handleClose: () => {},
+    broadcastLifecycleEvent: () => {},
+    getClientCount: () => 0,
+    getSessionSubscriberCount: () => 0,
+    shutdown: () => {},
   };
 
   return {
@@ -29,6 +40,7 @@ export function createMockDeps(
       resumeSession: async () => defaultResult,
       sendMessage: async () => defaultResult,
     },
+    transport: mockTransport,
     basePaths: ["/mock/base/path"],
     staticDir: null,
     ...overrides,

@@ -1,5 +1,6 @@
 import type { ProjectSummary, SessionSummary } from "../scanner/types";
 import type { EnrichedSession } from "../parser/types";
+import type { Transport } from "../transport";
 
 export interface AppDependencies {
   scanner: {
@@ -18,6 +19,7 @@ export interface AppDependencies {
       message: string,
     ) => Promise<ControlResult>;
   };
+  transport: Transport;
   basePaths: string[];
   staticDir: string | null;
 }

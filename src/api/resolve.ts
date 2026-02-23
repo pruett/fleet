@@ -58,3 +58,13 @@ export async function resolveSessionFile(
 
   return null;
 }
+
+/**
+ * Create a resolveSessionPath function with basePaths pre-applied.
+ * Returns a function matching TransportOptions.resolveSessionPath signature.
+ */
+export function createResolveSessionPath(
+  basePaths: string[],
+): (sessionId: string) => Promise<string | null> {
+  return (sessionId) => resolveSessionFile(basePaths, sessionId);
+}
