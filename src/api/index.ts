@@ -1,3 +1,7 @@
 export { createApp } from "./create-app";
-export { resolveProjectDir, resolveSessionFile } from "./resolve";
+export {
+  resolveProjectDir,
+  resolveSessionFile,
+  createResolveSessionPath,
+} from "./resolve";
 export type { AppDependencies, ControlResult, StartSessionOpts } from "./types";

@@ -334,3 +334,23 @@ Notes:
 - The no-op mock transport in `createMockDeps` follows the same pattern as the other mock dependencies (stubs returning empty/default values)
 - `createApp` does not use `deps.transport` yet — it's available for future API routes that need transport state (e.g., subscriber counts, lifecycle broadcasting from controller hooks)
 - All 498 tests pass (0 new + 498 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 3: resolveSessionPath adapter
+
+Added `createResolveSessionPath` adapter function to `src/api/resolve.ts`. This factory partially applies `basePaths` to `resolveSessionFile`, producing a function matching the `TransportOptions.resolveSessionPath` signature: `(sessionId: string) => Promise<string | null>`.
+
+Files changed:
+- `src/api/resolve.ts` (modified — added `createResolveSessionPath` factory function)
+- `src/api/index.ts` (modified — added `createResolveSessionPath` to barrel export)
+- `src/api/__tests__/resolve.test.ts` (modified — added 2 new tests for the adapter)
+- `plans/real-time-transport.md` (updated checkbox)
+
+Tests added:
+1. Adapter resolves existing session files with pre-applied basePaths
+2. Adapter returns null for unknown sessions
+
+Notes:
+- The adapter is a one-liner closure: `(sessionId) => resolveSessionFile(basePaths, sessionId)`
+- Bridges the gap between the two-argument `resolveSessionFile(basePaths, sessionId)` and the single-argument `resolveSessionPath(sessionId)` expected by `TransportOptions`
+- Will be consumed when wiring `createTransport` into the server entry point (next task)
+- All 500 tests pass (2 new + 498 existing), TypeScript clean

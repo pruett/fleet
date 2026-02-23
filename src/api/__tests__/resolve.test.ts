@@ -1,6 +1,10 @@
 import { describe, test, expect } from "bun:test";
 import { join } from "node:path";
-import { resolveProjectDir, resolveSessionFile } from "../resolve";
+import {
+  resolveProjectDir,
+  resolveSessionFile,
+  createResolveSessionPath,
+} from "../resolve";
 
 const FIXTURES = join(import.meta.dir, "fixtures");
 const BASE_1 = join(FIXTURES, "resolve-base-1");
@@ -96,6 +100,30 @@ describe("resolveSessionFile", () => {
     const result = await resolveSessionFile(
       [MISSING],
       "aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    );
+    expect(result).toBeNull();
+  });
+});
+
+describe("createResolveSessionPath", () => {
+  test("returns adapter that resolves session files with pre-applied basePaths", async () => {
+    const resolveSessionPath = createResolveSessionPath([BASE_1]);
+    const result = await resolveSessionPath(
+      "aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    );
+    expect(result).toBe(
+      join(
+        BASE_1,
+        "-Users-project-alpha",
+        "aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jsonl",
+      ),
+    );
+  });
+
+  test("returns adapter that returns null for unknown sessions", async () => {
+    const resolveSessionPath = createResolveSessionPath([BASE_1]);
+    const result = await resolveSessionPath(
+      "ffffffff-ffff-ffff-ffff-ffffffffffff",
     );
     expect(result).toBeNull();
   });
