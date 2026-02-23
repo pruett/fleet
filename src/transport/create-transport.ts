@@ -25,6 +25,52 @@ export function createTransport(_options: TransportOptions): Transport {
     wsToClientId.set(ws, clientId);
   }
 
+  function handleMessage(
+    ws: ServerWebSocket<unknown>,
+    data: string | Buffer,
+  ): void {
+    // 1. Reject binary frames
+    if (typeof data !== "string") {
+      ws.close(1003, "Binary frames not supported");
+      return;
+    }
+
+    // 2. Parse JSON
+    let message: unknown;
+    try {
+      message = JSON.parse(data);
+    } catch {
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          code: "INVALID_MESSAGE",
+          message: "Invalid JSON",
+        }),
+      );
+      return;
+    }
+
+    // 3. Dispatch on message.type
+    const msg = message as { type?: string };
+    switch (msg.type) {
+      case "subscribe":
+        // TODO: implement subscribe handler (Phase 0 — Subscribe & Relay)
+        break;
+      case "unsubscribe":
+        // TODO: implement unsubscribe handler (Phase 1)
+        break;
+      default:
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            code: "INVALID_MESSAGE",
+            message: `Unknown message type: ${String(msg.type)}`,
+          }),
+        );
+        break;
+    }
+  }
+
   function handleClose(ws: ServerWebSocket<unknown>): void {
     const clientId = wsToClientId.get(ws);
     if (clientId === undefined) return; // already removed or unknown
@@ -36,7 +82,7 @@ export function createTransport(_options: TransportOptions): Transport {
 
   return {
     handleOpen,
-    handleMessage: () => {},
+    handleMessage,
     handleClose,
     broadcastLifecycleEvent: () => {},
     getClientCount: () => clients.size,

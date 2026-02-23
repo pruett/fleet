@@ -60,3 +60,19 @@ Files changed:
 Notes:
 - Subscription cleanup (removing from `sessions` map, stopping watchers) is deferred to Phase 1
 - Idempotency (handleClose called twice) is naturally handled by the early return guard
+
+## 2026-02-23 — Phase 0: handleMessage dispatch
+
+Implemented `handleMessage` in `createTransport`:
+- Rejects binary frames (`typeof data !== "string"`) by closing with status 1003
+- Parses JSON text frames; sends `{ type: "error", code: "INVALID_MESSAGE" }` on parse failure
+- Dispatches on `message.type` via switch: `"subscribe"` and `"unsubscribe"` cases (stubs for now), default sends `INVALID_MESSAGE` error with the unknown type
+- Replaced the no-op `handleMessage: () => {}` in the return object with the real function
+
+Files changed:
+- `src/transport/create-transport.ts` (modified)
+
+Notes:
+- Subscribe/unsubscribe case bodies are TODO stubs — those are separate plan tasks
+- Binary detection uses `typeof data !== "string"` which matches Bun's WebSocket callback signature (`string | Buffer`)
+- Error frames follow the spec's `{ type: "error", code, message }` shape

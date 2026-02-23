@@ -15,7 +15,7 @@
 ### Connection Lifecycle (Happy Path)
 - [x] Implement `handleOpen` — generate clientId (UUID v4), create `ConnectedClient`, store in `clients` map
 - [x] Implement `handleClose` — remove client from `clients` map (no subscription cleanup yet)
-- [ ] Implement `handleMessage` — parse JSON, reject binary frames (close with 1003), dispatch on `message.type`
+- [x] Implement `handleMessage` — parse JSON, reject binary frames (close with 1003), dispatch on `message.type`
 
 ### Subscribe & Relay (Single Client, Single Session)
 - [ ] Implement subscribe handler — validate sessionId format, call `resolveSessionPath`, set `client.sessionId`, add to `sessions` inverse map, call `watchSession` for first subscriber, store `WatchHandle` in `watchers` map
