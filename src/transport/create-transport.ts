@@ -21,8 +21,22 @@ export function createTransport(options: TransportOptions): Transport {
 
   // --- Relay ---
 
-  function relayBatch(_sessionId: string, _batch: WatchBatch): void {
-    // TODO: implement full relay logic (Phase 0 — relayBatch task)
+  function relayBatch(_sessionId: string, batch: WatchBatch): void {
+    const subscriberIds = sessions.get(batch.sessionId);
+    if (!subscriberIds || subscriberIds.size === 0) return;
+
+    const frame = JSON.stringify({
+      type: "messages",
+      sessionId: batch.sessionId,
+      messages: batch.messages,
+      byteRange: batch.byteRange,
+    });
+
+    for (const clientId of subscriberIds) {
+      const client = clients.get(clientId);
+      if (!client) continue;
+      client.ws.send(frame);
+    }
   }
 
   // --- Subscribe ---

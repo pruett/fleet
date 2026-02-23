@@ -19,7 +19,7 @@
 
 ### Subscribe & Relay (Single Client, Single Session)
 - [x] Implement subscribe handler — validate sessionId format, call `resolveSessionPath`, set `client.sessionId`, add to `sessions` inverse map, call `watchSession` for first subscriber, store `WatchHandle` in `watchers` map
-- [ ] Implement `relayBatch` — serialize `WatchBatch` to `{ type: "messages", sessionId, messages, byteRange }` frame, send to all subscribers of the session
+- [x] Implement `relayBatch` — serialize `WatchBatch` to `{ type: "messages", sessionId, messages, byteRange }` frame, send to all subscribers of the session
 - [ ] Write test: connect a mock WebSocket, send subscribe message, trigger watcher callback, assert client receives the messages frame with correct shape
 
 ---

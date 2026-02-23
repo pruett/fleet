@@ -97,3 +97,21 @@ Notes:
 - `WatchOptions` does not have a `byteOffset` field — the watcher starts from current file size. Client-side dedup by `lineIndex` handles any overlap (per spec)
 - Implicit unsubscribe on re-subscribe is deferred to Phase 1 (unsubscribe handler)
 - UUID v4 regex: `/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i`
+
+## 2026-02-23 — Phase 0: relayBatch
+
+Implemented `relayBatch` in `createTransport`:
+- Looks up subscriber set from `sessions` map by `batch.sessionId`
+- Returns early if no subscribers (race window guard — watcher may fire after last subscriber leaves)
+- Serializes the outbound frame **once** via `JSON.stringify` with `{ type: "messages", sessionId, messages, byteRange }`
+- Iterates subscriber set, looks up each `ConnectedClient`, sends the pre-serialized frame
+- Skips clients missing from the `clients` map (defensive guard)
+
+Files changed:
+- `src/transport/create-transport.ts` (modified)
+
+Notes:
+- Frame is serialized once and reused across all subscribers — avoids redundant `JSON.stringify` for multi-client fan-out
+- Uses `batch.sessionId` (not the `_sessionId` parameter) for consistency with the batch's own identity
+- `try/catch` around `ws.send` for broken pipe handling is deferred to Phase 2 (Send Failures task)
+- Bun's `ServerWebSocket.send()` doesn't throw on closed sockets in typical usage, but the Phase 2 guard will add resilience
