@@ -1,6 +1,6 @@
 import { watch, type FSWatcher } from "fs";
 import { parseLine, type ParsedMessage } from "../parser";
-import type { WatchOptions, WatchHandle, WatchBatch } from "./types";
+import type { WatchOptions, WatchHandle, WatchBatch, WatchError } from "./types";
 
 /** Internal state per watcher (not exposed to consumers). */
 interface WatcherState {
@@ -26,6 +26,9 @@ interface WatcherState {
  * Prevents duplicate watchers for the same session.
  */
 const registry = new Map<string, WatcherState>();
+
+/** @internal — exposed for testing only. */
+export const _registry = registry;
 
 /**
  * Start tailing a session transcript file.
@@ -89,9 +92,20 @@ export function watchSession(options: WatchOptions): WatchHandle {
         if (currentSize === handle.byteOffset) break;
 
         const readStart = handle.byteOffset;
-        const newText = await Bun.file(filePath)
-          .slice(handle.byteOffset, currentSize)
-          .text();
+        let newText: string;
+        try {
+          newText = await Bun.file(filePath)
+            .slice(handle.byteOffset, currentSize)
+            .text();
+        } catch (err) {
+          state.options.onError({
+            sessionId: handle.sessionId,
+            code: "READ_ERROR",
+            message: `Failed to read bytes ${handle.byteOffset}-${currentSize} from ${filePath}`,
+            cause: err instanceof Error ? err : new Error(String(err)),
+          });
+          break; // stop re-check loop; continue watching on next fs.watch event
+        }
         handle.byteOffset = currentSize;
 
         // Prepend any buffered partial line from previous read
@@ -102,10 +116,21 @@ export function watchSession(options: WatchOptions): WatchHandle {
         state.lineBuffer = segments.pop()!;
 
         for (const line of segments) {
-          const parsed = parseLine(line, handle.lineIndex);
-          if (parsed !== null) {
-            state.pendingMessages.push(parsed);
-            handle.lineIndex++;
+          if (line === "") continue; // skip blank lines
+          try {
+            const parsed = parseLine(line, handle.lineIndex);
+            if (parsed !== null) {
+              state.pendingMessages.push(parsed);
+              handle.lineIndex++;
+            }
+          } catch (err) {
+            state.options.onError({
+              sessionId: handle.sessionId,
+              code: "PARSE_ERROR",
+              message: `Failed to parse line ${handle.lineIndex}`,
+              cause: err instanceof Error ? err : new Error(String(err)),
+            });
+            handle.lineIndex++; // skip line, advance index
           }
         }
 
@@ -122,6 +147,16 @@ export function watchSession(options: WatchOptions): WatchHandle {
     } finally {
       state.processing = false;
     }
+  });
+
+  fsWatcher.on("error", (err) => {
+    state.options.onError({
+      sessionId: handle.sessionId,
+      code: "WATCH_ERROR",
+      message: `Filesystem watcher error for ${filePath}`,
+      cause: err instanceof Error ? err : new Error(String(err)),
+    });
+    stopWatching(handle);
   });
 
   state.watcher = fsWatcher;

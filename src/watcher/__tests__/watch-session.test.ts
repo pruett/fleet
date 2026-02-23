@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach } from "bun:test";
-import { watchSession, stopWatching, stopAll } from "..";
-import type { WatchBatch, WatchHandle } from "../types";
+import { chmod } from "fs/promises";
+import { watchSession, stopWatching, stopAll, _registry } from "../watch-session";
+import type { WatchBatch, WatchError, WatchHandle } from "../types";
 import { createTempJsonl, appendLines, appendRaw, truncateFile, type TempJsonl } from "./helpers";
 import {
   makeUserPrompt,
@@ -599,5 +600,122 @@ describe("watchSession — file truncation recovery", () => {
 
     // Handle state should reflect the reset
     expect(handle!.lineIndex).toBe(1);
+  });
+});
+
+describe("watchSession — error resilience", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    // Restore permissions before cleanup (in case test left file unreadable)
+    if (tmp) {
+      try {
+        await chmod(tmp.path, 0o644);
+      } catch {}
+    }
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("emits READ_ERROR on read failure and continues watching on next event", async () => {
+    tmp = await createTempJsonl();
+
+    const errors: WatchError[] = [];
+    const batches: WatchBatch[] = [];
+    let resolve: () => void;
+    const received = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-read-error",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        resolve();
+      },
+      onError: (err) => {
+        errors.push(err);
+      },
+    });
+
+    // Make file write-only (stat works, write works, read fails)
+    await chmod(tmp.path, 0o200);
+
+    // Append data — triggers fs.watch but the read will fail
+    const line1 = toLine(makeUserPrompt("During unreadable"));
+    await appendLines(tmp.path, [line1]);
+
+    // Wait for fs.watch to fire and the read to fail
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Should have emitted a READ_ERROR
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0].code).toBe("READ_ERROR");
+    expect(errors[0].sessionId).toBe("test-read-error");
+    expect(errors[0].cause).toBeInstanceOf(Error);
+
+    // Watcher should still be alive (not stopped)
+    expect(handle!.stopped).toBe(false);
+
+    // Restore read permissions
+    await chmod(tmp.path, 0o644);
+
+    // Append a new line — watcher should recover and deliver it
+    const line2 = toLine(makeAssistantRecord(makeTextBlock("After recovery")));
+    await appendLines(tmp.path, [line2]);
+
+    await Promise.race([
+      received,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for recovery")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    // Messages should have been delivered after recovery
+    expect(batches.length).toBeGreaterThanOrEqual(1);
+    const allMessages = batches.flatMap((b) => b.messages);
+    expect(allMessages.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("emits WATCH_ERROR and auto-stops when fs.watch errors", async () => {
+    tmp = await createTempJsonl();
+
+    const errors: WatchError[] = [];
+
+    handle = watchSession({
+      sessionId: "test-watch-error",
+      filePath: tmp.path,
+      onMessages: () => {},
+      onError: (err) => {
+        errors.push(err);
+      },
+    });
+
+    expect(handle!.stopped).toBe(false);
+
+    // Get the internal FSWatcher and emit an error
+    const state = _registry.get("test-watch-error");
+    expect(state).toBeDefined();
+    state!.watcher.emit("error", new Error("simulated watcher failure"));
+
+    // Error should have been emitted
+    expect(errors).toHaveLength(1);
+    expect(errors[0].code).toBe("WATCH_ERROR");
+    expect(errors[0].sessionId).toBe("test-watch-error");
+    expect(errors[0].cause).toBeInstanceOf(Error);
+    expect(errors[0].cause!.message).toBe("simulated watcher failure");
+
+    // Watcher should have been auto-stopped
+    expect(handle!.stopped).toBe(true);
+
+    // Registry should no longer contain this session
+    expect(_registry.has("test-watch-error")).toBe(false);
   });
 });

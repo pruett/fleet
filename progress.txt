@@ -134,3 +134,27 @@ Files changed:
 - src/watcher/__tests__/watch-session.test.ts (modified — added 1 test)
 
 Verified: typecheck passes, all 432 tests pass (431 existing + 1 new).
+
+## 2026-02-22 — Phase 2: Error Resilience
+
+Implemented:
+- Wrapped `Bun.file().slice().text()` in try/catch — on failure emits `WatchError` with `code: "READ_ERROR"`, breaks out of re-check loop but continues watching on next fs.watch event (byteOffset not advanced, so data is re-read on recovery)
+- Wrapped `parseLine` call in try/catch — on unexpected throw emits `WatchError` with `code: "PARSE_ERROR"`, skips line, advances `lineIndex`, continues processing remaining lines
+- Added `fsWatcher.on("error", ...)` handler — emits `WatchError` with `code: "WATCH_ERROR"` and auto-stops the watcher via `stopWatching()`
+- Added explicit blank-line skip (`line === ""`) before `parseLine` — aligns with spec pseudocode and prevents blank lines from entering the try/catch path
+- Exported `_registry` (prefixed with underscore) for test access to internal FSWatcher
+
+Tests added:
+- "emits READ_ERROR on read failure and continues watching on next event" — uses `chmod 0o200` (write-only) to trigger EACCES on read, asserts READ_ERROR emitted with correct code/sessionId/cause, verifies watcher is not stopped, restores permissions and verifies watcher recovers and delivers subsequent messages
+- "emits WATCH_ERROR and auto-stops when fs.watch errors" — uses `_registry` to access internal FSWatcher, emits a simulated error via `.emit("error", ...)`, asserts WATCH_ERROR emitted with correct code/sessionId/cause, verifies handle is auto-stopped and removed from registry
+
+Files changed:
+- src/watcher/watch-session.ts (modified — added error handling for READ_ERROR, PARSE_ERROR, WATCH_ERROR; exported _registry; added blank-line skip)
+- src/watcher/__tests__/watch-session.test.ts (modified — added 2 tests, imported chmod, _registry, WatchError)
+
+Gotchas:
+- `chmod 0o000` removes all permissions, preventing both read AND write — use `0o200` (write-only) to simulate read errors while still being able to append data to trigger fs.watch events
+- `parseLine` documents "Never throws" — the PARSE_ERROR catch is a safety net for truly unexpected failures, not for normal malformed JSON (which returns `MalformedRecord`)
+- `Bun.file(path).size` uses `stat()` which doesn't require read permission, so it works even with `chmod 0o200`
+
+Verified: typecheck passes, all 434 tests pass (432 existing + 2 new).

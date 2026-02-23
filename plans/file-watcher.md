@@ -63,11 +63,11 @@
 - [x] Test: start watcher at offset 500, truncate file to 0, write new content — assert watcher delivers new content with reset `lineIndex`
 
 ### Error Resilience
-- [ ] Wrap `Bun.file().slice().text()` in try/catch — on failure emit `WatchError` with `code: "READ_ERROR"`, continue watching
-- [ ] Wrap `parseLine` call in try/catch — on unexpected throw emit `WatchError` with `code: "PARSE_ERROR"`, skip line, continue
-- [ ] Handle `fs.watch` error/close event — emit `WatchError` with `code: "WATCH_ERROR"`, auto-stop watcher
-- [ ] Test: simulate read error — assert `WatchError` emitted with correct code, watcher continues on next event
-- [ ] Test: `fs.watch` error — assert watcher auto-stops and `handle.stopped = true`
+- [x] Wrap `Bun.file().slice().text()` in try/catch — on failure emit `WatchError` with `code: "READ_ERROR"`, continue watching
+- [x] Wrap `parseLine` call in try/catch — on unexpected throw emit `WatchError` with `code: "PARSE_ERROR"`, skip line, continue
+- [x] Handle `fs.watch` error/close event — emit `WatchError` with `code: "WATCH_ERROR"`, auto-stop watcher
+- [x] Test: simulate read error — assert `WatchError` emitted with correct code, watcher continues on next event
+- [x] Test: `fs.watch` error — assert watcher auto-stops and `handle.stopped = true`
 
 ### Blank & Malformed Lines
 - [ ] Verify blank lines (`\n\n`) are skipped: `lineIndex` does not advance, no batch flushed
