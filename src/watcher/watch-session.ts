@@ -176,7 +176,14 @@ export function watchSession(options: WatchOptions): WatchHandle {
   // Register fs.watch listener for file changes
   const fsWatcher = watch(filePath, (eventType) => {
     if (eventType !== "change") return;
-    processChanges();
+    processChanges().catch((err) => {
+      state.options.onError({
+        sessionId: handle.sessionId,
+        code: "WATCH_ERROR",
+        message: `Unexpected error processing changes for ${filePath}`,
+        cause: err instanceof Error ? err : new Error(String(err)),
+      });
+    });
   });
 
   fsWatcher.on("error", (err) => {
@@ -281,6 +288,10 @@ export function stopWatching(handle: WatchHandle): void {
   const state = registry.get(handle.sessionId);
   if (state) {
     state.watcher.close();
+    if (state.pollTimer !== null) {
+      clearTimeout(state.pollTimer);
+      state.pollTimer = null;
+    }
     flush(state);
     registry.delete(handle.sessionId);
   }
