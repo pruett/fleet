@@ -26,9 +26,9 @@
 - [x] Create `src/api/__tests__/resolve.test.ts` — test both resolvers with fixture directories (first-match wins, returns null when missing)
 
 ### GET /api/projects/:projectId/sessions
-- [ ] Add route in `create-app.ts` — resolve projectId via `resolveProjectDir`, delegate to `scanner.scanSessions`, return `{ sessions: [...] }`
-- [ ] Return 404 `{ "error": "Project not found" }` when resolution returns null
-- [ ] Add tests: happy path (200), project not found (404)
+- [x] Add route in `create-app.ts` — resolve projectId via `resolveProjectDir`, delegate to `scanner.scanSessions`, return `{ sessions: [...] }`
+- [x] Return 404 `{ "error": "Project not found" }` when resolution returns null
+- [x] Add tests: happy path (200), project not found (404)
 
 ### GET /api/sessions/:sessionId
 - [ ] Add route in `create-app.ts` — resolve sessionId via `resolveSessionFile`, read file with `Bun.file().text()`, delegate to `parser.parseFullSession`, return `{ session: {...} }`

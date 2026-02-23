@@ -1,6 +1,9 @@
+import { join } from "node:path";
 import { describe, test, expect } from "bun:test";
 import { createApp } from "../create-app";
-import { createMockDeps, createMockProject } from "./helpers";
+import { createMockDeps, createMockProject, createMockSession } from "./helpers";
+
+const FIXTURES = join(import.meta.dir, "fixtures");
 
 describe("GET /api/projects", () => {
   test("returns 200 with projects array", async () => {
@@ -55,5 +58,55 @@ describe("GET /api/projects", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ projects: [] });
+  });
+});
+
+describe("GET /api/projects/:projectId/sessions", () => {
+  test("returns 200 with sessions array", async () => {
+    const sessions = [
+      createMockSession({ sessionId: "sess-1" }),
+      createMockSession({ sessionId: "sess-2" }),
+    ];
+    let receivedDir = "";
+
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      scanner: {
+        scanProjects: async () => [],
+        scanSessions: async (dir) => {
+          receivedDir = dir;
+          return sessions;
+        },
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-project-alpha/sessions",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+
+    const body = await res.json();
+    expect(body).toEqual({ sessions });
+    expect(receivedDir).toBe(
+      join(FIXTURES, "resolve-base-1", "-Users-project-alpha"),
+    );
+  });
+
+  test("returns 404 when project not found", async () => {
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-nonexistent/sessions",
+    );
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Project not found" });
   });
 });

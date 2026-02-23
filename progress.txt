@@ -43,3 +43,20 @@ Added `resolveProjectDir` and `resolveSessionFile` helpers for mapping IDs to fi
 ### Verification
 - typecheck: pass
 - tests: 434 pass, 0 fail (10 new resolve tests + 424 existing)
+
+## Phase 1 — GET /api/projects/:projectId/sessions (2026-02-22)
+
+Added the sessions-per-project read route with project resolution and 404 handling.
+
+### What was done
+- Added `GET /api/projects/:projectId/sessions` route in `create-app.ts` — resolves projectId via `resolveProjectDir`, delegates to `scanner.scanSessions`, returns `{ sessions: [...] }`
+- Returns 404 `{ "error": "Project not found" }` when resolution returns null
+- Added 2 tests: happy path (200 with sessions + verifies resolved dir passed to scanner), project not found (404)
+
+### Files changed
+- `src/api/create-app.ts` (updated — added sessions route, imported `resolveProjectDir`)
+- `src/api/__tests__/create-app.test.ts` (updated — added 2 tests for sessions route)
+
+### Verification
+- typecheck: pass
+- tests: 436 pass, 0 fail (2 new route tests + 434 existing)
