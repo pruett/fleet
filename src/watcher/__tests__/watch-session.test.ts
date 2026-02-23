@@ -1,8 +1,10 @@
 import { describe, expect, it, afterEach } from "bun:test";
-import { chmod } from "fs/promises";
+import { chmod, readFile } from "fs/promises";
+import { join } from "path";
 import { watchSession, stopWatching, stopAll, _registry } from "../watch-session";
 import type { WatchBatch, WatchError, WatchHandle } from "../types";
 import { createTempJsonl, appendLines, appendRaw, truncateFile, type TempJsonl } from "./helpers";
+import { parseLine } from "../../parser";
 import {
   makeUserPrompt,
   makeAssistantRecord,
@@ -823,5 +825,90 @@ describe("watchSession — error resilience", () => {
 
     // Registry should no longer contain this session
     expect(_registry.has("test-watch-error")).toBe(false);
+  });
+});
+
+describe("watchSession — end-to-end consistency", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("batched messages match parseLine output exactly for real fixture data", async () => {
+    tmp = await createTempJsonl();
+
+    // Read the real fixture file
+    const fixturePath = join(
+      import.meta.dir,
+      "../../parser/__tests__/fixtures/minimal-session.jsonl",
+    );
+    const fixtureContent = await readFile(fixturePath, "utf-8");
+    const fixtureLines = fixtureContent
+      .split("\n")
+      .filter((l) => l.trim() !== "");
+
+    // Compute expected messages using parseLine directly
+    const expected = fixtureLines
+      .map((line, idx) => parseLine(line, idx))
+      .filter((m) => m !== null);
+
+    const batches: WatchBatch[] = [];
+    let totalMessages = 0;
+    let resolve: () => void;
+    const allReceived = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-e2e-consistency",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        totalMessages += batch.messages.length;
+        if (totalMessages >= expected.length) resolve();
+      },
+      onError: () => {},
+      debounceMs: 0,
+      maxWaitMs: 0,
+    });
+
+    // Append fixture lines one-by-one
+    for (const line of fixtureLines) {
+      await appendLines(tmp.path, [line]);
+    }
+
+    await Promise.race([
+      allReceived,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for all fixture messages")),
+          10_000,
+        ),
+      ),
+    ]);
+
+    const allMessages = batches.flatMap((b) => b.messages);
+
+    // Same count
+    expect(allMessages).toHaveLength(expected.length);
+
+    // Order, lineIndex, and content match exactly
+    for (let i = 0; i < expected.length; i++) {
+      expect(allMessages[i].kind).toBe(expected[i].kind);
+      expect(allMessages[i].lineIndex).toBe(expected[i].lineIndex);
+      // Deep equality on the full message object
+      expect(allMessages[i]).toEqual(expected[i]);
+    }
+
+    // byteRange covers the entire file
+    const firstStart = batches[0].byteRange.start;
+    const lastEnd = batches[batches.length - 1].byteRange.end;
+    expect(firstStart).toBe(0);
+    expect(lastEnd).toBe(Bun.file(tmp.path).size);
   });
 });

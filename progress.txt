@@ -174,3 +174,20 @@ Files changed:
 - plans/file-watcher.md (modified — checked off 4 items)
 
 Verified: typecheck passes, all 436 tests pass (434 existing + 2 new).
+
+## 2026-02-22 — Phase 3: End-to-End Consistency
+
+Implemented:
+- Added integration test using real fixture data (`src/parser/__tests__/fixtures/minimal-session.jsonl`)
+- Reads fixture file, computes expected messages via `parseLine` directly, then appends lines one-by-one to a temp file with watcher at offset 0 and `debounceMs: 0` / `maxWaitMs: 0`
+- Verifies all batched messages match `parseLine` output exactly: same count, same order, same `lineIndex`, deep equality on full message objects
+- Verifies `byteRange` covers the entire file (start=0, end=file size)
+
+Tests added:
+- "batched messages match parseLine output exactly for real fixture data" — uses `minimal-session.jsonl` (4 lines: file-history-snapshot, user-prompt, assistant-block, system-turn-duration), asserts watcher delivers identical messages to direct `parseLine` calls
+
+Files changed:
+- src/watcher/__tests__/watch-session.test.ts (modified — added 1 test in new "end-to-end consistency" describe block, added `readFile` and `join` imports, added `parseLine` import)
+- plans/file-watcher.md (modified — checked off 2 items)
+
+Verified: typecheck passes, all 437 tests pass (436 existing + 1 new).
