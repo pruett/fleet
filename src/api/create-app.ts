@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppDependencies } from "./types";
-import { resolveProjectDir } from "./resolve";
+import { resolveProjectDir, resolveSessionFile } from "./resolve";
 
 export function createApp(deps: AppDependencies): Hono {
   const app = new Hono();
@@ -8,6 +8,17 @@ export function createApp(deps: AppDependencies): Hono {
   app.get("/api/projects", async (c) => {
     const projects = await deps.scanner.scanProjects(deps.basePaths);
     return c.json({ projects });
+  });
+
+  app.get("/api/sessions/:sessionId", async (c) => {
+    const sessionId = c.req.param("sessionId");
+    const sessionFile = await resolveSessionFile(deps.basePaths, sessionId);
+    if (!sessionFile) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    const content = await Bun.file(sessionFile).text();
+    const session = deps.parser.parseFullSession(content);
+    return c.json({ session });
   });
 
   app.get("/api/projects/:projectId/sessions", async (c) => {

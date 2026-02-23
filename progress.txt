@@ -60,3 +60,20 @@ Added the sessions-per-project read route with project resolution and 404 handli
 ### Verification
 - typecheck: pass
 - tests: 436 pass, 0 fail (2 new route tests + 434 existing)
+
+## Phase 1 — GET /api/sessions/:sessionId (2026-02-22)
+
+Added the single-session read route with file resolution, Bun file reading, and parser delegation.
+
+### What was done
+- Added `GET /api/sessions/:sessionId` route in `create-app.ts` — resolves sessionId via `resolveSessionFile`, reads file with `Bun.file().text()`, delegates to `parser.parseFullSession`, returns `{ session: {...} }`
+- Returns 404 `{ "error": "Session not found" }` when resolution returns null
+- Added 2 tests: happy path (200 with parsed session + verifies content passed to parser), session not found (404)
+
+### Files changed
+- `src/api/create-app.ts` (updated — added session route, imported `resolveSessionFile`)
+- `src/api/__tests__/create-app.test.ts` (updated — added 2 tests for session route, imported `createEmptyEnrichedSession`)
+
+### Verification
+- typecheck: pass
+- tests: 438 pass, 0 fail (2 new route tests + 436 existing)

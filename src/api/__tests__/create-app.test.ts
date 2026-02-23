@@ -1,7 +1,12 @@
 import { join } from "node:path";
 import { describe, test, expect } from "bun:test";
 import { createApp } from "../create-app";
-import { createMockDeps, createMockProject, createMockSession } from "./helpers";
+import {
+  createMockDeps,
+  createMockProject,
+  createMockSession,
+  createEmptyEnrichedSession,
+} from "./helpers";
 
 const FIXTURES = join(import.meta.dir, "fixtures");
 
@@ -58,6 +63,50 @@ describe("GET /api/projects", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ projects: [] });
+  });
+});
+
+describe("GET /api/sessions/:sessionId", () => {
+  test("returns 200 with parsed session", async () => {
+    const enriched = createEmptyEnrichedSession();
+    let receivedContent = "";
+
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      parser: {
+        parseFullSession: (content) => {
+          receivedContent = content;
+          return enriched;
+        },
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/sessions/aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+
+    const body = await res.json();
+    expect(body).toEqual({ session: enriched });
+    expect(typeof receivedContent).toBe("string");
+  });
+
+  test("returns 404 when session not found", async () => {
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/sessions/nonexistent-session-id",
+    );
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Session not found" });
   });
 });
 

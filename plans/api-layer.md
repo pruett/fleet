@@ -31,9 +31,9 @@
 - [x] Add tests: happy path (200), project not found (404)
 
 ### GET /api/sessions/:sessionId
-- [ ] Add route in `create-app.ts` — resolve sessionId via `resolveSessionFile`, read file with `Bun.file().text()`, delegate to `parser.parseFullSession`, return `{ session: {...} }`
-- [ ] Return 404 `{ "error": "Session not found" }` when resolution returns null
-- [ ] Add tests: happy path (200), session not found (404)
+- [x] Add route in `create-app.ts` — resolve sessionId via `resolveSessionFile`, read file with `Bun.file().text()`, delegate to `parser.parseFullSession`, return `{ session: {...} }`
+- [x] Return 404 `{ "error": "Session not found" }` when resolution returns null
+- [x] Add tests: happy path (200), session not found (404)
 
 ---
 
