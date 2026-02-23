@@ -21,8 +21,8 @@
 - [x] Flush immediately (no debounce yet) — call `onMessages` with a `WatchBatch` containing collected messages and `byteRange`
 
 ### Tracer Bullet Test
-- [ ] Create `src/watcher/__tests__/helpers.ts` with temp file utilities (create temp `.jsonl`, append lines, cleanup)
-- [ ] Create `src/watcher/__tests__/watch-session.test.ts` — write JSONL lines to a temp file, call `watchSession` with `debounceMs: 0` / `maxWaitMs: 0`, assert callback receives correct `ParsedMessage[]` with correct `byteRange`
+- [x] Create `src/watcher/__tests__/helpers.ts` with temp file utilities (create temp `.jsonl`, append lines, cleanup)
+- [x] Create `src/watcher/__tests__/watch-session.test.ts` — write JSONL lines to a temp file, call `watchSession` with `debounceMs: 0` / `maxWaitMs: 0`, assert callback receives correct `ParsedMessage[]` with correct `byteRange`
 
 ---
 

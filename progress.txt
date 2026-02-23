@@ -26,3 +26,18 @@ Files changed:
 - src/watcher/watch-session.ts (rewritten from stub)
 
 Verified: typecheck passes, all 421 tests pass.
+
+## 2026-02-22 — Phase 0: Tracer Bullet Test
+
+Implemented:
+- Created `src/watcher/__tests__/helpers.ts` with temp file utilities: `createTempJsonl()` (creates empty .jsonl in temp dir with cleanup), `appendLines()` (appends newline-terminated lines)
+- Created `src/watcher/__tests__/watch-session.test.ts` with two tests:
+  - "delivers parsed messages with correct byteRange after file append" — appends two JSONL lines to empty file, asserts correct message kinds, lineIndex assignment, byteRange coverage, and handle state
+  - "only tails new content appended after watcher starts" — pre-populates file, starts watcher, appends new line, verifies only new content is delivered and byteRange starts at initial file size
+- Reuses parser test helpers (`makeUserPrompt`, `makeAssistantRecord`, `makeTextBlock`, `toLine`) for fixture data
+
+Files changed:
+- src/watcher/__tests__/helpers.ts (new)
+- src/watcher/__tests__/watch-session.test.ts (new)
+
+Verified: typecheck passes, all 423 tests pass (421 existing + 2 new).
