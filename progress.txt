@@ -112,3 +112,20 @@ Added the stop-session control route with controller delegation.
 ### Verification
 - typecheck: pass
 - tests: 443 pass, 0 fail (2 new route tests + 441 existing)
+
+## Phase 2 — POST /api/sessions/:sessionId/resume (2026-02-22)
+
+Added the resume-session control route with controller delegation.
+
+### What was done
+- Added `POST /api/sessions/:sessionId/resume` route in `create-app.ts` — extracts sessionId param, delegates to `controller.resumeSession`, returns 200 with `{ sessionId }` on success
+- Returns 500 with controller error message when `result.ok` is false
+- Added 2 tests: happy path (200 + verifies sessionId passed to controller), controller failure (500)
+
+### Files changed
+- `src/api/create-app.ts` (updated — added resume route)
+- `src/api/__tests__/create-app.test.ts` (updated — added 2 tests for resume route)
+
+### Verification
+- typecheck: pass
+- tests: 445 pass, 0 fail (2 new route tests + 443 existing)

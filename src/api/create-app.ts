@@ -46,6 +46,15 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ sessionId: result.sessionId });
   });
 
+  app.post("/api/sessions/:sessionId/resume", async (c) => {
+    const sessionId = c.req.param("sessionId");
+    const result = await deps.controller.resumeSession(sessionId);
+    if (!result.ok) {
+      return c.json({ error: result.error ?? "Failed to resume session" }, 500);
+    }
+    return c.json({ sessionId: result.sessionId });
+  });
+
   app.get("/api/projects/:projectId/sessions", async (c) => {
     const projectId = c.req.param("projectId");
     const projectDir = await resolveProjectDir(deps.basePaths, projectId);
