@@ -27,7 +27,7 @@
 ## Phase 1 — Core Subscription Logic
 
 ### Unsubscribe & Cleanup
-- [ ] Implement unsubscribe handler — clear `client.sessionId`, remove from `sessions` set, stop watcher when last subscriber leaves
+- [x] Implement unsubscribe handler — clear `client.sessionId`, remove from `sessions` set, stop watcher when last subscriber leaves
 - [ ] Wire unsubscribe into `handleClose` — run unsubscribe logic before removing client from registry
 - [ ] Implement implicit unsubscribe on re-subscribe — if client already subscribed to different session, unsubscribe first
 - [ ] Write tests: unsubscribe stops watcher when last subscriber leaves; re-subscribe to different session cleans up old subscription

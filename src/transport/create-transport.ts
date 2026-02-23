@@ -109,6 +109,36 @@ export function createTransport(options: TransportOptions): Transport {
     // 7. If watcher already running (size > 1): no-op — fan-out happens via relayBatch
   }
 
+  // --- Unsubscribe ---
+
+  function handleUnsubscribe(ws: ServerWebSocket<unknown>): void {
+    const clientId = wsToClientId.get(ws);
+    if (clientId === undefined) return;
+    const client = clients.get(clientId);
+    if (!client || client.sessionId === null) return;
+
+    const sessionId = client.sessionId;
+
+    // 1. Remove from sessions inverse map
+    const subscriberSet = sessions.get(sessionId);
+    if (subscriberSet) {
+      subscriberSet.delete(clientId);
+
+      // 2. If last subscriber left, stop watcher and clean up
+      if (subscriberSet.size === 0) {
+        sessions.delete(sessionId);
+        const handle = watchers.get(sessionId);
+        if (handle) {
+          options.stopWatching(handle);
+          watchers.delete(sessionId);
+        }
+      }
+    }
+
+    // 3. Clear client subscription
+    client.sessionId = null;
+  }
+
   // --- Connection lifecycle ---
 
   function handleOpen(ws: ServerWebSocket<unknown>): void {
@@ -155,7 +185,7 @@ export function createTransport(options: TransportOptions): Transport {
         handleSubscribe(ws, msg);
         break;
       case "unsubscribe":
-        // TODO: implement unsubscribe handler (Phase 1)
+        handleUnsubscribe(ws);
         break;
       default:
         ws.send(

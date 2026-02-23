@@ -140,3 +140,22 @@ Notes:
 - `ParsedMessage` schema requires `isMeta` on user-prompt, `contentBlock` (singular) on assistant-block, and snake_case `input_tokens`/`output_tokens` on usage — matching Zod schemas exactly
 - Mock WebSocket `closed` state exposed via getter (not plain property) to avoid destructuring capturing stale null value
 - All 483 tests pass (9 new + 474 existing), TypeScript clean
+
+## 2026-02-23 — Phase 1: Unsubscribe handler
+
+Implemented `handleUnsubscribe` in `createTransport`:
+- Looks up client via `wsToClientId` reverse map, early returns if client not found or not subscribed
+- Removes `clientId` from the `sessions` inverse map subscriber set
+- When subscriber set empties (last subscriber leaves): deletes session entry from `sessions` map, calls `options.stopWatching(handle)`, removes watcher from `watchers` map
+- Clears `client.sessionId = null`
+- Wired into `case "unsubscribe":` dispatch in `handleMessage` (replaced TODO stub)
+
+Files changed:
+- `src/transport/create-transport.ts` (modified)
+- `plans/real-time-transport.md` (updated checkbox)
+
+Notes:
+- `handleUnsubscribe` is synchronous (no async needed — no IO calls)
+- Guard ordering: check client exists, check sessionId is non-null, then proceed with cleanup
+- The function is also reusable for `handleClose` wiring (next task) and implicit unsubscribe on re-subscribe
+- All 483 tests pass, TypeScript clean, Biome clean
