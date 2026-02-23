@@ -35,7 +35,11 @@ export function createTransport(options: TransportOptions): Transport {
     for (const clientId of subscriberIds) {
       const client = clients.get(clientId);
       if (!client) continue;
-      client.ws.send(frame);
+      try {
+        client.ws.send(frame);
+      } catch {
+        // Broken pipe / closed socket — skip and continue to next client
+      }
     }
   }
 
@@ -234,7 +238,11 @@ export function createTransport(options: TransportOptions): Transport {
     broadcastLifecycleEvent: (event) => {
       const frame = JSON.stringify(event);
       for (const client of clients.values()) {
-        client.ws.send(frame);
+        try {
+          client.ws.send(frame);
+        } catch {
+          // Broken pipe / closed socket — skip and continue to next client
+        }
       }
     },
     getClientCount: () => clients.size,

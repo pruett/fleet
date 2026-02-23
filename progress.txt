@@ -280,3 +280,23 @@ Notes:
 - The catch block can unconditionally delete the session entry (no size check needed) because the watcher is only started for the first subscriber (`subscriberSet.size === 1`), so after removing the one subscriber the set is always empty
 - TypeScript correctly narrowed `subscriberSet.size` to literal `1` from the outer guard, making a `=== 0` check a type error — simplified by removing the redundant check
 - All 495 tests pass (1 new + 494 existing), TypeScript clean, Biome clean
+
+## 2026-02-23 — Phase 2: Send Failure Resilience
+
+Wrapped `ws.send` in try/catch in both `relayBatch` and `broadcastLifecycleEvent` to handle broken pipe / closed socket errors gracefully. A failing send to one client no longer prevents delivery to remaining clients.
+
+Also added `createBrokenMockWebSocket` test helper — creates a mock whose `send()` always throws, simulating a broken pipe.
+
+Files changed:
+- `src/transport/create-transport.ts` (modified — try/catch around ws.send in relayBatch and broadcastLifecycleEvent)
+- `src/transport/__tests__/helpers.ts` (modified — added `createBrokenMockWebSocket` factory)
+- `src/transport/__tests__/create-transport.test.ts` (modified — added 2 new tests in "Phase 2 send failures" describe block)
+- `plans/real-time-transport.md` (updated checkboxes)
+
+Tests added:
+1. relayBatch skips broken client and delivers to remaining healthy clients
+2. broadcastLifecycleEvent skips broken client and delivers to remaining healthy clients
+
+Notes:
+- The catch blocks are intentionally empty — there's no useful recovery action for a broken pipe during fan-out
+- All 497 tests pass (2 new + 495 existing), TypeScript clean, Biome clean

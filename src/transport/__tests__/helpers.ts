@@ -112,6 +112,35 @@ export function createMockTransportOptions(): MockTransportOptions {
   };
 }
 
+/**
+ * Create a mock ServerWebSocket whose send() always throws (simulates broken pipe).
+ * close() still works normally so the transport can clean up.
+ */
+export function createBrokenMockWebSocket(): MockWebSocket {
+  const sent: string[] = [];
+  let closed: { code: number; reason?: string } | null = null;
+
+  const ws = {
+    send(_data: string | Buffer) {
+      throw new Error("Simulated broken pipe");
+    },
+    close(code?: number, reason?: string) {
+      closed = { code: code ?? 1000, reason };
+    },
+    readyState: 1,
+    data: undefined,
+    remoteAddress: "127.0.0.1",
+  } as unknown as ServerWebSocket<unknown>;
+
+  return {
+    ws,
+    sent,
+    get closed() {
+      return closed;
+    },
+  };
+}
+
 // ============================================================
 // Utilities
 // ============================================================

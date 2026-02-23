@@ -65,8 +65,8 @@
 - [x] Write tests: unknown session returns error; watcher failure reverts state
 
 ### Send Failures
-- [ ] Wrap `ws.send` in try/catch in `relayBatch` and `broadcastLifecycleEvent` — catch broken pipe, continue to next client
-- [ ] Write test: one client's broken connection does not prevent delivery to other clients
+- [x] Wrap `ws.send` in try/catch in `relayBatch` and `broadcastLifecycleEvent` — catch broken pipe, continue to next client
+- [x] Write test: one client's broken connection does not prevent delivery to other clients
 
 ---
 

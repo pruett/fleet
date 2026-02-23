@@ -5,6 +5,7 @@ import type { WatchBatch } from "../../watcher";
 import type { LifecycleEvent } from "../types";
 import {
   createMockWebSocket,
+  createBrokenMockWebSocket,
   createMockTransportOptions,
   VALID_SESSION_ID,
   VALID_SESSION_ID_2,
@@ -672,5 +673,87 @@ describe("createTransport — Phase 1 shutdown", () => {
 
     expect(transport.getClientCount()).toBe(0);
     expect(mock.stopped).toHaveLength(0);
+  });
+});
+
+describe("createTransport — Phase 2 send failures", () => {
+  it("relayBatch skips broken client and delivers to remaining clients", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    // Client 1: healthy
+    const ws1 = createMockWebSocket();
+    transport.handleOpen(ws1.ws);
+
+    // Client 2: broken pipe (send throws)
+    const ws2 = createBrokenMockWebSocket();
+    transport.handleOpen(ws2.ws);
+
+    // Client 3: healthy
+    const ws3 = createMockWebSocket();
+    transport.handleOpen(ws3.ws);
+
+    // Subscribe all three to the same session
+    const subscribeMsg = JSON.stringify({
+      type: "subscribe",
+      sessionId: VALID_SESSION_ID,
+    });
+
+    transport.handleMessage(ws1.ws, subscribeMsg);
+    await new Promise((r) => setTimeout(r, 10));
+    transport.handleMessage(ws2.ws, subscribeMsg);
+    await new Promise((r) => setTimeout(r, 10));
+    transport.handleMessage(ws3.ws, subscribeMsg);
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(mock.watches).toHaveLength(1);
+
+    // Fire a watcher batch — ws2.send will throw
+    const batch: WatchBatch = {
+      sessionId: VALID_SESSION_ID,
+      messages: [],
+      byteRange: { start: 0, end: 50 },
+    };
+    mock.watches[0].options.onMessages(batch);
+
+    // Healthy clients still receive the frame
+    expect(ws1.sent).toHaveLength(1);
+    expect(ws3.sent).toHaveLength(1);
+
+    const frame = JSON.parse(ws1.sent[0]);
+    expect(frame.type).toBe("messages");
+    expect(frame.sessionId).toBe(VALID_SESSION_ID);
+  });
+
+  it("broadcastLifecycleEvent skips broken client and delivers to remaining clients", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    const ws1 = createMockWebSocket();
+    const ws2 = createBrokenMockWebSocket();
+    const ws3 = createMockWebSocket();
+
+    transport.handleOpen(ws1.ws);
+    transport.handleOpen(ws2.ws);
+    transport.handleOpen(ws3.ws);
+
+    const event: LifecycleEvent = {
+      type: "session:started",
+      sessionId: VALID_SESSION_ID,
+      projectId: "proj-001",
+      cwd: "/mock/project",
+      startedAt: "2026-02-23T12:00:00.000Z",
+    };
+
+    // Should not throw despite ws2 being broken
+    transport.broadcastLifecycleEvent(event);
+
+    // Healthy clients receive the event
+    expect(ws1.sent).toHaveLength(1);
+    expect(ws3.sent).toHaveLength(1);
+
+    const frame1 = JSON.parse(ws1.sent[0]);
+    expect(frame1.type).toBe("session:started");
+    expect(frame1.sessionId).toBe(VALID_SESSION_ID);
   });
 });
