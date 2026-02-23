@@ -22,3 +22,24 @@ Implemented the minimal Hono API layer with dependency injection and the first r
 ### Verification
 - typecheck: pass
 - tests: 424 pass, 0 fail (3 new API tests + 421 existing)
+
+## Phase 1 — File Resolution Helpers (2026-02-22)
+
+Added `resolveProjectDir` and `resolveSessionFile` helpers for mapping IDs to filesystem paths.
+
+### What was done
+- Created `src/api/resolve.ts` — `resolveProjectDir(basePaths, projectId)` scans each basePath for a matching directory (first-match wins); `resolveSessionFile(basePaths, sessionId)` scans basePath/{project}/sessionId.jsonl
+- Created `src/api/__tests__/resolve.test.ts` — 10 tests covering happy path, not found, first-match-wins, and missing basePath resilience for both resolvers
+- Created `src/api/__tests__/fixtures/` — minimal fixture dirs with empty .jsonl files for resolve tests
+- Updated `src/api/index.ts` — re-exports `resolveProjectDir` and `resolveSessionFile`
+
+### Files changed
+- `src/api/resolve.ts` (new)
+- `src/api/index.ts` (updated — added resolve re-exports)
+- `src/api/__tests__/resolve.test.ts` (new)
+- `src/api/__tests__/fixtures/resolve-base-1/` (new fixture dirs)
+- `src/api/__tests__/fixtures/resolve-base-2/` (new fixture dirs)
+
+### Verification
+- typecheck: pass
+- tests: 434 pass, 0 fail (10 new resolve tests + 424 existing)

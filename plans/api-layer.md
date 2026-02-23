@@ -21,9 +21,9 @@
 ## Phase 1 — Read Routes + File Resolution
 
 ### File Resolution Helpers
-- [ ] Create `src/api/resolve.ts` — `resolveProjectDir(basePaths, projectId)` scanning each basePath for a matching directory
-- [ ] Add `resolveSessionFile(basePaths, sessionId)` scanning basePath/*/sessionId.jsonl
-- [ ] Create `src/api/__tests__/resolve.test.ts` — test both resolvers with fixture directories (first-match wins, returns null when missing)
+- [x] Create `src/api/resolve.ts` — `resolveProjectDir(basePaths, projectId)` scanning each basePath for a matching directory
+- [x] Add `resolveSessionFile(basePaths, sessionId)` scanning basePath/*/sessionId.jsonl
+- [x] Create `src/api/__tests__/resolve.test.ts` — test both resolvers with fixture directories (first-match wins, returns null when missing)
 
 ### GET /api/projects/:projectId/sessions
 - [ ] Add route in `create-app.ts` — resolve projectId via `resolveProjectDir`, delegate to `scanner.scanSessions`, return `{ sessions: [...] }`
