@@ -191,3 +191,26 @@ Files changed:
 - plans/file-watcher.md (modified — checked off 2 items)
 
 Verified: typecheck passes, all 437 tests pass (436 existing + 1 new).
+
+## 2026-02-22 — Phase 3: 100-Write Stress Test
+
+Implemented:
+- Added 100-write stress test: appends 100 valid JSONL lines in sequence, asserts total messages across all batches equals exactly 100 (no duplicates, no drops), verifies lineIndex sequence 0–99, byteRange covers entire file, handle state consistent
+- Enhanced `processChanges()` reliability for rapid writes:
+  - Added `recheckNeeded` flag: when `fs.watch` fires during an in-flight `processChanges()`, the flag is set instead of silently dropping the event; after the current read completes, a `setTimeout(0)` yield + re-check catches data that arrived during processing
+  - Extracted `processChanges()` as a named function (was anonymous callback on `fs.watch`) so it can be called from both `fs.watch` and the new poll mechanism
+  - Added `schedulePoll()`: a one-shot 50ms timer that fires after each `processChanges()` run, re-checking if the file has grown beyond `byteOffset`; catches trailing writes when the OS coalesces `fs.watch` events and never delivers a final notification
+
+Tests added:
+- "delivers exactly 100 messages with no duplicates and no drops" — 15s timeout, appends 100 lines with default debounce, asserts exactly 100 messages with correct lineIndex sequence, byteRange coverage, and handle state
+
+Files changed:
+- src/watcher/watch-session.ts (modified — added recheckNeeded, pollTimer, schedulePoll, extracted processChanges)
+- src/watcher/__tests__/watch-session.test.ts (modified — added 1 test in new "100-write stress test" describe block)
+- plans/file-watcher.md (modified — checked off 1 item)
+
+Gotchas:
+- `fs.watch` on macOS coalesces rapid events: when 100 writes happen in a tight loop, the OS may deliver only a subset of change notifications. Without `recheckNeeded` + `schedulePoll`, the watcher can miss trailing writes that occur between the last stat() check and processChanges() returning.
+- The `recheckNeeded` flag alone isn't sufficient — if processChanges() completes and no further fs.watch events arrive (because the OS already coalesced them), data can be permanently stranded. The `schedulePoll` timer provides a safety net.
+
+Verified: typecheck passes, all 438 tests pass (437 existing + 1 new).

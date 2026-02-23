@@ -84,4 +84,4 @@
 - [x] Append fixture lines one-by-one to temp file with watcher at offset 0 and `debounceMs: 0` — verify all batched messages match `parseLine` output exactly (order, `lineIndex`, content)
 
 ### 100-Write Stress Test
-- [ ] Append 100 valid JSONL lines in sequence — assert total messages across all batches equals exactly 100 (no duplicates, no drops)
+- [x] Append 100 valid JSONL lines in sequence — assert total messages across all batches equals exactly 100 (no duplicates, no drops)

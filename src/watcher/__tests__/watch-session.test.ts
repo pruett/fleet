@@ -912,3 +912,79 @@ describe("watchSession — end-to-end consistency", () => {
     expect(lastEnd).toBe(Bun.file(tmp.path).size);
   });
 });
+
+describe("watchSession — 100-write stress test", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("delivers exactly 100 messages with no duplicates and no drops", async () => {
+    tmp = await createTempJsonl();
+
+    const batches: WatchBatch[] = [];
+    let totalMessages = 0;
+    let resolve: () => void;
+    const allReceived = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-stress-100",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        totalMessages += batch.messages.length;
+        if (totalMessages >= 100) resolve();
+      },
+      onError: () => {},
+    });
+
+    // Append 100 valid JSONL lines in sequence
+    for (let i = 0; i < 100; i++) {
+      await appendLines(tmp.path, [toLine(makeUserPrompt(`Stress line ${i}`))]);
+    }
+
+    await Promise.race([
+      allReceived,
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Timeout: got ${totalMessages}/100 messages, ` +
+                  `byteOffset=${handle!.byteOffset}, fileSize=${Bun.file(tmp!.path).size}`,
+              ),
+            ),
+          15_000,
+        ),
+      ),
+    ]);
+
+    const allMessages = batches.flatMap((b) => b.messages);
+
+    // Exactly 100 messages — no drops
+    expect(allMessages).toHaveLength(100);
+
+    // Correct lineIndex sequence — no duplicates, no gaps
+    for (let i = 0; i < 100; i++) {
+      expect(allMessages[i].lineIndex).toBe(i);
+      expect(allMessages[i].kind).toBe("user-prompt");
+    }
+
+    // byteRange covers the entire file
+    const firstStart = batches[0].byteRange.start;
+    const lastEnd = batches[batches.length - 1].byteRange.end;
+    expect(firstStart).toBe(0);
+    expect(lastEnd).toBe(Bun.file(tmp.path).size);
+
+    // Handle state consistent
+    expect(handle!.lineIndex).toBe(100);
+    expect(handle!.byteOffset).toBe(Bun.file(tmp.path).size);
+  }, 20_000);
+});

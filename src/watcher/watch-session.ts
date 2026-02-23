@@ -19,6 +19,10 @@ interface WatcherState {
   batchStartOffset: number | null;
   /** Guard against concurrent async callbacks from fs.watch. */
   processing: boolean;
+  /** Set when an fs.watch event fires during processing, so we re-check after. */
+  recheckNeeded: boolean;
+  /** One-shot poll timer — catches trailing writes when OS coalesces fs.watch events. */
+  pollTimer: ReturnType<typeof setTimeout> | null;
 }
 
 /**
@@ -62,13 +66,17 @@ export function watchSession(options: WatchOptions): WatchHandle {
     maxWaitTimer: null,
     batchStartOffset: null,
     processing: false,
+    recheckNeeded: false,
+    pollTimer: null,
   };
 
-  // Register fs.watch listener for file changes
-  const fsWatcher = watch(filePath, async (eventType) => {
+  /** Process new data from the file. Serialized via the `processing` flag. */
+  async function processChanges(): Promise<void> {
     if (handle.stopped) return;
-    if (eventType !== "change") return;
-    if (state.processing) return;
+    if (state.processing) {
+      state.recheckNeeded = true;
+      return;
+    }
 
     state.processing = true;
     try {
@@ -89,7 +97,18 @@ export function watchSession(options: WatchOptions): WatchHandle {
           continue;
         }
 
-        if (currentSize === handle.byteOffset) break;
+        if (currentSize === handle.byteOffset) {
+          // If events were dropped during processing, yield to the event
+          // loop so any in-flight writes can complete and become visible to
+          // stat(), then re-check. Without this, the OS may coalesce
+          // fs.watch events and never notify us of trailing writes.
+          if (state.recheckNeeded) {
+            state.recheckNeeded = false;
+            await new Promise<void>((r) => setTimeout(r, 0));
+            continue;
+          }
+          break;
+        }
 
         const readStart = handle.byteOffset;
         let newText: string;
@@ -147,6 +166,17 @@ export function watchSession(options: WatchOptions): WatchHandle {
     } finally {
       state.processing = false;
     }
+
+    // Defensive poll: the OS may coalesce fs.watch events, leaving data
+    // that arrived after our last stat() call permanently unnotified.
+    // Schedule a one-shot re-check to catch trailing writes.
+    schedulePoll(state, processChanges);
+  }
+
+  // Register fs.watch listener for file changes
+  const fsWatcher = watch(filePath, (eventType) => {
+    if (eventType !== "change") return;
+    processChanges();
   });
 
   fsWatcher.on("error", (err) => {
@@ -163,6 +193,30 @@ export function watchSession(options: WatchOptions): WatchHandle {
   registry.set(sessionId, state);
 
   return handle;
+}
+
+/**
+ * Schedule a one-shot poll to catch trailing writes that the OS may not
+ * notify us about (due to fs.watch event coalescing). Only fires if unread
+ * data exists; terminates naturally when the file stops growing.
+ */
+function schedulePoll(
+  state: WatcherState,
+  processChanges: () => Promise<void>,
+): void {
+  if (state.handle.stopped) return;
+  if (state.pollTimer !== null) clearTimeout(state.pollTimer);
+
+  state.pollTimer = setTimeout(() => {
+    state.pollTimer = null;
+    if (
+      !state.handle.stopped &&
+      !state.processing &&
+      Bun.file(state.handle.filePath).size > state.handle.byteOffset
+    ) {
+      processChanges();
+    }
+  }, 50);
 }
 
 /**
