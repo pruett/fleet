@@ -244,6 +244,79 @@ describe("POST /api/sessions/:sessionId/resume", () => {
   });
 });
 
+describe("POST /api/sessions/:sessionId/message", () => {
+  test("returns 200 with sessionId on success", async () => {
+    let receivedId = "";
+    let receivedMessage = "";
+
+    const deps = createMockDeps({
+      controller: {
+        startSession: async () => ({ ok: true, sessionId: "" }),
+        stopSession: async () => ({ ok: true, sessionId: "" }),
+        resumeSession: async () => ({ ok: true, sessionId: "" }),
+        sendMessage: async (id, message) => {
+          receivedId = id;
+          receivedMessage = message;
+          return { ok: true, sessionId: id };
+        },
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions/sess-abc-123/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "hello world" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ sessionId: "sess-abc-123" });
+    expect(receivedId).toBe("sess-abc-123");
+    expect(receivedMessage).toBe("hello world");
+  });
+
+  test("returns 400 when message is missing", async () => {
+    const deps = createMockDeps();
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions/sess-abc-123/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toEqual({ error: "message is required" });
+  });
+
+  test("returns 500 when controller fails", async () => {
+    const deps = createMockDeps({
+      controller: {
+        startSession: async () => ({ ok: true, sessionId: "" }),
+        stopSession: async () => ({ ok: true, sessionId: "" }),
+        resumeSession: async () => ({ ok: true, sessionId: "" }),
+        sendMessage: async () => ({
+          ok: false,
+          sessionId: "",
+          error: "session not active",
+        }),
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/sessions/sess-abc-123/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "hello" }),
+    });
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: "session not active" });
+  });
+});
+
 describe("GET /api/sessions/:sessionId", () => {
   test("returns 200 with parsed session", async () => {
     const enriched = createEmptyEnrichedSession();

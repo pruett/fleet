@@ -55,6 +55,19 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ sessionId: result.sessionId });
   });
 
+  app.post("/api/sessions/:sessionId/message", async (c) => {
+    const sessionId = c.req.param("sessionId");
+    const body = await c.req.json();
+    if (!body.message) {
+      return c.json({ error: "message is required" }, 400);
+    }
+    const result = await deps.controller.sendMessage(sessionId, body.message);
+    if (!result.ok) {
+      return c.json({ error: result.error ?? "Failed to send message" }, 500);
+    }
+    return c.json({ sessionId: result.sessionId });
+  });
+
   app.get("/api/projects/:projectId/sessions", async (c) => {
     const projectId = c.req.param("projectId");
     const projectDir = await resolveProjectDir(deps.basePaths, projectId);

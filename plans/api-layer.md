@@ -54,9 +54,9 @@
 - [x] Add tests: happy path (200), controller failure (500)
 
 ### POST /api/sessions/:sessionId/message
-- [ ] Add route — parse JSON body, validate `message` required, delegate to `controller.sendMessage`, return 200
-- [ ] Return 400 `{ "error": "message is required" }` when missing
-- [ ] Add tests: happy path (200), missing message (400), controller failure (500)
+- [x] Add route — parse JSON body, validate `message` required, delegate to `controller.sendMessage`, return 200
+- [x] Return 400 `{ "error": "message is required" }` when missing
+- [x] Add tests: happy path (200), missing message (400), controller failure (500)
 
 ---
 

@@ -129,3 +129,21 @@ Added the resume-session control route with controller delegation.
 ### Verification
 - typecheck: pass
 - tests: 445 pass, 0 fail (2 new route tests + 443 existing)
+
+## Phase 2 — POST /api/sessions/:sessionId/message (2026-02-22)
+
+Added the send-message control route with body validation and controller delegation.
+
+### What was done
+- Added `POST /api/sessions/:sessionId/message` route in `create-app.ts` — parses JSON body, validates `message` required, delegates to `controller.sendMessage(sessionId, message)`, returns 200 with `{ sessionId }` on success
+- Returns 400 `{ "error": "message is required" }` when `message` is missing from body
+- Returns 500 with controller error message when `result.ok` is false
+- Added 3 tests: happy path (200 + verifies sessionId and message passed to controller), missing message (400), controller failure (500)
+
+### Files changed
+- `src/api/create-app.ts` (updated — added message route)
+- `src/api/__tests__/create-app.test.ts` (updated — added 3 tests for message route)
+
+### Verification
+- typecheck: pass
+- tests: 448 pass, 0 fail (3 new route tests + 445 existing)
