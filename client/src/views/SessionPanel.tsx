@@ -26,7 +26,7 @@ import {
 import type { ConnectionInfo } from "@/lib/ws";
 
 // ---------------------------------------------------------------------------
-// Shared presentational components (mirrors SessionView)
+// Shared presentational components
 // ---------------------------------------------------------------------------
 
 function StatusBadge({ status }: { status: SessionStatus }) {

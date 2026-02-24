@@ -30,7 +30,7 @@ import {
 } from "@/lib/incremental-analytics";
 
 // ---------------------------------------------------------------------------
-// Helpers (shared with SessionView)
+// Helpers
 // ---------------------------------------------------------------------------
 
 /** Extract key metadata from the enriched session for the header bar. */

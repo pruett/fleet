@@ -40,9 +40,9 @@ import { SessionPanel } from "@/views/SessionPanel";
 // URL helpers
 // ---------------------------------------------------------------------------
 
-/** Extract session ID from `/new/session/:id` pathname, or null. */
+/** Extract session ID from `/session/:id` pathname, or null. */
 function parseEmbeddedSessionId(): string | null {
-  const match = window.location.pathname.match(/^\/new\/session\/(.+)$/);
+  const match = window.location.pathname.match(/^\/session\/(.+)$/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
@@ -149,7 +149,7 @@ function ProjectTreeItem({
                   isActive={session.sessionId === selectedSessionId}
                 >
                   <a
-                    href={`/new/session/${encodeURIComponent(session.sessionId)}`}
+                    href={`/session/${encodeURIComponent(session.sessionId)}`}
                     onClick={(e) => {
                       e.preventDefault();
                       onSelectSession(session.sessionId);
@@ -218,7 +218,7 @@ export function DashboardView() {
 
   const selectSession = useCallback((sessionId: string) => {
     setSelectedSessionId(sessionId);
-    const url = `/new/session/${encodeURIComponent(sessionId)}`;
+    const url = `/session/${encodeURIComponent(sessionId)}`;
     history.pushState(null, "", url);
   }, []);
 
