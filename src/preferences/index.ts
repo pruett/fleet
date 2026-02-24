@@ -9,7 +9,7 @@ export interface FleetPreferences {
 const DEFAULT_PREFERENCES: FleetPreferences = { pinnedProjects: [] };
 
 export function getPreferencesPath(): string {
-  return join(homedir(), ".fleet", "config.json");
+  return join(homedir(), ".config", "fleet", "settings.json");
 }
 
 export async function readPreferences(): Promise<FleetPreferences> {
