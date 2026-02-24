@@ -217,6 +217,12 @@ export type ParsedMessage =
   | QueueOperationMessage
   | MalformedRecord;
 
+// --- Fleet preferences (src/preferences/index.ts) ---
+
+export interface FleetPreferences {
+  pinnedProjects: string[];
+}
+
 // --- Enrichment types (src/parser/types.ts) ---
 
 export interface Turn {

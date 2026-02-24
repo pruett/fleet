@@ -2,6 +2,7 @@ import type {
   ProjectSummary,
   SessionSummary,
   EnrichedSession,
+  FleetPreferences,
 } from "@/types/api";
 
 class ApiError extends Error {
@@ -116,6 +117,20 @@ export async function sendMessage(
 ): Promise<void> {
   await post(`/api/sessions/${encodeURIComponent(sessionId)}/message`, {
     message,
+  });
+}
+
+export async function fetchPreferences(): Promise<FleetPreferences> {
+  return requestWithRetry<FleetPreferences>("/api/preferences");
+}
+
+export async function updatePreferences(
+  prefs: FleetPreferences,
+): Promise<FleetPreferences> {
+  return request<FleetPreferences>("/api/preferences", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(prefs),
   });
 }
 

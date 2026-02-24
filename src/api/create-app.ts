@@ -43,6 +43,28 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ projects });
   });
 
+  app.get("/api/preferences", async (c) => {
+    const prefs = await deps.preferences.readPreferences();
+    return c.json(prefs);
+  });
+
+  app.put("/api/preferences", async (c) => {
+    const body = await c.req.json();
+    if (
+      !body ||
+      !Array.isArray(body.pinnedProjects) ||
+      !body.pinnedProjects.every((id: unknown) => typeof id === "string")
+    ) {
+      return c.json(
+        { error: "pinnedProjects must be an array of strings" },
+        400,
+      );
+    }
+    const prefs = { pinnedProjects: body.pinnedProjects as string[] };
+    await deps.preferences.writePreferences(prefs);
+    return c.json(prefs);
+  });
+
   app.post("/api/sessions", async (c) => {
     const body = await c.req.json();
     if (!body.projectDir) {

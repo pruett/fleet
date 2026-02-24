@@ -1,10 +1,17 @@
 {
   "name": "fleet",
   "version": "0.0.1",
+  "private": true,
   "type": "module",
+  "workspaces": ["client"],
   "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "dev:server": "bun --watch src/main.ts",
+    "dev:client": "bun run --filter @fleet/client dev",
+    "start": "FLEET_STATIC_DIR=client/dist bun run src/main.ts",
+    "build": "bun run --filter @fleet/client build",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && bun run --filter @fleet/client typecheck"
   },
   "dependencies": {
     "hono": "^4.7.5",

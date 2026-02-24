@@ -40,6 +40,10 @@ export function createMockDeps(
       resumeSession: async () => defaultResult,
       sendMessage: async () => defaultResult,
     },
+    preferences: {
+      readPreferences: async () => ({ pinnedProjects: [] }),
+      writePreferences: async () => {},
+    },
     transport: mockTransport,
     basePaths: ["/mock/base/path"],
     staticDir: null,

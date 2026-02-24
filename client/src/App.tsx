@@ -1,8 +1,10 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProjectListView } from "@/views/ProjectListView";
 import { SessionListView } from "@/views/SessionListView";
 import { SessionView } from "@/views/SessionView";
+import { DashboardView } from "@/views/DashboardView";
 
 // ---------------------------------------------------------------------------
 // Minimal hash-based router
@@ -10,13 +12,16 @@ import { SessionView } from "@/views/SessionView";
 // ---------------------------------------------------------------------------
 
 type Route =
+  | { view: "dashboard" }
   | { view: "projects" }
   | { view: "sessions"; projectId: string }
   | { view: "session"; sessionId: string };
 
-function parseHash(hash: string): Route {
+function parseRoute(): Route {
+  const hash = window.location.hash;
   const path = hash.replace(/^#\/?/, "/");
 
+  // Hash routes take priority so links from /new still work
   const projectMatch = path.match(/^\/project\/(.+)$/);
   if (projectMatch) {
     return { view: "sessions", projectId: decodeURIComponent(projectMatch[1]) };
@@ -27,6 +32,11 @@ function parseHash(hash: string): Route {
     return { view: "session", sessionId: decodeURIComponent(sessionMatch[1]) };
   }
 
+  // Path-based route when no hash route matched
+  if (window.location.pathname === "/new" || window.location.pathname.startsWith("/new/")) {
+    return { view: "dashboard" };
+  }
+
   return { view: "projects" };
 }
 
@@ -34,13 +44,18 @@ function navigate(path: string) {
   window.location.hash = path;
 }
 
-function subscribeToHash(callback: () => void) {
+function subscribeToRoute(callback: () => void) {
   window.addEventListener("hashchange", callback);
-  return () => window.removeEventListener("hashchange", callback);
+  window.addEventListener("popstate", callback);
+  return () => {
+    window.removeEventListener("hashchange", callback);
+    window.removeEventListener("popstate", callback);
+  };
 }
 
-function getHashSnapshot() {
-  return window.location.hash;
+function getRouteSnapshot() {
+  // Combine pathname + hash so any change is detected
+  return window.location.pathname + window.location.hash;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,8 +63,8 @@ function getHashSnapshot() {
 // ---------------------------------------------------------------------------
 
 function App() {
-  const hash = useSyncExternalStore(subscribeToHash, getHashSnapshot);
-  const route = parseHash(hash);
+  const _snapshot = useSyncExternalStore(subscribeToRoute, getRouteSnapshot);
+  const route = parseRoute();
 
   // Track last-visited projectId so SessionView breadcrumbs can link back
   const [lastProjectId, setLastProjectId] = useState<string | null>(null);
@@ -66,6 +81,9 @@ function App() {
 
   let view: React.ReactNode;
   switch (route.view) {
+    case "dashboard":
+      view = <DashboardView />;
+      break;
     case "projects":
       view = <ProjectListView onSelectProject={goToProject} />;
       break;
@@ -100,10 +118,10 @@ function App() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       {view}
       <Toaster />
-    </>
+    </TooltipProvider>
   );
 }
 
