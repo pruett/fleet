@@ -30,6 +30,7 @@ export function createMockDeps(
     scanner: {
       scanProjects: async () => [],
       scanSessions: async () => [],
+      groupProjects: () => [],
     },
     parser: {
       parseFullSession: () => createEmptyEnrichedSession(),
@@ -41,7 +42,7 @@ export function createMockDeps(
       sendMessage: async () => defaultResult,
     },
     preferences: {
-      readPreferences: async () => ({ pinnedProjects: [] }),
+      readPreferences: async () => ({ projects: [] }),
       writePreferences: async () => {},
     },
     transport: mockTransport,

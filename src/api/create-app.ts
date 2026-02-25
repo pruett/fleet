@@ -1,7 +1,12 @@
 import { join, resolve } from "node:path";
 import { Hono } from "hono";
 import type { AppDependencies } from "./types";
-import { resolveProjectDir, resolveSessionFile } from "./resolve";
+import {
+  resolveSessionFile,
+  resolveGroupedProjectDirs,
+} from "./resolve";
+import { slugify } from "../preferences";
+import type { ProjectConfig } from "../preferences";
 
 const HASHED_ASSET_RE = /[.-][a-zA-Z0-9]{8,}\.\w+$/;
 
@@ -39,8 +44,17 @@ export function createApp(deps: AppDependencies): Hono {
   });
 
   app.get("/api/projects", async (c) => {
-    const projects = await deps.scanner.scanProjects(deps.basePaths);
+    const [rawProjects, prefs] = await Promise.all([
+      deps.scanner.scanProjects(deps.basePaths),
+      deps.preferences.readPreferences(),
+    ]);
+    const projects = deps.scanner.groupProjects(rawProjects, prefs.projects);
     return c.json({ projects });
+  });
+
+  app.get("/api/directories", async (c) => {
+    const directories = await deps.scanner.scanProjects(deps.basePaths);
+    return c.json({ directories });
   });
 
   app.get("/api/preferences", async (c) => {
@@ -50,17 +64,32 @@ export function createApp(deps: AppDependencies): Hono {
 
   app.put("/api/preferences", async (c) => {
     const body = await c.req.json();
-    if (
-      !body ||
-      !Array.isArray(body.pinnedProjects) ||
-      !body.pinnedProjects.every((id: unknown) => typeof id === "string")
-    ) {
+    if (!body || !Array.isArray(body.projects)) {
       return c.json(
-        { error: "pinnedProjects must be an array of strings" },
+        { error: "projects must be an array of ProjectConfig objects" },
         400,
       );
     }
-    const prefs = { pinnedProjects: body.pinnedProjects as string[] };
+    const valid = body.projects.every(
+      (p: unknown) =>
+        p &&
+        typeof p === "object" &&
+        typeof (p as ProjectConfig).title === "string" &&
+        Array.isArray((p as ProjectConfig).projectDirs) &&
+        (p as ProjectConfig).projectDirs.every(
+          (d: unknown) => typeof d === "string",
+        ),
+    );
+    if (!valid) {
+      return c.json(
+        {
+          error:
+            "Each project must have a string title and projectDirs string array",
+        },
+        400,
+      );
+    }
+    const prefs = { projects: body.projects as ProjectConfig[] };
     await deps.preferences.writePreferences(prefs);
     return c.json(prefs);
   });
@@ -123,14 +152,31 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ sessionId: result.sessionId });
   });
 
-  app.get("/api/projects/:projectId/sessions", async (c) => {
-    const projectId = c.req.param("projectId");
-    const projectDir = await resolveProjectDir(deps.basePaths, projectId);
-    if (!projectDir) {
+  app.get("/api/projects/:slug/sessions", async (c) => {
+    const slug = c.req.param("slug");
+    const prefs = await deps.preferences.readPreferences();
+    const config = prefs.projects.find((p) => slugify(p.title) === slug);
+    if (!config) {
       return c.json({ error: "Project not found" }, 404);
     }
-    const sessions = await deps.scanner.scanSessions(projectDir);
-    return c.json({ sessions });
+    const dirs = await resolveGroupedProjectDirs(
+      deps.basePaths,
+      config.projectDirs,
+    );
+    if (dirs.length === 0) {
+      return c.json({ sessions: [] });
+    }
+    const allSessions = await Promise.all(
+      dirs.map((dir) => deps.scanner.scanSessions(dir)),
+    );
+    const merged = allSessions.flat();
+    merged.sort((a, b) => {
+      if (a.lastActiveAt === null && b.lastActiveAt === null) return 0;
+      if (a.lastActiveAt === null) return 1;
+      if (b.lastActiveAt === null) return -1;
+      return b.lastActiveAt.localeCompare(a.lastActiveAt);
+    });
+    return c.json({ sessions: merged });
   });
 
   // Static file serving (only when staticDir is configured)

@@ -15,6 +15,21 @@ export interface ProjectSummary {
   lastActiveAt: string | null;
 }
 
+export interface GroupedProject {
+  /** Slugified title, used as API identifier */
+  slug: string;
+  /** User-visible name */
+  title: string;
+  /** Glob patterns from config */
+  projectDirs: string[];
+  /** Raw directory names that matched the patterns */
+  matchedDirIds: string[];
+  /** Aggregated session count across all matched directories */
+  sessionCount: number;
+  /** Most recent lastActiveAt across all matched directories */
+  lastActiveAt: string | null;
+}
+
 export interface SessionSummary {
   /** UUID from the session filename */
   sessionId: string;

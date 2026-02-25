@@ -217,10 +217,26 @@ export type ParsedMessage =
   | QueueOperationMessage
   | MalformedRecord;
 
+// --- Grouped project types (src/scanner/types.ts) ---
+
+export interface GroupedProject {
+  slug: string;
+  title: string;
+  projectDirs: string[];
+  matchedDirIds: string[];
+  sessionCount: number;
+  lastActiveAt: string | null;
+}
+
 // --- Fleet preferences (src/preferences/index.ts) ---
 
+export interface ProjectConfig {
+  title: string;
+  projectDirs: string[];
+}
+
 export interface FleetPreferences {
-  pinnedProjects: string[];
+  projects: ProjectConfig[];
 }
 
 // --- Enrichment types (src/parser/types.ts) ---

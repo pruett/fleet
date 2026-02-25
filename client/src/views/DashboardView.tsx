@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Folder, ChevronRight, Plus, X } from "lucide-react";
 import { fetchSessions } from "@/lib/api";
 import { timeAgo } from "@/lib/time";
-import type { ProjectSummary, SessionSummary } from "@/types/api";
-import { usePinnedProjects } from "@/hooks/use-pinned-projects";
+import type { GroupedProject, SessionSummary } from "@/types/api";
+import { useProjects } from "@/hooks/use-projects";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import {
   Sidebar,
@@ -50,10 +50,6 @@ function parseEmbeddedSessionId(): string | null {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function projectDisplayName(path: string): string {
-  return path.split("/").filter(Boolean).pop() ?? path;
-}
-
 function sessionLabel(firstPrompt: string | null): string {
   if (!firstPrompt) return "Untitled session";
   return firstPrompt.length > 60
@@ -66,12 +62,12 @@ function sessionLabel(firstPrompt: string | null): string {
 // ---------------------------------------------------------------------------
 
 interface ProjectTreeItemProps {
-  project: ProjectSummary;
+  project: GroupedProject;
   sessionCache: Map<string, SessionSummary[]>;
-  onSessionsLoaded: (projectId: string, sessions: SessionSummary[]) => void;
+  onSessionsLoaded: (slug: string, sessions: SessionSummary[]) => void;
   selectedSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
-  onUnpin: (projectId: string) => void;
+  onRemove: (slug: string) => void;
 }
 
 function ProjectTreeItem({
@@ -80,20 +76,20 @@ function ProjectTreeItem({
   onSessionsLoaded,
   selectedSessionId,
   onSelectSession,
-  onUnpin,
+  onRemove,
 }: ProjectTreeItemProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const cached = sessionCache.get(project.id);
+  const cached = sessionCache.get(project.slug);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       setOpen(nextOpen);
       if (nextOpen && !cached && !loading) {
         setLoading(true);
-        fetchSessions(project.id)
+        fetchSessions(project.slug)
           .then((sessions) => {
-            onSessionsLoaded(project.id, sessions);
+            onSessionsLoaded(project.slug, sessions);
           })
           .catch(() => {
             // Silently handle — user can retry by closing/reopening
@@ -101,7 +97,7 @@ function ProjectTreeItem({
           .finally(() => setLoading(false));
       }
     },
-    [cached, loading, project.id, onSessionsLoaded],
+    [cached, loading, project.slug, onSessionsLoaded],
   );
 
   return (
@@ -115,9 +111,12 @@ function ProjectTreeItem({
             <Folder />
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="truncate">{projectDisplayName(project.path)}</span>
+                <span className="truncate">{project.title}</span>
               </TooltipTrigger>
-              <TooltipContent side="right">{project.path}</TooltipContent>
+              <TooltipContent side="right">
+                {project.matchedDirIds.length} dir
+                {project.matchedDirIds.length !== 1 ? "s" : ""}
+              </TooltipContent>
             </Tooltip>
           </SidebarMenuButton>
         </CollapsibleTrigger>
@@ -126,11 +125,11 @@ function ProjectTreeItem({
           showOnHover
           onClick={(e) => {
             e.stopPropagation();
-            onUnpin(project.id);
+            onRemove(project.slug);
           }}
         >
           <X />
-          <span className="sr-only">Unpin project</span>
+          <span className="sr-only">Remove project</span>
         </SidebarMenuAction>
 
         <CollapsibleContent>
@@ -189,15 +188,15 @@ function ProjectTreeItem({
 
 export function DashboardView() {
   const {
-    pinnedProjects,
-    pinnedIds,
-    allProjects,
+    projects,
+    projectSlugs,
+    allDirectories,
     loading,
-    loadingAllProjects,
-    pinProject,
-    unpinProject,
-    refreshAllProjects,
-  } = usePinnedProjects();
+    loadingDirectories,
+    addProject,
+    removeProject,
+    refreshDirectories,
+  } = useProjects();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sessionCache, setSessionCache] = useState<
@@ -223,10 +222,10 @@ export function DashboardView() {
   }, []);
 
   const handleSessionsLoaded = useCallback(
-    (projectId: string, sessions: SessionSummary[]) => {
+    (slug: string, sessions: SessionSummary[]) => {
       setSessionCache((prev) => {
         const next = new Map(prev);
-        next.set(projectId, sessions);
+        next.set(slug, sessions);
         return next;
       });
     },
@@ -235,8 +234,8 @@ export function DashboardView() {
 
   const handleOpenDialog = useCallback(() => {
     setDialogOpen(true);
-    refreshAllProjects();
-  }, [refreshAllProjects]);
+    refreshDirectories();
+  }, [refreshDirectories]);
 
   return (
     <SidebarProvider>
@@ -259,21 +258,21 @@ export function DashboardView() {
                   </>
                 )}
                 {!loading &&
-                  pinnedProjects.map((project) => (
+                  projects.map((project) => (
                     <ProjectTreeItem
-                      key={project.id}
+                      key={project.slug}
                       project={project}
                       sessionCache={sessionCache}
                       onSessionsLoaded={handleSessionsLoaded}
                       selectedSessionId={selectedSessionId}
                       onSelectSession={selectSession}
-                      onUnpin={unpinProject}
+                      onRemove={removeProject}
                     />
                   ))}
-                {!loading && pinnedProjects.length === 0 && (
+                {!loading && projects.length === 0 && (
                   <li className="px-3 py-4 text-center">
                     <p className="mb-2 text-xs text-muted-foreground">
-                      No pinned projects
+                      No projects
                     </p>
                     <Button
                       variant="outline"
@@ -310,10 +309,10 @@ export function DashboardView() {
       <AddProjectDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        projects={allProjects}
-        loading={loadingAllProjects}
-        pinnedProjectIds={pinnedIds}
-        onSelectProject={pinProject}
+        directories={allDirectories}
+        loading={loadingDirectories}
+        existingSlugs={projectSlugs}
+        onAddProject={addProject}
       />
     </SidebarProvider>
   );

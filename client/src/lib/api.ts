@@ -1,5 +1,6 @@
 import type {
   ProjectSummary,
+  GroupedProject,
   SessionSummary,
   EnrichedSession,
   FleetPreferences,
@@ -67,18 +68,25 @@ function post<T>(path: string, body?: Record<string, unknown>): Promise<T> {
   });
 }
 
-export async function fetchProjects(): Promise<ProjectSummary[]> {
-  const { projects } = await requestWithRetry<{ projects: ProjectSummary[] }>(
+export async function fetchProjects(): Promise<GroupedProject[]> {
+  const { projects } = await requestWithRetry<{ projects: GroupedProject[] }>(
     "/api/projects",
   );
   return projects;
 }
 
+export async function fetchDirectories(): Promise<ProjectSummary[]> {
+  const { directories } = await requestWithRetry<{
+    directories: ProjectSummary[];
+  }>("/api/directories");
+  return directories;
+}
+
 export async function fetchSessions(
-  projectId: string,
+  slug: string,
 ): Promise<SessionSummary[]> {
   const { sessions } = await requestWithRetry<{ sessions: SessionSummary[] }>(
-    `/api/projects/${encodeURIComponent(projectId)}/sessions`,
+    `/api/projects/${encodeURIComponent(slug)}/sessions`,
   );
   return sessions;
 }

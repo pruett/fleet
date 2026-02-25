@@ -1,12 +1,20 @@
-import type { ProjectSummary, SessionSummary } from "../scanner/types";
+import type {
+  ProjectSummary,
+  SessionSummary,
+  GroupedProject,
+} from "../scanner/types";
 import type { EnrichedSession } from "../parser/types";
 import type { Transport } from "../transport";
-import type { FleetPreferences } from "../preferences";
+import type { FleetPreferences, ProjectConfig } from "../preferences";
 
 export interface AppDependencies {
   scanner: {
     scanProjects: (basePaths: string[]) => Promise<ProjectSummary[]>;
     scanSessions: (projectDir: string) => Promise<SessionSummary[]>;
+    groupProjects: (
+      rawProjects: ProjectSummary[],
+      configs: ProjectConfig[],
+    ) => GroupedProject[];
   };
   parser: {
     parseFullSession: (content: string) => EnrichedSession;

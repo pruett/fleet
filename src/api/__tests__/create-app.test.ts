@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { describe, test, expect } from "bun:test";
 import { createApp } from "../create-app";
+import type { GroupedProject } from "../../scanner/types";
 import {
   createMockDeps,
   createMockProject,
@@ -11,16 +12,23 @@ import {
 const FIXTURES = join(import.meta.dir, "fixtures");
 
 describe("GET /api/projects", () => {
-  test("returns 200 with projects array", async () => {
-    const projects = [
-      createMockProject({ id: "-Users-foo-code-bar", sessionCount: 3 }),
-      createMockProject({ id: "-Users-foo-code-baz", sessionCount: 1 }),
+  test("returns 200 with grouped projects array", async () => {
+    const grouped: GroupedProject[] = [
+      {
+        slug: "bar",
+        title: "bar",
+        projectDirs: ["-Users-foo-code-bar"],
+        matchedDirIds: ["-Users-foo-code-bar"],
+        sessionCount: 3,
+        lastActiveAt: null,
+      },
     ];
 
     const deps = createMockDeps({
       scanner: {
-        scanProjects: async () => projects,
+        scanProjects: async () => [],
         scanSessions: async () => [],
+        groupProjects: () => grouped,
       },
     });
 
@@ -31,7 +39,7 @@ describe("GET /api/projects", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
 
     const body = await res.json();
-    expect(body).toEqual({ projects });
+    expect(body).toEqual({ projects: grouped });
   });
 
   test("passes basePaths to scanner.scanProjects", async () => {
@@ -46,6 +54,7 @@ describe("GET /api/projects", () => {
           return [];
         },
         scanSessions: async () => [],
+        groupProjects: () => [],
       },
     });
 
@@ -63,6 +72,30 @@ describe("GET /api/projects", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ projects: [] });
+  });
+});
+
+describe("GET /api/directories", () => {
+  test("returns 200 with raw project directories", async () => {
+    const projects = [
+      createMockProject({ id: "-Users-foo-code-bar", sessionCount: 3 }),
+      createMockProject({ id: "-Users-foo-code-baz", sessionCount: 1 }),
+    ];
+
+    const deps = createMockDeps({
+      scanner: {
+        scanProjects: async () => projects,
+        scanSessions: async () => [],
+        groupProjects: () => [],
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request("/api/directories");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ directories: projects });
   });
 });
 
@@ -369,6 +402,7 @@ describe("Global error handling", () => {
           throw new Error("database connection failed");
         },
         scanSessions: async () => [],
+        groupProjects: () => [],
       },
     });
 
@@ -406,48 +440,57 @@ describe("Global error handling", () => {
   });
 });
 
-describe("GET /api/projects/:projectId/sessions", () => {
-  test("returns 200 with sessions array", async () => {
+describe("GET /api/projects/:slug/sessions", () => {
+  test("returns 200 with sessions array for grouped project", async () => {
     const sessions = [
       createMockSession({ sessionId: "sess-1" }),
       createMockSession({ sessionId: "sess-2" }),
     ];
-    let receivedDir = "";
+    const receivedDirs: string[] = [];
 
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
+      preferences: {
+        readPreferences: async () => ({
+          projects: [
+            {
+              title: "project-alpha",
+              projectDirs: ["-Users-project-alpha"],
+            },
+          ],
+        }),
+        writePreferences: async () => {},
+      },
       scanner: {
         scanProjects: async () => [],
         scanSessions: async (dir) => {
-          receivedDir = dir;
+          receivedDirs.push(dir);
           return sessions;
         },
+        groupProjects: () => [],
       },
     });
 
     const app = createApp(deps);
     const res = await app.request(
-      "/api/projects/-Users-project-alpha/sessions",
+      "/api/projects/project-alpha/sessions",
     );
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
 
     const body = await res.json();
-    expect(body).toEqual({ sessions });
-    expect(receivedDir).toBe(
-      join(FIXTURES, "resolve-base-1", "-Users-project-alpha"),
-    );
+    expect(body.sessions).toHaveLength(2);
   });
 
-  test("returns 404 when project not found", async () => {
+  test("returns 404 when slug not found in preferences", async () => {
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
     });
 
     const app = createApp(deps);
     const res = await app.request(
-      "/api/projects/-Users-nonexistent/sessions",
+      "/api/projects/nonexistent-slug/sessions",
     );
 
     expect(res.status).toBe(404);
@@ -512,12 +555,22 @@ describe("Static file serving", () => {
   });
 
   test("API routes take priority over static files", async () => {
-    const projects = [createMockProject({ id: "test-project" })];
+    const grouped: GroupedProject[] = [
+      {
+        slug: "test-project",
+        title: "test-project",
+        projectDirs: ["test-project"],
+        matchedDirIds: ["test-project"],
+        sessionCount: 0,
+        lastActiveAt: null,
+      },
+    ];
     const deps = createMockDeps({
       staticDir: STATIC_DIR,
       scanner: {
-        scanProjects: async () => projects,
+        scanProjects: async () => [],
         scanSessions: async () => [],
+        groupProjects: () => grouped,
       },
     });
     const app = createApp(deps);
@@ -525,6 +578,6 @@ describe("Static file serving", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ projects });
+    expect(body).toEqual({ projects: grouped });
   });
 });
