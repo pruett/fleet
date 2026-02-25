@@ -159,6 +159,8 @@ export function createApp(deps: AppDependencies): Hono {
     if (!config) {
       return c.json({ error: "Project not found" }, 404);
     }
+    const limitParam = c.req.query("limit");
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
     const dirs = await resolveGroupedProjectDirs(
       deps.basePaths,
       config.projectDirs,
@@ -176,7 +178,20 @@ export function createApp(deps: AppDependencies): Hono {
       if (b.lastActiveAt === null) return -1;
       return b.lastActiveAt.localeCompare(a.lastActiveAt);
     });
-    return c.json({ sessions: merged });
+    const sessions = limit && limit > 0 ? merged.slice(0, limit) : merged;
+    return c.json({ sessions });
+  });
+
+  app.get("/api/projects/:projectId/worktrees", async (c) => {
+    const projectId = c.req.param("projectId");
+    const projectDir = await resolveProjectDir(deps.basePaths, projectId);
+    if (!projectDir) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+    // Decode project ID to real filesystem path (e.g. "-Users-foo-bar" → "/Users/foo/bar")
+    const projectPath = projectId.replaceAll("-", "/");
+    const worktrees = await deps.scanner.scanWorktrees(projectPath);
+    return c.json({ worktrees });
   });
 
   // Static file serving (only when staticDir is configured)

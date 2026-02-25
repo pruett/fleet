@@ -17,6 +17,12 @@ import {
 } from "@/components/conversation/TurnGroup";
 import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
 import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   useSessionData,
   type SessionStatus,
   statusConfig,
@@ -92,16 +98,12 @@ export function SessionPanel({
     displayTurns,
     analyticsSession,
     sessionMeta,
-    handleStop,
-    handleResume,
-    handleNewSession,
     handleSendMessage,
     handleTextareaKeyDown,
     retry,
     messageInput,
     setMessageInput,
     sendingMessage,
-    actionLoading,
     textareaRef,
   } = useSessionData({ sessionId, projectId, onGoSession });
 
@@ -157,112 +159,77 @@ export function SessionPanel({
   // -- Main content ---------------------------------------------------------
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header bar with status + analytics toggle */}
-      <div className="flex items-center justify-between border-b px-6 py-2">
-        <div className="flex items-center gap-4 text-sm">
-          <StatusBadge status={sessionStatus} />
-          {sessionMeta?.model && (
-            <span className="text-muted-foreground">{sessionMeta.model}</span>
-          )}
-          {sessionMeta?.startedAt && (
-            <span className="text-muted-foreground">
-              Started {timeAgo(sessionMeta.startedAt)}
-            </span>
-          )}
-          {displayTotals && (
-            <>
+    <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+      <div className="flex h-full flex-col">
+        {/* Header bar with status + analytics toggle */}
+        <div className="flex items-center justify-between border-b px-6 py-2">
+          <div className="flex items-center gap-4 text-sm">
+            <StatusBadge status={sessionStatus} />
+            {sessionMeta?.model && (
+              <span className="text-muted-foreground">{sessionMeta.model}</span>
+            )}
+            {sessionMeta?.startedAt && (
               <span className="text-muted-foreground">
-                {formatTokens(displayTotals.totalTokens)} tokens
+                Started {timeAgo(sessionMeta.startedAt)}
               </span>
+            )}
+            {displayTotals && (
+              <>
+                <span className="text-muted-foreground">
+                  {formatTokens(displayTotals.totalTokens)} tokens
+                </span>
+                <span className="text-muted-foreground">
+                  {formatCost(displayTotals.estimatedCostUsd)}
+                </span>
+              </>
+            )}
+            {displayTurns && (
               <span className="text-muted-foreground">
-                {formatCost(displayTotals.estimatedCostUsd)}
+                {displayTurns.length} {displayTurns.length === 1 ? "turn" : "turns"}
               </span>
-            </>
-          )}
-          {displayTurns && (
-            <span className="text-muted-foreground">
-              {displayTurns.length} {displayTurns.length === 1 ? "turn" : "turns"}
-            </span>
-          )}
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <ConnectionStatusIndicator info={connectionInfo} />
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={analyticsOpen ? "Hide analytics" : "Show analytics"}
+                title={analyticsOpen ? "Hide analytics" : "Show analytics"}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {analyticsOpen ? (
+                    <>
+                      <rect width="18" height="18" x="3" y="3" rx="2" />
+                      <path d="M15 3v18" />
+                      <path d="m10 15-3-3 3-3" />
+                    </>
+                  ) : (
+                    <>
+                      <rect width="18" height="18" x="3" y="3" rx="2" />
+                      <path d="M15 3v18" />
+                      <path d="m10 9 3 3-3 3" />
+                    </>
+                  )}
+                </svg>
+              </Button>
+            </SheetTrigger>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <ConnectionStatusIndicator info={connectionInfo} />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setAnalyticsOpen((prev) => !prev)}
-            aria-label={analyticsOpen ? "Hide analytics" : "Show analytics"}
-            title={analyticsOpen ? "Hide analytics" : "Show analytics"}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              {analyticsOpen ? (
-                <>
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                  <path d="M15 3v18" />
-                  <path d="m10 15-3-3 3-3" />
-                </>
-              ) : (
-                <>
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                  <path d="M15 3v18" />
-                  <path d="m10 9 3 3-3 3" />
-                </>
-              )}
-            </svg>
-          </Button>
-        </div>
-      </div>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-2 border-b px-6 py-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleStop}
-          disabled={actionLoading !== null}
-        >
-          {actionLoading === "stop" ? "Stopping…" : "Stop"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleResume}
-          disabled={actionLoading !== null}
-        >
-          {actionLoading === "resume" ? "Resuming…" : "Resume"}
-        </Button>
-        {projectId && onGoSession && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNewSession}
-            disabled={actionLoading !== null}
-          >
-            {actionLoading === "new" ? "Starting…" : "New Session"}
-          </Button>
-        )}
-      </div>
-
-      {/* Two-column content area */}
-      <div
-        className="grid flex-1 overflow-hidden"
-        style={{
-          gridTemplateColumns: analyticsOpen ? "1fr 360px" : "1fr",
-        }}
-      >
-        {/* Left: Conversation panel + message input */}
-        <div className="flex flex-col overflow-hidden">
+        {/* Content area — full width (analytics moved to Sheet) */}
+        <div className="flex flex-1 flex-col overflow-hidden">
           <CollapsibleGroupProvider>
             <Conversation messageCount={visibleMessages.length} className="flex-1 min-h-0 p-6">
               {visibleMessages.length === 0 ? (
@@ -308,12 +275,18 @@ export function SessionPanel({
             </div>
           </div>
         </div>
-
-        {/* Right: Analytics panel */}
-        {analyticsOpen && analyticsSession && (
-          <AnalyticsPanel session={analyticsSession} />
-        )}
       </div>
-    </div>
+
+      {/* Analytics side sheet */}
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="w-[360px] sm:max-w-[360px] border-l-0 p-0"
+        aria-describedby={undefined}
+      >
+        <SheetTitle className="sr-only">Session Analytics</SheetTitle>
+        {analyticsSession && <AnalyticsPanel session={analyticsSession} />}
+      </SheetContent>
+    </Sheet>
   );
 }

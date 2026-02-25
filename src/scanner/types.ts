@@ -56,3 +56,10 @@ export interface SessionSummary {
   /** Estimated cost in USD */
   cost: number;
 }
+
+export interface WorktreeSummary {
+  /** Directory name, e.g. "feat-dark-mode" */
+  name: string;
+  /** Full filesystem path to the worktree directory */
+  path: string;
+}

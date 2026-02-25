@@ -31,6 +31,7 @@ export function createMockDeps(
       scanProjects: async () => [],
       scanSessions: async () => [],
       groupProjects: () => [],
+      scanWorktrees: async () => [],
     },
     parser: {
       parseFullSession: () => createEmptyEnrichedSession(),

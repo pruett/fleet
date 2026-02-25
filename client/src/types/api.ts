@@ -51,6 +51,13 @@ export interface SessionSummary {
   cost: number;
 }
 
+export interface WorktreeSummary {
+  /** Directory name, e.g. "feat-dark-mode" */
+  name: string;
+  /** Full filesystem path to the worktree directory */
+  path: string;
+}
+
 // --- Content blocks & token usage (src/parser/schemas.ts) ---
 
 export interface TextBlock {

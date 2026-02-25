@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { Folder, ChevronRight, Plus, X } from "lucide-react";
-import { fetchSessions } from "@/lib/api";
+import { useCallback, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router";
+import { Folder, ChevronRight, GitBranch, Plus, X, ChevronsDown } from "lucide-react";
+import { fetchSessions, fetchWorktrees } from "@/lib/api";
 import { timeAgo } from "@/lib/time";
-import type { GroupedProject, SessionSummary } from "@/types/api";
+import type { GroupedProject, SessionSummary, WorktreeSummary } from "@/types/api";
 import { useProjects } from "@/hooks/use-projects";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import {
@@ -37,16 +38,6 @@ import { Button } from "@/components/ui/button";
 import { SessionPanel } from "@/views/SessionPanel";
 
 // ---------------------------------------------------------------------------
-// URL helpers
-// ---------------------------------------------------------------------------
-
-/** Extract session ID from `/session/:id` pathname, or null. */
-function parseEmbeddedSessionId(): string | null {
-  const match = window.location.pathname.match(/^\/session\/(.+)$/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -64,41 +55,64 @@ function sessionLabel(firstPrompt: string | null): string {
 interface ProjectTreeItemProps {
   project: GroupedProject;
   sessionCache: Map<string, SessionSummary[]>;
+  worktreeCache: Map<string, WorktreeSummary[]>;
   onSessionsLoaded: (slug: string, sessions: SessionSummary[]) => void;
+  onWorktreesLoaded: (slug: string, worktrees: WorktreeSummary[]) => void;
   selectedSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onRemove: (slug: string) => void;
 }
 
+const SESSION_PAGE_SIZE = 20;
+
 function ProjectTreeItem({
   project,
   sessionCache,
+  worktreeCache,
   onSessionsLoaded,
+  onWorktreesLoaded,
   selectedSessionId,
   onSelectSession,
   onRemove,
 }: ProjectTreeItemProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const cached = sessionCache.get(project.slug);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  const cachedSessions = sessionCache.get(project.slug);
+  const cachedWorktrees = worktreeCache.get(project.slug);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       setOpen(nextOpen);
-      if (nextOpen && !cached && !loading) {
+      if (nextOpen && !cachedSessions && !loading) {
         setLoading(true);
-        fetchSessions(project.slug)
-          .then((sessions) => {
-            onSessionsLoaded(project.slug, sessions);
-          })
-          .catch(() => {
-            // Silently handle — user can retry by closing/reopening
-          })
-          .finally(() => setLoading(false));
+        Promise.all([
+          fetchSessions(project.slug, SESSION_PAGE_SIZE)
+            .then((sessions) => {
+              setTruncated(sessions.length === SESSION_PAGE_SIZE);
+              onSessionsLoaded(project.slug, sessions);
+            })
+            .catch(() => {}),
+          fetchWorktrees(project.slug)
+            .then((worktrees) => onWorktreesLoaded(project.slug, worktrees))
+            .catch(() => {}),
+        ]).finally(() => setLoading(false));
       }
     },
-    [cached, loading, project.slug, onSessionsLoaded],
+    [cachedSessions, loading, project.slug, onSessionsLoaded, onWorktreesLoaded],
   );
+
+  const handleShowAll = useCallback(() => {
+    setLoadingAll(true);
+    fetchSessions(project.slug)
+      .then((sessions) => {
+        setTruncated(false);
+        onSessionsLoaded(project.slug, sessions);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingAll(false));
+  }, [project.slug, onSessionsLoaded]);
 
   return (
     <Collapsible open={open} onOpenChange={handleOpenChange}>
@@ -141,39 +155,94 @@ function ProjectTreeItem({
                 <SidebarMenuSkeleton />
               </>
             )}
-            {cached?.map((session) => (
-              <SidebarMenuSubItem key={session.sessionId}>
-                <SidebarMenuSubButton
-                  asChild
-                  isActive={session.sessionId === selectedSessionId}
-                >
-                  <a
-                    href={`/session/${encodeURIComponent(session.sessionId)}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onSelectSession(session.sessionId);
-                    }}
-                  >
-                    <span className="flex flex-col gap-0.5">
-                      <span className="truncate text-xs">
-                        {sessionLabel(session.firstPrompt)}
-                      </span>
-                      {session.lastActiveAt && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {timeAgo(session.lastActiveAt)}
-                        </span>
-                      )}
+
+            {/* Worktrees section */}
+            {!loading && cachedWorktrees !== undefined && (
+              <>
+                <SidebarMenuSubItem>
+                  <span className="px-2 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    worktrees
+                  </span>
+                </SidebarMenuSubItem>
+                {cachedWorktrees.length === 0 ? (
+                  <SidebarMenuSubItem>
+                    <span className="px-2 py-1 text-xs italic text-muted-foreground">
+                      (no worktrees)
                     </span>
-                  </a>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))}
-            {cached?.length === 0 && (
-              <SidebarMenuSubItem>
-                <span className="px-2 py-1 text-xs text-muted-foreground">
-                  No sessions
-                </span>
-              </SidebarMenuSubItem>
+                  </SidebarMenuSubItem>
+                ) : (
+                  cachedWorktrees.map((wt) => (
+                    <SidebarMenuSubItem key={wt.name}>
+                      <SidebarMenuSubButton asChild={false}>
+                        <GitBranch className="size-3.5 shrink-0" />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="truncate text-xs">{wt.name}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">{wt.path}</TooltipContent>
+                        </Tooltip>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ))
+                )}
+              </>
+            )}
+
+            {/* Sessions section */}
+            {!loading && cachedSessions !== undefined && (
+              <>
+                <SidebarMenuSubItem>
+                  <span className="px-2 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    sessions
+                  </span>
+                </SidebarMenuSubItem>
+                {cachedSessions.length === 0 ? (
+                  <SidebarMenuSubItem>
+                    <span className="px-2 py-1 text-xs text-muted-foreground">
+                      No sessions
+                    </span>
+                  </SidebarMenuSubItem>
+                ) : (
+                  <>
+                    {cachedSessions.map((session) => (
+                      <SidebarMenuSubItem key={session.sessionId}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={session.sessionId === selectedSessionId}
+                        >
+                          <Link
+                            to={`/session/${encodeURIComponent(session.sessionId)}`}
+                          >
+                            <span className="flex flex-col gap-0.5">
+                              <span className="truncate text-xs">
+                                {sessionLabel(session.firstPrompt)}
+                              </span>
+                              {session.lastActiveAt && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {timeAgo(session.lastActiveAt)}
+                                </span>
+                              )}
+                            </span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                    {truncated && (
+                      <SidebarMenuSubItem>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={handleShowAll}
+                          disabled={loadingAll}
+                        >
+                          <ChevronsDown className="size-3" />
+                          {loadingAll ? "Loading\u2026" : "Show all sessions"}
+                        </button>
+                      </SidebarMenuSubItem>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </SidebarMenuSub>
         </CollapsibleContent>
@@ -198,34 +267,41 @@ export function DashboardView() {
     refreshDirectories,
   } = useProjects();
 
+  const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
+  const selectedSessionId = routeSessionId ?? null;
+  const navigate = useNavigate();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sessionCache, setSessionCache] = useState<
     Map<string, SessionSummary[]>
   >(new Map());
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
-    parseEmbeddedSessionId,
+  const [worktreeCache, setWorktreeCache] = useState<
+    Map<string, WorktreeSummary[]>
+  >(new Map());
+
+  const selectSession = useCallback(
+    (sessionId: string) => {
+      navigate(`/session/${encodeURIComponent(sessionId)}`);
+    },
+    [navigate],
   );
-
-  // Sync state with browser back/forward
-  useEffect(() => {
-    function handlePopState() {
-      setSelectedSessionId(parseEmbeddedSessionId());
-    }
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  const selectSession = useCallback((sessionId: string) => {
-    setSelectedSessionId(sessionId);
-    const url = `/session/${encodeURIComponent(sessionId)}`;
-    history.pushState(null, "", url);
-  }, []);
 
   const handleSessionsLoaded = useCallback(
     (slug: string, sessions: SessionSummary[]) => {
       setSessionCache((prev) => {
         const next = new Map(prev);
         next.set(slug, sessions);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleWorktreesLoaded = useCallback(
+    (projectId: string, worktrees: WorktreeSummary[]) => {
+      setWorktreeCache((prev) => {
+        const next = new Map(prev);
+        next.set(projectId, worktrees);
         return next;
       });
     },
@@ -263,7 +339,9 @@ export function DashboardView() {
                       key={project.slug}
                       project={project}
                       sessionCache={sessionCache}
+                      worktreeCache={worktreeCache}
                       onSessionsLoaded={handleSessionsLoaded}
+                      onWorktreesLoaded={handleWorktreesLoaded}
                       selectedSessionId={selectedSessionId}
                       onSelectSession={selectSession}
                       onRemove={removeProject}

@@ -29,6 +29,7 @@ describe("GET /api/projects", () => {
         scanProjects: async () => [],
         scanSessions: async () => [],
         groupProjects: () => grouped,
+        scanWorktrees: async () => [],
       },
     });
 
@@ -55,6 +56,7 @@ describe("GET /api/projects", () => {
         },
         scanSessions: async () => [],
         groupProjects: () => [],
+        scanWorktrees: async () => [],
       },
     });
 
@@ -403,6 +405,7 @@ describe("Global error handling", () => {
         },
         scanSessions: async () => [],
         groupProjects: () => [],
+        scanWorktrees: async () => [],
       },
     });
 
@@ -468,6 +471,7 @@ describe("GET /api/projects/:slug/sessions", () => {
           return sessions;
         },
         groupProjects: () => [],
+        scanWorktrees: async () => [],
       },
     });
 
@@ -496,6 +500,125 @@ describe("GET /api/projects/:slug/sessions", () => {
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body).toEqual({ error: "Project not found" });
+  });
+
+  test("respects ?limit query parameter", async () => {
+    const sessions = Array.from({ length: 5 }, (_, i) =>
+      createMockSession({ sessionId: `sess-${i}` }),
+    );
+
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      scanner: {
+        scanProjects: async () => [],
+        scanSessions: async () => sessions,
+        scanWorktrees: async () => [],
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-project-alpha/sessions?limit=3",
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.sessions).toHaveLength(3);
+    expect(body.sessions[0].sessionId).toBe("sess-0");
+    expect(body.sessions[2].sessionId).toBe("sess-2");
+  });
+
+  test("returns all sessions when no limit specified", async () => {
+    const sessions = Array.from({ length: 5 }, (_, i) =>
+      createMockSession({ sessionId: `sess-${i}` }),
+    );
+
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      scanner: {
+        scanProjects: async () => [],
+        scanSessions: async () => sessions,
+        scanWorktrees: async () => [],
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-project-alpha/sessions",
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.sessions).toHaveLength(5);
+  });
+});
+
+describe("GET /api/projects/:projectId/worktrees", () => {
+  test("returns 200 with worktrees array", async () => {
+    const worktrees = [
+      { name: "feat-dark-mode", path: "/Users/project/alpha/.claude/.worktrees/feat-dark-mode" },
+      { name: "fix-bug", path: "/Users/project/alpha/.claude/.worktrees/fix-bug" },
+    ];
+    let receivedPath = "";
+
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      scanner: {
+        scanProjects: async () => [],
+        scanSessions: async () => [],
+        scanWorktrees: async (projectPath) => {
+          receivedPath = projectPath;
+          return worktrees;
+        },
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-project-alpha/worktrees",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+
+    const body = await res.json();
+    expect(body).toEqual({ worktrees });
+    expect(receivedPath).toBe("/Users/project/alpha");
+  });
+
+  test("returns 404 when project not found", async () => {
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-nonexistent/worktrees",
+    );
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Project not found" });
+  });
+
+  test("returns empty array when no worktrees exist", async () => {
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      scanner: {
+        scanProjects: async () => [],
+        scanSessions: async () => [],
+        scanWorktrees: async () => [],
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-project-alpha/worktrees",
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ worktrees: [] });
   });
 });
 
@@ -571,6 +694,7 @@ describe("Static file serving", () => {
         scanProjects: async () => [],
         scanSessions: async () => [],
         groupProjects: () => grouped,
+        scanWorktrees: async () => [],
       },
     });
     const app = createApp(deps);

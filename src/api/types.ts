@@ -2,6 +2,7 @@ import type {
   ProjectSummary,
   SessionSummary,
   GroupedProject,
+  WorktreeSummary,
 } from "../scanner/types";
 import type { EnrichedSession } from "../parser/types";
 import type { Transport } from "../transport";
@@ -15,6 +16,7 @@ export interface AppDependencies {
       rawProjects: ProjectSummary[],
       configs: ProjectConfig[],
     ) => GroupedProject[];
+    scanWorktrees: (projectPath: string) => Promise<WorktreeSummary[]>;
   };
   parser: {
     parseFullSession: (content: string) => EnrichedSession;
