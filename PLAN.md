@@ -48,7 +48,7 @@
 ### Routing Edge Cases (T-01)
 - [x] Create a `NotFoundPage` component for the 404 catch-all route
 - [x] Ensure session IDs with URL-special characters are properly encoded/decoded through the router
-- [ ] Verify Vite dev proxy (`/api`, `/ws`) still works correctly with the router (`client/vite.config.ts` lines 14–21)
+- [x] Verify Vite dev proxy (`/api`, `/ws`) still works correctly with the router (`client/vite.config.ts` lines 14–21)
 - [x] Replace any remaining `<a>` or `window.location` navigations with router `<Link>` components
 
 ### Worktree Edge Cases (T-02)

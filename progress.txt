@@ -117,3 +117,17 @@ Added server-side `?limit=N` query parameter to the sessions endpoint and client
 ### Verification
 - TypeScript: passes (`bun run typecheck`)
 - Tests: 522/522 pass (`bun test`) — 2 new tests
+
+## Phase 2 — Vite Dev Proxy Verification (T-01) — DONE
+
+Verified that the Vite dev proxy (`/api`, `/ws`) works correctly alongside React Router. This was a verification-only task — no code changes required.
+
+### Analysis
+- **Vite proxy** (`client/vite.config.ts` lines 14–21) intercepts at the HTTP server level: `/api` → `http://localhost:3000`, `/ws` → `ws://localhost:3000`
+- **React Router** (`client/src/App.tsx`) handles browser navigation only: `/`, `/session/:sessionId`, `*` catch-all
+- `fetch("/api/...")` calls in `client/src/lib/api.ts` and `new WebSocket("/ws")` in `client/src/lib/ws.ts` are network requests — React Router never intercepts them
+- No route overlap: proxy prefixes (`/api`, `/ws`) vs. router paths (`/`, `/session/:id`)
+- Existing tests confirm API endpoints and static file serving work correctly (522/522 pass)
+
+### Files Changed
+- `PLAN.md` — checked off the final Phase 2 routing edge case item
