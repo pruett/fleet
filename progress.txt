@@ -1,0 +1,20 @@
+## T-01: Client-Side Routing (Phase 0, Tracer Bullet A) — DONE
+
+Installed react-router v7 and replaced manual URL/history management with proper client-side routing.
+
+### Changes
+- `client/package.json` — added `react-router` dependency
+- `client/src/App.tsx` — replaced `window.location.replace("/")` redirect with `BrowserRouter` + `Routes` (`/`, `/session/:sessionId`, `*` 404 catch-all)
+- `client/src/views/DashboardView.tsx`:
+  - Replaced `parseEmbeddedSessionId()` with `useParams` hook
+  - Replaced `history.pushState` with `useNavigate`
+  - Removed `popstate` event listener (router handles back/forward natively)
+  - Replaced `<a>` tags with `<Link>` from react-router
+  - Removed unused `onSelectSession` prop from `ProjectTreeItem`
+- Also created `NotFoundPage` in App.tsx for the 404 catch-all route
+
+### Verification
+- TypeScript: passes (`bun run typecheck`)
+- Tests: 511/511 pass (`bun test`)
+- Lint: only pre-existing shadcn/ui warnings (not introduced by this change)
+- SPA fallback already configured in `src/api/create-app.ts` (lines 173-181)

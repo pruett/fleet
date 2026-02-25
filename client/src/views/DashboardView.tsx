@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router";
 import { Folder, ChevronRight, Plus, X } from "lucide-react";
 import { fetchSessions } from "@/lib/api";
 import { timeAgo } from "@/lib/time";
@@ -35,16 +36,6 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { SessionPanel } from "@/views/SessionPanel";
-
-// ---------------------------------------------------------------------------
-// URL helpers
-// ---------------------------------------------------------------------------
-
-/** Extract session ID from `/session/:id` pathname, or null. */
-function parseEmbeddedSessionId(): string | null {
-  const match = window.location.pathname.match(/^\/session\/(.+)$/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -147,12 +138,8 @@ function ProjectTreeItem({
                   asChild
                   isActive={session.sessionId === selectedSessionId}
                 >
-                  <a
-                    href={`/session/${encodeURIComponent(session.sessionId)}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onSelectSession(session.sessionId);
-                    }}
+                  <Link
+                    to={`/session/${encodeURIComponent(session.sessionId)}`}
                   >
                     <span className="flex flex-col gap-0.5">
                       <span className="truncate text-xs">
@@ -164,7 +151,7 @@ function ProjectTreeItem({
                         </span>
                       )}
                     </span>
-                  </a>
+                  </Link>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             ))}
@@ -198,28 +185,21 @@ export function DashboardView() {
     refreshDirectories,
   } = useProjects();
 
+  const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
+  const selectedSessionId = routeSessionId ?? null;
+  const navigate = useNavigate();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sessionCache, setSessionCache] = useState<
     Map<string, SessionSummary[]>
   >(new Map());
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
-    parseEmbeddedSessionId,
+
+  const selectSession = useCallback(
+    (sessionId: string) => {
+      navigate(`/session/${encodeURIComponent(sessionId)}`);
+    },
+    [navigate],
   );
-
-  // Sync state with browser back/forward
-  useEffect(() => {
-    function handlePopState() {
-      setSelectedSessionId(parseEmbeddedSessionId());
-    }
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  const selectSession = useCallback((sessionId: string) => {
-    setSelectedSessionId(sessionId);
-    const url = `/session/${encodeURIComponent(sessionId)}`;
-    history.pushState(null, "", url);
-  }, []);
 
   const handleSessionsLoaded = useCallback(
     (slug: string, sessions: SessionSummary[]) => {
