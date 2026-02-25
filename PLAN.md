@@ -16,11 +16,11 @@
 - [x] Verify deep-linking to `/session/:sessionId` works on first load (server SPA catch-all in `src/api/create-app.ts` already serves `index.html`)
 
 ### Tracer Bullet B: Worktree Scanning (T-02)
-- [ ] Add a `WorktreeSummary` type to `src/scanner/types.ts` (directory name, path)
-- [ ] Create `src/scanner/scan-worktrees.ts` — scan `<projectDir>/.claude/.worktrees/` for subdirectories
-- [ ] Add `GET /api/projects/:projectId/worktrees` endpoint in `src/api/create-app.ts`
-- [ ] Add `fetchWorktrees(projectId)` to `client/src/lib/api.ts`
-- [ ] Display worktree list in `ProjectTreeItem` (`client/src/views/DashboardView.tsx`) using the sidebar layout described below
+- [x] Add a `WorktreeSummary` type to `src/scanner/types.ts` (directory name, path)
+- [x] Create `src/scanner/scan-worktrees.ts` — scan `<projectDir>/.claude/.worktrees/` for subdirectories
+- [x] Add `GET /api/projects/:projectId/worktrees` endpoint in `src/api/create-app.ts`
+- [x] Add `fetchWorktrees(projectId)` to `client/src/lib/api.ts`
+- [x] Display worktree list in `ProjectTreeItem` (`client/src/views/DashboardView.tsx`) using the sidebar layout described below
 
 ---
 
@@ -52,9 +52,9 @@
 - [x] Replace any remaining `<a>` or `window.location` navigations with router `<Link>` components
 
 ### Worktree Edge Cases (T-02)
-- [ ] Handle missing `.claude/.worktrees/` directory gracefully (return empty array, render `(no worktrees)` placeholder in sidebar)
-- [ ] Handle empty `.claude/.worktrees/` directory (same — `(no worktrees)` placeholder)
-- [ ] Ensure worktree scanning respects `FLEET_BASE_PATHS` resolution logic from `src/api/resolve.ts`
+- [x] Handle missing `.claude/.worktrees/` directory gracefully (return empty array, render `(no worktrees)` placeholder in sidebar)
+- [x] Handle empty `.claude/.worktrees/` directory (same — `(no worktrees)` placeholder)
+- [x] Ensure worktree scanning respects `FLEET_BASE_PATHS` resolution logic from `src/api/resolve.ts`
 
 > **Assumption:** Worktrees are informational only — clicking a worktree does not navigate to a new view. Sessions are **not** nested under worktrees.
 

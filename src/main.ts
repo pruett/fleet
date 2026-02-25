@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createServer } from "./api/create-server";
 import { createResolveSessionPath } from "./api/resolve";
 import { createTransport } from "./transport/create-transport";
-import { scanProjects, scanSessions, groupProjects } from "./scanner";
+import { scanProjects, scanSessions, groupProjects, scanWorktrees } from "./scanner";
 import { parseFullSession } from "./parser";
 import { watchSession, stopWatching } from "./watcher";
 import { readPreferences, writePreferences } from "./preferences";
@@ -34,7 +34,7 @@ const controller = {
 };
 
 const serverOptions = createServer({
-  scanner: { scanProjects, scanSessions, groupProjects },
+  scanner: { scanProjects, scanSessions, groupProjects, scanWorktrees },
   parser: { parseFullSession },
   controller,
   preferences: { readPreferences, writePreferences },

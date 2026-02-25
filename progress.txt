@@ -18,3 +18,41 @@ Installed react-router v7 and replaced manual URL/history management with proper
 - Tests: 511/511 pass (`bun test`)
 - Lint: only pre-existing shadcn/ui warnings (not introduced by this change)
 - SPA fallback already configured in `src/api/create-app.ts` (lines 173-181)
+
+## T-02: Worktree Scanning (Phase 0, Tracer Bullet B) — DONE
+
+Full end-to-end worktree scanning: scanner → API → client fetch → sidebar UI.
+
+### Changes
+- `src/scanner/types.ts` — added `WorktreeSummary` interface (name, path)
+- `src/scanner/scan-worktrees.ts` — new file: scans `<projectPath>/.claude/.worktrees/` for subdirectories, returns sorted array, gracefully handles missing/empty dirs
+- `src/scanner/index.ts` — exported `scanWorktrees` and `WorktreeSummary`
+- `src/api/types.ts` — added `scanWorktrees` to `AppDependencies.scanner`
+- `src/api/create-app.ts` — added `GET /api/projects/:projectId/worktrees` endpoint (decodes project ID to filesystem path, calls `scanWorktrees`)
+- `src/main.ts` — wired `scanWorktrees` into server dependencies
+- `src/api/__tests__/create-app.test.ts` — added 3 tests for worktree endpoint (200 with data, 404, empty array)
+- `src/api/__tests__/helpers.ts` — added `scanWorktrees` to mock defaults
+- `src/api/__tests__/create-server.test.ts` — added `scanWorktrees` to partial scanner override (fixed TS error)
+- `src/scanner/__tests__/scan-worktrees.test.ts` — new file: 6 tests covering happy path, non-dir filtering, empty dir, missing dir, nonexistent path, sort order
+- `src/scanner/__tests__/fixtures/worktree-project/` — test fixtures with 2 worktree dirs + 1 non-dir entry
+- `src/scanner/__tests__/fixtures/worktree-project-empty/` — empty worktrees dir fixture
+- `src/scanner/__tests__/fixtures/worktree-project-no-claude/` — no .claude dir fixture
+- `client/src/types/api.ts` — added `WorktreeSummary` interface (client-side mirror)
+- `client/src/lib/api.ts` — added `fetchWorktrees(projectId)` with retry support
+- `client/src/views/DashboardView.tsx`:
+  - Added `worktreeCache` state and `handleWorktreesLoaded` callback
+  - `ProjectTreeItem` fetches worktrees in parallel with sessions on expand
+  - Sidebar displays "worktrees" section title with `GitBranch` icons
+  - Shows `(no worktrees)` placeholder when empty
+  - Worktree tooltips show full filesystem path
+
+### Edge Cases Handled
+- Missing `.claude/.worktrees/` directory → empty array, `(no worktrees)` placeholder
+- Empty `.claude/.worktrees/` directory → same
+- Non-directory entries in `.worktrees/` → filtered out
+- Project path decoding uses same `replaceAll("-", "/")` convention as `scan-projects.ts`
+
+### Verification
+- TypeScript: passes (`bun run typecheck`)
+- Tests: 520/520 pass (`bun test`) — 9 new tests (6 scanner + 3 API)
+- No lint script configured

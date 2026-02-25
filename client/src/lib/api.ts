@@ -2,6 +2,7 @@ import type {
   ProjectSummary,
   GroupedProject,
   SessionSummary,
+  WorktreeSummary,
   EnrichedSession,
   FleetPreferences,
 } from "@/types/api";
@@ -89,6 +90,15 @@ export async function fetchSessions(
     `/api/projects/${encodeURIComponent(slug)}/sessions`,
   );
   return sessions;
+}
+
+export async function fetchWorktrees(
+  projectId: string,
+): Promise<WorktreeSummary[]> {
+  const { worktrees } = await requestWithRetry<{
+    worktrees: WorktreeSummary[];
+  }>(`/api/projects/${encodeURIComponent(projectId)}/worktrees`);
+  return worktrees;
 }
 
 export async function fetchSession(

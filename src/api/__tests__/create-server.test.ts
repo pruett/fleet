@@ -173,6 +173,7 @@ describe("createServer", () => {
           scanProjects: async () => [],
           scanSessions: async () => [],
           groupProjects: () => [],
+          scanWorktrees: async () => [],
         },
       });
       const mockServer = createMockServer(true);

@@ -179,6 +179,18 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ sessions: merged });
   });
 
+  app.get("/api/projects/:projectId/worktrees", async (c) => {
+    const projectId = c.req.param("projectId");
+    const projectDir = await resolveProjectDir(deps.basePaths, projectId);
+    if (!projectDir) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+    // Decode project ID to real filesystem path (e.g. "-Users-foo-bar" → "/Users/foo/bar")
+    const projectPath = projectId.replaceAll("-", "/");
+    const worktrees = await deps.scanner.scanWorktrees(projectPath);
+    return c.json({ worktrees });
+  });
+
   // Static file serving (only when staticDir is configured)
   if (deps.staticDir) {
     const staticDir = resolve(deps.staticDir);
