@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { Folder, ChevronRight, GitBranch, Plus, X } from "lucide-react";
+import { Folder, ChevronRight, GitBranch, Plus, X, ChevronsDown } from "lucide-react";
 import { fetchSessions, fetchWorktrees } from "@/lib/api";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject, SessionSummary, WorktreeSummary } from "@/types/api";
@@ -63,6 +63,8 @@ interface ProjectTreeItemProps {
   onRemove: (slug: string) => void;
 }
 
+const SESSION_PAGE_SIZE = 20;
+
 function ProjectTreeItem({
   project,
   sessionCache,
@@ -75,6 +77,8 @@ function ProjectTreeItem({
 }: ProjectTreeItemProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [truncated, setTruncated] = useState(false);
   const cachedSessions = sessionCache.get(project.slug);
   const cachedWorktrees = worktreeCache.get(project.slug);
 
@@ -84,8 +88,11 @@ function ProjectTreeItem({
       if (nextOpen && !cachedSessions && !loading) {
         setLoading(true);
         Promise.all([
-          fetchSessions(project.slug)
-            .then((sessions) => onSessionsLoaded(project.slug, sessions))
+          fetchSessions(project.slug, SESSION_PAGE_SIZE)
+            .then((sessions) => {
+              setTruncated(sessions.length === SESSION_PAGE_SIZE);
+              onSessionsLoaded(project.slug, sessions);
+            })
             .catch(() => {}),
           fetchWorktrees(project.slug)
             .then((worktrees) => onWorktreesLoaded(project.slug, worktrees))
@@ -95,6 +102,17 @@ function ProjectTreeItem({
     },
     [cachedSessions, loading, project.slug, onSessionsLoaded, onWorktreesLoaded],
   );
+
+  const handleShowAll = useCallback(() => {
+    setLoadingAll(true);
+    fetchSessions(project.slug)
+      .then((sessions) => {
+        setTruncated(false);
+        onSessionsLoaded(project.slug, sessions);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingAll(false));
+  }, [project.slug, onSessionsLoaded]);
 
   return (
     <Collapsible open={open} onOpenChange={handleOpenChange}>
@@ -185,29 +203,44 @@ function ProjectTreeItem({
                     </span>
                   </SidebarMenuSubItem>
                 ) : (
-                  cachedSessions.map((session) => (
-                    <SidebarMenuSubItem key={session.sessionId}>
-                      <SidebarMenuSubButton
-                        asChild
-                        isActive={session.sessionId === selectedSessionId}
-                      >
-                        <Link
-                          to={`/session/${encodeURIComponent(session.sessionId)}`}
+                  <>
+                    {cachedSessions.map((session) => (
+                      <SidebarMenuSubItem key={session.sessionId}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={session.sessionId === selectedSessionId}
                         >
-                          <span className="flex flex-col gap-0.5">
-                            <span className="truncate text-xs">
-                              {sessionLabel(session.firstPrompt)}
-                            </span>
-                            {session.lastActiveAt && (
-                              <span className="text-[10px] text-muted-foreground">
-                                {timeAgo(session.lastActiveAt)}
+                          <Link
+                            to={`/session/${encodeURIComponent(session.sessionId)}`}
+                          >
+                            <span className="flex flex-col gap-0.5">
+                              <span className="truncate text-xs">
+                                {sessionLabel(session.firstPrompt)}
                               </span>
-                            )}
-                          </span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ))
+                              {session.lastActiveAt && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {timeAgo(session.lastActiveAt)}
+                                </span>
+                              )}
+                            </span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                    {truncated && (
+                      <SidebarMenuSubItem>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={handleShowAll}
+                          disabled={loadingAll}
+                        >
+                          <ChevronsDown className="size-3" />
+                          {loadingAll ? "Loading\u2026" : "Show all sessions"}
+                        </button>
+                      </SidebarMenuSubItem>
+                    )}
+                  </>
                 )}
               </>
             )}

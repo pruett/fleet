@@ -92,3 +92,28 @@ Replaced the inline grid-based analytics panel with a slide-out Sheet overlay. A
 ### Verification
 - TypeScript: passes (`bun run typecheck`)
 - Tests: 520/520 pass (`bun test`)
+
+## T-05: Session Pagination (Phase 1) — DONE
+
+Added server-side `?limit=N` query parameter to the sessions endpoint and client-side "Show all sessions" button when the initial paginated fetch returns exactly 20 results.
+
+### Changes
+- `src/api/create-app.ts`:
+  - `GET /api/projects/:projectId/sessions` now parses optional `?limit=N` query parameter
+  - When present and > 0, slices the scanner results to `limit` entries
+  - Without `?limit`, returns all sessions (backwards compatible)
+- `client/src/lib/api.ts`:
+  - `fetchSessions(projectId, limit?)` accepts an optional `limit` parameter, appends `?limit=N` to the URL when provided
+- `client/src/views/DashboardView.tsx`:
+  - Added `SESSION_PAGE_SIZE = 20` constant
+  - Initial fetch uses `fetchSessions(project.id, SESSION_PAGE_SIZE)`
+  - Tracks `truncated` state (true when exactly 20 sessions returned)
+  - Shows "Show all sessions" button with `ChevronsDown` icon when truncated
+  - Clicking re-fetches without limit, replaces cached sessions, clears truncated state
+  - Added `loadingAll` state for loading indicator on the button
+- `src/api/__tests__/create-app.test.ts`:
+  - Added 2 tests: `?limit=3` returns 3 of 5 sessions; no limit returns all 5
+
+### Verification
+- TypeScript: passes (`bun run typecheck`)
+- Tests: 522/522 pass (`bun test`) — 2 new tests

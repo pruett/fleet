@@ -501,6 +501,56 @@ describe("GET /api/projects/:slug/sessions", () => {
     const body = await res.json();
     expect(body).toEqual({ error: "Project not found" });
   });
+
+  test("respects ?limit query parameter", async () => {
+    const sessions = Array.from({ length: 5 }, (_, i) =>
+      createMockSession({ sessionId: `sess-${i}` }),
+    );
+
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      scanner: {
+        scanProjects: async () => [],
+        scanSessions: async () => sessions,
+        scanWorktrees: async () => [],
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-project-alpha/sessions?limit=3",
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.sessions).toHaveLength(3);
+    expect(body.sessions[0].sessionId).toBe("sess-0");
+    expect(body.sessions[2].sessionId).toBe("sess-2");
+  });
+
+  test("returns all sessions when no limit specified", async () => {
+    const sessions = Array.from({ length: 5 }, (_, i) =>
+      createMockSession({ sessionId: `sess-${i}` }),
+    );
+
+    const deps = createMockDeps({
+      basePaths: [join(FIXTURES, "resolve-base-1")],
+      scanner: {
+        scanProjects: async () => [],
+        scanSessions: async () => sessions,
+        scanWorktrees: async () => [],
+      },
+    });
+
+    const app = createApp(deps);
+    const res = await app.request(
+      "/api/projects/-Users-project-alpha/sessions",
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.sessions).toHaveLength(5);
+  });
 });
 
 describe("GET /api/projects/:projectId/worktrees", () => {

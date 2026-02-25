@@ -36,10 +36,10 @@
 - [x] Ensure the transcript area uses full width (`1fr`) when the Sheet is closed
 
 ### Session Pagination (T-05)
-- [ ] Add `?limit=N` query parameter support to `GET /api/projects/:projectId/sessions` in `src/api/create-app.ts` (line 126), defaulting to 20
-- [ ] Update `fetchSessions(projectId)` in `client/src/lib/api.ts` to accept an optional `limit` parameter
-- [ ] In `ProjectTreeItem` (`client/src/views/DashboardView.tsx`), show a "Show all sessions" button when exactly 20 sessions are returned
-- [ ] Clicking "Show all sessions" re-fetches with no limit and replaces the cached list in `sessionCache`
+- [x] Add `?limit=N` query parameter support to `GET /api/projects/:projectId/sessions` in `src/api/create-app.ts` (line 126), defaulting to 20
+- [x] Update `fetchSessions(projectId)` in `client/src/lib/api.ts` to accept an optional `limit` parameter
+- [x] In `ProjectTreeItem` (`client/src/views/DashboardView.tsx`), show a "Show all sessions" button when exactly 20 sessions are returned
+- [x] Clicking "Show all sessions" re-fetches with no limit and replaces the cached list in `sessionCache`
 
 ---
 

@@ -85,9 +85,11 @@ export async function fetchDirectories(): Promise<ProjectSummary[]> {
 
 export async function fetchSessions(
   slug: string,
+  limit?: number,
 ): Promise<SessionSummary[]> {
+  const params = limit ? `?limit=${limit}` : "";
   const { sessions } = await requestWithRetry<{ sessions: SessionSummary[] }>(
-    `/api/projects/${encodeURIComponent(slug)}/sessions`,
+    `/api/projects/${encodeURIComponent(slug)}/sessions${params}`,
   );
   return sessions;
 }
