@@ -27,7 +27,7 @@
 ## Phase 1 — Core UI Changes
 
 ### Remove Action Bar (T-03)
-- [ ] Delete the Stop/Resume/New Session button bar in `client/src/views/SessionPanel.tsx` (lines 227–255)
+- [x] Delete the Stop/Resume/New Session button bar in `client/src/views/SessionPanel.tsx` (lines 227–255)
 
 ### Analytics Sheet (T-04)
 - [ ] Change `analyticsOpen` default from `true` to `false` in `client/src/hooks/use-session-data.ts` (line 130)

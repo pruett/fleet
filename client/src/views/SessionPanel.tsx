@@ -92,16 +92,12 @@ export function SessionPanel({
     displayTurns,
     analyticsSession,
     sessionMeta,
-    handleStop,
-    handleResume,
-    handleNewSession,
     handleSendMessage,
     handleTextareaKeyDown,
     retry,
     messageInput,
     setMessageInput,
     sendingMessage,
-    actionLoading,
     textareaRef,
   } = useSessionData({ sessionId, projectId, onGoSession });
 
@@ -222,36 +218,6 @@ export function SessionPanel({
             </svg>
           </Button>
         </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex items-center gap-2 border-b px-6 py-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleStop}
-          disabled={actionLoading !== null}
-        >
-          {actionLoading === "stop" ? "Stopping…" : "Stop"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleResume}
-          disabled={actionLoading !== null}
-        >
-          {actionLoading === "resume" ? "Resuming…" : "Resume"}
-        </Button>
-        {projectId && onGoSession && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNewSession}
-            disabled={actionLoading !== null}
-          >
-            {actionLoading === "new" ? "Starting…" : "New Session"}
-          </Button>
-        )}
       </div>
 
       {/* Two-column content area */}

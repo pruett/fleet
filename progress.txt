@@ -56,3 +56,19 @@ Full end-to-end worktree scanning: scanner → API → client fetch → sidebar 
 - TypeScript: passes (`bun run typecheck`)
 - Tests: 520/520 pass (`bun test`) — 9 new tests (6 scanner + 3 API)
 - No lint script configured
+
+## T-03: Remove Action Bar (Phase 1) — DONE
+
+Deleted the Stop/Resume/New Session button bar from SessionPanel.
+
+### Changes
+- `client/src/views/SessionPanel.tsx`:
+  - Removed the action buttons `<div>` (Stop, Resume, New Session) and its `border-b` container
+  - Removed unused destructured vars from `useSessionData` hook call: `handleStop`, `handleResume`, `handleNewSession`, `actionLoading`
+  - Left `useSessionData` hook exports intact (hook API unchanged — handlers may be re-used later)
+  - Left `projectId` and `onGoSession` props intact (still passed to the hook)
+
+### Verification
+- TypeScript: passes (`bun run typecheck`)
+- Tests: 520/520 pass (`bun test`)
+- Net: removed 30 lines of UI code, component dropped from 320 to 286 lines
