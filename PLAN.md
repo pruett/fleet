@@ -30,10 +30,10 @@
 - [x] Delete the Stop/Resume/New Session button bar in `client/src/views/SessionPanel.tsx` (lines 227–255)
 
 ### Analytics Sheet (T-04)
-- [ ] Change `analyticsOpen` default from `true` to `false` in `client/src/hooks/use-session-data.ts` (line 130)
-- [ ] In `client/src/views/SessionPanel.tsx`, replace the inline grid column for `AnalyticsPanel` (line 261 `gridTemplateColumns`) with a `Sheet` component from `client/src/components/ui/sheet.tsx` using `side="right"`
-- [ ] Wire the existing analytics toggle button (lines 191–224 of `SessionPanel.tsx`) as a `SheetTrigger`
-- [ ] Ensure the transcript area uses full width (`1fr`) when the Sheet is closed
+- [x] Change `analyticsOpen` default from `true` to `false` in `client/src/hooks/use-session-data.ts` (line 130)
+- [x] In `client/src/views/SessionPanel.tsx`, replace the inline grid column for `AnalyticsPanel` (line 261 `gridTemplateColumns`) with a `Sheet` component from `client/src/components/ui/sheet.tsx` using `side="right"`
+- [x] Wire the existing analytics toggle button (lines 191–224 of `SessionPanel.tsx`) as a `SheetTrigger`
+- [x] Ensure the transcript area uses full width (`1fr`) when the Sheet is closed
 
 ### Session Pagination (T-05)
 - [ ] Add `?limit=N` query parameter support to `GET /api/projects/:projectId/sessions` in `src/api/create-app.ts` (line 126), defaulting to 20

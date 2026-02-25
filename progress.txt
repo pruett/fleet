@@ -72,3 +72,23 @@ Deleted the Stop/Resume/New Session button bar from SessionPanel.
 - TypeScript: passes (`bun run typecheck`)
 - Tests: 520/520 pass (`bun test`)
 - Net: removed 30 lines of UI code, component dropped from 320 to 286 lines
+
+## T-04: Analytics Sheet (Phase 1) — DONE
+
+Replaced the inline grid-based analytics panel with a slide-out Sheet overlay. Analytics now defaults to closed and opens via a side sheet.
+
+### Changes
+- `client/src/hooks/use-session-data.ts`:
+  - Changed `analyticsOpen` default from `true` to `false`
+- `client/src/views/SessionPanel.tsx`:
+  - Imported `Sheet`, `SheetContent`, `SheetTitle`, `SheetTrigger` from `@/components/ui/sheet`
+  - Wrapped component return in `<Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen}>`
+  - Replaced the toggle button's `onClick` with `<SheetTrigger asChild>` wrapper
+  - Removed the two-column grid layout (`gridTemplateColumns: analyticsOpen ? "1fr 360px" : "1fr"`)
+  - Conversation area now always uses full width
+  - Moved `AnalyticsPanel` into `<SheetContent side="right">` with 360px width, no close button (toggle button handles open/close)
+  - Added `<SheetTitle className="sr-only">` for accessibility (Radix Dialog requires a title)
+
+### Verification
+- TypeScript: passes (`bun run typecheck`)
+- Tests: 520/520 pass (`bun test`)
