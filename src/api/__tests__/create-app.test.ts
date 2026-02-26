@@ -553,11 +553,11 @@ describe("GET /api/projects/:slug/sessions", () => {
   });
 });
 
-describe("GET /api/projects/:projectId/worktrees", () => {
+describe("GET /api/projects/:slug/worktrees", () => {
   test("returns 200 with worktrees array", async () => {
     const worktrees = [
-      { name: "feat-dark-mode", path: "/Users/project/alpha/.claude/.worktrees/feat-dark-mode" },
-      { name: "fix-bug", path: "/Users/project/alpha/.claude/.worktrees/fix-bug" },
+      { name: "feat-dark-mode", path: "/Users/project/alpha/.worktrees/feat-dark-mode", branch: "feat/dark-mode" },
+      { name: "fix-bug", path: "/Users/project/alpha/.worktrees/fix-bug", branch: "fix/bug" },
     ];
     let receivedPath = "";
 
@@ -566,16 +566,23 @@ describe("GET /api/projects/:projectId/worktrees", () => {
       scanner: {
         scanProjects: async () => [],
         scanSessions: async () => [],
+        groupProjects: () => [],
         scanWorktrees: async (projectPath) => {
           receivedPath = projectPath;
           return worktrees;
         },
       },
+      preferences: {
+        readPreferences: async () => ({
+          projects: [{ title: "Project Alpha", projectDirs: ["-Users-project-alpha"] }],
+        }),
+        writePreferences: async () => {},
+      },
     });
 
     const app = createApp(deps);
     const res = await app.request(
-      "/api/projects/-Users-project-alpha/worktrees",
+      "/api/projects/project-alpha/worktrees",
     );
 
     expect(res.status).toBe(200);
@@ -593,7 +600,7 @@ describe("GET /api/projects/:projectId/worktrees", () => {
 
     const app = createApp(deps);
     const res = await app.request(
-      "/api/projects/-Users-nonexistent/worktrees",
+      "/api/projects/nonexistent/worktrees",
     );
 
     expect(res.status).toBe(404);
@@ -607,13 +614,20 @@ describe("GET /api/projects/:projectId/worktrees", () => {
       scanner: {
         scanProjects: async () => [],
         scanSessions: async () => [],
+        groupProjects: () => [],
         scanWorktrees: async () => [],
+      },
+      preferences: {
+        readPreferences: async () => ({
+          projects: [{ title: "Project Alpha", projectDirs: ["-Users-project-alpha"] }],
+        }),
+        writePreferences: async () => {},
       },
     });
 
     const app = createApp(deps);
     const res = await app.request(
-      "/api/projects/-Users-project-alpha/worktrees",
+      "/api/projects/project-alpha/worktrees",
     );
 
     expect(res.status).toBe(200);

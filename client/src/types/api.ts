@@ -56,6 +56,8 @@ export interface WorktreeSummary {
   name: string;
   /** Full filesystem path to the worktree directory */
   path: string;
+  /** Branch name, e.g. "feat/dark-mode" (null if detached HEAD) */
+  branch: string | null;
 }
 
 // --- Content blocks & token usage (src/parser/schemas.ts) ---

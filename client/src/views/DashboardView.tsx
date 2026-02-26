@@ -1,9 +1,21 @@
 import { useCallback, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { Folder, ChevronRight, GitBranch, Plus, X, ChevronsDown } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Folder,
+  ChevronRight,
+  GitBranch,
+  Plus,
+  X,
+  ChevronsDown,
+  RefreshCw,
+} from "lucide-react";
+import { toast } from "sonner";
 import { fetchSessions, fetchWorktrees } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
-import type { GroupedProject, SessionSummary, WorktreeSummary } from "@/types/api";
+import type { GroupedProject } from "@/types/api";
 import { useProjects } from "@/hooks/use-projects";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import {
@@ -54,10 +66,6 @@ function sessionLabel(firstPrompt: string | null): string {
 
 interface ProjectTreeItemProps {
   project: GroupedProject;
-  sessionCache: Map<string, SessionSummary[]>;
-  worktreeCache: Map<string, WorktreeSummary[]>;
-  onSessionsLoaded: (slug: string, sessions: SessionSummary[]) => void;
-  onWorktreesLoaded: (slug: string, worktrees: WorktreeSummary[]) => void;
   selectedSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onRemove: (slug: string) => void;
@@ -67,55 +75,56 @@ const SESSION_PAGE_SIZE = 20;
 
 function ProjectTreeItem({
   project,
-  sessionCache,
-  worktreeCache,
-  onSessionsLoaded,
-  onWorktreesLoaded,
   selectedSessionId,
-  onSelectSession,
+  onSelectSession: _onSelectSession,
   onRemove,
 }: ProjectTreeItemProps) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loadingAll, setLoadingAll] = useState(false);
-  const [truncated, setTruncated] = useState(false);
-  const cachedSessions = sessionCache.get(project.slug);
-  const cachedWorktrees = worktreeCache.get(project.slug);
+  const [showAll, setShowAll] = useState(false);
+  const limit = showAll ? undefined : SESSION_PAGE_SIZE;
 
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      setOpen(nextOpen);
-      if (nextOpen && !cachedSessions && !loading) {
-        setLoading(true);
-        Promise.all([
-          fetchSessions(project.slug, SESSION_PAGE_SIZE)
-            .then((sessions) => {
-              setTruncated(sessions.length === SESSION_PAGE_SIZE);
-              onSessionsLoaded(project.slug, sessions);
-            })
-            .catch(() => {}),
-          fetchWorktrees(project.slug)
-            .then((worktrees) => onWorktreesLoaded(project.slug, worktrees))
-            .catch(() => {}),
-        ]).finally(() => setLoading(false));
-      }
-    },
-    [cachedSessions, loading, project.slug, onSessionsLoaded, onWorktreesLoaded],
-  );
+  const sessionsQuery = useQuery({
+    queryKey: queryKeys.sessions(project.slug, limit),
+    queryFn: () => fetchSessions(project.slug, limit),
+    enabled: open,
+  });
 
-  const handleShowAll = useCallback(() => {
-    setLoadingAll(true);
-    fetchSessions(project.slug)
-      .then((sessions) => {
-        setTruncated(false);
-        onSessionsLoaded(project.slug, sessions);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingAll(false));
-  }, [project.slug, onSessionsLoaded]);
+  const worktreesQuery = useQuery({
+    queryKey: queryKeys.worktrees(project.slug),
+    queryFn: () => fetchWorktrees(project.slug),
+    enabled: open,
+  });
+
+  const loading = sessionsQuery.isLoading || worktreesQuery.isLoading;
+  const isRefreshing =
+    (sessionsQuery.isFetching && !sessionsQuery.isLoading) ||
+    (worktreesQuery.isFetching && !worktreesQuery.isLoading);
+
+  const sessions = sessionsQuery.data;
+  const worktrees = worktreesQuery.data;
+  const truncated = !showAll && sessions?.length === SESSION_PAGE_SIZE;
+
+  const handleRefresh = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.sessionsPrefix(project.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.worktrees(project.slug),
+        }),
+      ]);
+    } catch {
+      toast.error("Failed to refresh project data");
+    }
+  };
+
+  const handleShowAll = () => setShowAll(true);
 
   return (
-    <Collapsible open={open} onOpenChange={handleOpenChange}>
+    <Collapsible open={open} onOpenChange={setOpen}>
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton>
@@ -134,6 +143,15 @@ function ProjectTreeItem({
             </Tooltip>
           </SidebarMenuButton>
         </CollapsibleTrigger>
+
+        <SidebarMenuAction
+          showOnHover
+          className="right-6"
+          onClick={handleRefresh}
+        >
+          <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
+          <span className="sr-only">Refresh project</span>
+        </SidebarMenuAction>
 
         <SidebarMenuAction
           showOnHover
@@ -157,27 +175,34 @@ function ProjectTreeItem({
             )}
 
             {/* Worktrees section */}
-            {!loading && cachedWorktrees !== undefined && (
+            {!loading && worktrees !== undefined && (
               <>
                 <SidebarMenuSubItem>
                   <span className="px-2 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     worktrees
                   </span>
                 </SidebarMenuSubItem>
-                {cachedWorktrees.length === 0 ? (
+                {worktrees.length === 0 ? (
                   <SidebarMenuSubItem>
                     <span className="px-2 py-1 text-xs italic text-muted-foreground">
                       (no worktrees)
                     </span>
                   </SidebarMenuSubItem>
                 ) : (
-                  cachedWorktrees.map((wt) => (
+                  worktrees.map((wt) => (
                     <SidebarMenuSubItem key={wt.name}>
                       <SidebarMenuSubButton asChild={false}>
                         <GitBranch className="size-3.5 shrink-0" />
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="truncate text-xs">{wt.name}</span>
+                            <span className="flex flex-col gap-0 truncate">
+                              <span className="truncate text-xs">{wt.name}</span>
+                              {wt.branch && (
+                                <span className="truncate text-[10px] text-muted-foreground">
+                                  {wt.branch}
+                                </span>
+                              )}
+                            </span>
                           </TooltipTrigger>
                           <TooltipContent side="right">{wt.path}</TooltipContent>
                         </Tooltip>
@@ -189,14 +214,14 @@ function ProjectTreeItem({
             )}
 
             {/* Sessions section */}
-            {!loading && cachedSessions !== undefined && (
+            {!loading && sessions !== undefined && (
               <>
                 <SidebarMenuSubItem>
                   <span className="px-2 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     sessions
                   </span>
                 </SidebarMenuSubItem>
-                {cachedSessions.length === 0 ? (
+                {sessions.length === 0 ? (
                   <SidebarMenuSubItem>
                     <span className="px-2 py-1 text-xs text-muted-foreground">
                       No sessions
@@ -204,7 +229,7 @@ function ProjectTreeItem({
                   </SidebarMenuSubItem>
                 ) : (
                   <>
-                    {cachedSessions.map((session) => (
+                    {sessions.map((session) => (
                       <SidebarMenuSubItem key={session.sessionId}>
                         <SidebarMenuSubButton
                           asChild
@@ -233,10 +258,12 @@ function ProjectTreeItem({
                           type="button"
                           className="flex w-full items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                           onClick={handleShowAll}
-                          disabled={loadingAll}
+                          disabled={showAll && sessionsQuery.isFetching}
                         >
                           <ChevronsDown className="size-3" />
-                          {loadingAll ? "Loading\u2026" : "Show all sessions"}
+                          {showAll && sessionsQuery.isFetching
+                            ? "Loading\u2026"
+                            : "Show all sessions"}
                         </button>
                       </SidebarMenuSubItem>
                     )}
@@ -272,40 +299,12 @@ export function DashboardView() {
   const navigate = useNavigate();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [sessionCache, setSessionCache] = useState<
-    Map<string, SessionSummary[]>
-  >(new Map());
-  const [worktreeCache, setWorktreeCache] = useState<
-    Map<string, WorktreeSummary[]>
-  >(new Map());
 
   const selectSession = useCallback(
     (sessionId: string) => {
       navigate(`/session/${encodeURIComponent(sessionId)}`);
     },
     [navigate],
-  );
-
-  const handleSessionsLoaded = useCallback(
-    (slug: string, sessions: SessionSummary[]) => {
-      setSessionCache((prev) => {
-        const next = new Map(prev);
-        next.set(slug, sessions);
-        return next;
-      });
-    },
-    [],
-  );
-
-  const handleWorktreesLoaded = useCallback(
-    (projectId: string, worktrees: WorktreeSummary[]) => {
-      setWorktreeCache((prev) => {
-        const next = new Map(prev);
-        next.set(projectId, worktrees);
-        return next;
-      });
-    },
-    [],
   );
 
   const handleOpenDialog = useCallback(() => {
@@ -338,10 +337,6 @@ export function DashboardView() {
                     <ProjectTreeItem
                       key={project.slug}
                       project={project}
-                      sessionCache={sessionCache}
-                      worktreeCache={worktreeCache}
-                      onSessionsLoaded={handleSessionsLoaded}
-                      onWorktreesLoaded={handleWorktreesLoaded}
                       selectedSessionId={selectedSessionId}
                       onSelectSession={selectSession}
                       onRemove={removeProject}

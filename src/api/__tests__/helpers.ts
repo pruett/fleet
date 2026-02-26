@@ -1,6 +1,6 @@
 import type { AppDependencies, ControlResult } from "../types";
 import type { ProjectSummary, SessionSummary } from "../../scanner/types";
-import type { EnrichedSession } from "../../parser/types";
+import type { EnrichedSession } from "../../parser";
 import type { Transport } from "../../transport";
 
 /**

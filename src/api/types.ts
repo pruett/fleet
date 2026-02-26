@@ -4,7 +4,7 @@ import type {
   GroupedProject,
   WorktreeSummary,
 } from "../scanner/types";
-import type { EnrichedSession } from "../parser/types";
+import type { EnrichedSession } from "../parser";
 import type { Transport } from "../transport";
 import type { FleetPreferences, ProjectConfig } from "../preferences";
 

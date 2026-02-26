@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { computeCost } from "../parser/pricing";
+import { computeCost } from "../parser";
 import type { SessionSummary } from "./types";
 
 interface ResponseUsage {

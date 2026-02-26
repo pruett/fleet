@@ -182,15 +182,31 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ sessions });
   });
 
-  app.get("/api/projects/:projectId/worktrees", async (c) => {
-    const projectId = c.req.param("projectId");
-    const projectDir = await resolveProjectDir(deps.basePaths, projectId);
-    if (!projectDir) {
+  app.get("/api/projects/:slug/worktrees", async (c) => {
+    const slug = c.req.param("slug");
+    const prefs = await deps.preferences.readPreferences();
+    const config = prefs.projects.find((p) => slugify(p.title) === slug);
+    if (!config) {
       return c.json({ error: "Project not found" }, 404);
     }
-    // Decode project ID to real filesystem path (e.g. "-Users-foo-bar" → "/Users/foo/bar")
-    const projectPath = projectId.replaceAll("-", "/");
-    const worktrees = await deps.scanner.scanWorktrees(projectPath);
+    const dirs = await resolveGroupedProjectDirs(
+      deps.basePaths,
+      config.projectDirs,
+    );
+    if (dirs.length === 0) {
+      return c.json({ worktrees: [] });
+    }
+    // Each dir is basePath/dirId — decode dirId to real filesystem path
+    const allWorktrees = await Promise.all(
+      dirs.map((dir) => {
+        const dirId = dir.split("/").pop()!;
+        const projectPath = dirId.replaceAll("-", "/");
+        return deps.scanner.scanWorktrees(projectPath);
+      }),
+    );
+    const worktrees = allWorktrees.flat().sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
     return c.json({ worktrees });
   });
 

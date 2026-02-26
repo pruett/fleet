@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchPreferences,
   fetchProjects,
   fetchDirectories,
   updatePreferences,
 } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type {
   GroupedProject,
   ProjectSummary,
@@ -31,86 +33,68 @@ function slugify(title: string): string {
 }
 
 export function useProjects(): UseProjectsResult {
-  const [projects, setProjects] = useState<GroupedProject[]>([]);
-  const [configs, setConfigs] = useState<ProjectConfig[]>([]);
-  const [allDirectories, setAllDirectories] = useState<ProjectSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingDirectories, setLoadingDirectories] = useState(false);
+  const qc = useQueryClient();
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([fetchProjects(), fetchPreferences()])
-      .then(([grouped, prefs]) => {
-        if (cancelled) return;
-        setProjects(grouped);
-        setConfigs(prefs.projects);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects(),
+    queryFn: fetchProjects,
+  });
 
-  const persistAndRefresh = useCallback(
-    async (nextConfigs: ProjectConfig[]) => {
-      setConfigs(nextConfigs);
+  const preferencesQuery = useQuery({
+    queryKey: queryKeys.preferences(),
+    queryFn: fetchPreferences,
+  });
+
+  const directoriesQuery = useQuery({
+    queryKey: queryKeys.directories(),
+    queryFn: fetchDirectories,
+    enabled: false, // only fetched on demand via refreshDirectories
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (nextConfigs: ProjectConfig[]) => {
       const prefs: FleetPreferences = { projects: nextConfigs };
-      try {
-        await updatePreferences(prefs);
-        const grouped = await fetchProjects();
-        setProjects(grouped);
-      } catch {
-        // Rollback on failure
-        const serverPrefs = await fetchPreferences().catch(() => ({
-          projects: [],
-        }));
-        setConfigs(serverPrefs.projects);
-        const grouped = await fetchProjects().catch(() => []);
-        setProjects(grouped);
-      }
+      await updatePreferences(prefs);
     },
-    [],
-  );
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.projects() });
+      qc.invalidateQueries({ queryKey: queryKeys.preferences() });
+    },
+  });
+
+  const configs = preferencesQuery.data?.projects ?? [];
 
   const addProject = useCallback(
     (config: ProjectConfig) => {
-      const next = [...configs, config];
-      persistAndRefresh(next);
+      mutation.mutate([...configs, config]);
     },
-    [configs, persistAndRefresh],
+    [configs, mutation],
   );
 
   const removeProject = useCallback(
     (slug: string) => {
       const next = configs.filter((c) => slugify(c.title) !== slug);
-      persistAndRefresh(next);
+      mutation.mutate(next);
     },
-    [configs, persistAndRefresh],
+    [configs, mutation],
   );
 
   const refreshDirectories = useCallback(async () => {
-    setLoadingDirectories(true);
-    try {
-      const dirs = await fetchDirectories();
-      setAllDirectories(dirs);
-    } catch {
-      // silently handle
-    } finally {
-      setLoadingDirectories(false);
-    }
-  }, []);
+    await directoriesQuery.refetch();
+  }, [directoriesQuery]);
 
-  const projectSlugs = new Set(projects.map((p) => p.slug));
+  const projects = projectsQuery.data ?? [];
+  const projectSlugs = useMemo(
+    () => new Set(projects.map((p) => p.slug)),
+    [projects],
+  );
 
   return {
     projects,
     projectSlugs,
-    allDirectories,
-    loading,
-    loadingDirectories,
+    allDirectories: directoriesQuery.data ?? [],
+    loading: projectsQuery.isLoading || preferencesQuery.isLoading,
+    loadingDirectories: directoriesQuery.isFetching,
     addProject,
     removeProject,
     refreshDirectories,
