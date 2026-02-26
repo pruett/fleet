@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,6 +9,7 @@ import {
   X,
   ChevronsDown,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchSessions, fetchWorktrees } from "@/lib/api";
@@ -71,7 +72,7 @@ interface ProjectTreeItemProps {
   onRemove: (slug: string) => void;
 }
 
-const SESSION_PAGE_SIZE = 20;
+const SESSION_PAGE_SIZE = 10;
 
 function ProjectTreeItem({
   project,
@@ -82,6 +83,7 @@ function ProjectTreeItem({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [sessionFilter, setSessionFilter] = useState("");
   const limit = showAll ? undefined : SESSION_PAGE_SIZE;
 
   const sessionsQuery = useQuery({
@@ -104,6 +106,16 @@ function ProjectTreeItem({
   const sessions = sessionsQuery.data;
   const worktrees = worktreesQuery.data;
   const truncated = !showAll && sessions?.length === SESSION_PAGE_SIZE;
+
+  const filteredSessions = useMemo(() => {
+    if (!sessions || !sessionFilter.trim()) return sessions;
+    const q = sessionFilter.toLowerCase();
+    return sessions.filter(
+      (s) =>
+        s.sessionId.toLowerCase().includes(q) ||
+        s.firstPrompt?.toLowerCase().includes(q),
+    );
+  }, [sessions, sessionFilter]);
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -221,15 +233,29 @@ function ProjectTreeItem({
                     sessions
                   </span>
                 </SidebarMenuSubItem>
-                {sessions.length === 0 ? (
+                {sessions.length > 0 && (
+                  <SidebarMenuSubItem>
+                    <div className="relative px-2 py-1">
+                      <Search className="pointer-events-none absolute left-3.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Filter by ID or prompt…"
+                        value={sessionFilter}
+                        onChange={(e) => setSessionFilter(e.target.value)}
+                        className="h-6 w-full rounded border border-sidebar-border bg-transparent pl-5 pr-2 text-[11px] text-sidebar-foreground placeholder:text-muted-foreground/60 outline-none focus:border-sidebar-ring"
+                      />
+                    </div>
+                  </SidebarMenuSubItem>
+                )}
+                {filteredSessions?.length === 0 ? (
                   <SidebarMenuSubItem>
                     <span className="px-2 py-1 text-xs text-muted-foreground">
-                      No sessions
+                      {sessionFilter.trim() ? "No matching sessions" : "No sessions"}
                     </span>
                   </SidebarMenuSubItem>
                 ) : (
                   <>
-                    {sessions.map((session) => (
+                    {filteredSessions?.map((session) => (
                       <SidebarMenuSubItem key={session.sessionId}>
                         <SidebarMenuSubButton
                           asChild
@@ -242,6 +268,9 @@ function ProjectTreeItem({
                               <span className="truncate text-xs">
                                 {sessionLabel(session.firstPrompt)}
                               </span>
+                              <span className="truncate text-[10px] font-mono text-muted-foreground/70">
+                                {session.sessionId}
+                              </span>
                               {session.lastActiveAt && (
                                 <span className="text-[10px] text-muted-foreground">
                                   {timeAgo(session.lastActiveAt)}
@@ -252,7 +281,7 @@ function ProjectTreeItem({
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}
-                    {truncated && (
+                    {truncated && !sessionFilter.trim() && (
                       <SidebarMenuSubItem>
                         <button
                           type="button"
