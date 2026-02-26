@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { describe, test, expect } from "bun:test";
 import { createApp } from "../create-app";
-import type { GroupedProject } from "../../scanner/types";
+import type { GroupedProject } from "../../scanner";
 import {
   createMockDeps,
   createMockProject,

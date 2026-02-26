@@ -3,7 +3,7 @@ import type {
   SessionSummary,
   GroupedProject,
   WorktreeSummary,
-} from "../scanner/types";
+} from "../scanner";
 import type { EnrichedSession } from "../parser";
 import type { Transport } from "../transport";
 import type { FleetPreferences, ProjectConfig } from "../preferences";
