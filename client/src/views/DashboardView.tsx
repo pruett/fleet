@@ -344,7 +344,7 @@ export function DashboardView() {
   return (
     <SidebarProvider>
       <Sidebar side="left">
-        <SidebarContent>
+        <SidebarContent className="bg-muted/30">
           <SidebarGroup>
             <SidebarGroupLabel>Projects</SidebarGroupLabel>
             <SidebarGroupAction title="Add project" onClick={handleOpenDialog}>

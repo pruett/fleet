@@ -9,6 +9,8 @@ import type {
   UserToolResultMessage,
 } from "@/types/api";
 import { cn } from "@/lib/utils";
+import { HighlightedCode } from "./HighlightedCode";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import {
   Collapsible,
   CollapsibleContent,
@@ -53,11 +55,18 @@ const HIDDEN_KINDS = new Set<string>([
   "progress-hook",
 ]);
 
+/** Detect user prompts that are mostly XML tags (slash-command output, etc.). */
+function isXmlTagMessage(text: string): boolean {
+  const trimmed = text.trim();
+  return /^<[a-z-]+[\s>]/i.test(trimmed) && /<\/[a-z-]+>\s*$/i.test(trimmed);
+}
+
 /** Determine whether a message should be rendered in the conversation. */
 // eslint-disable-next-line react-refresh/only-export-components
 export function isVisibleMessage(message: ParsedMessage): boolean {
   if (HIDDEN_KINDS.has(message.kind)) return false;
   if (message.kind === "user-prompt" && message.isMeta) return false;
+  if (message.kind === "user-prompt" && isXmlTagMessage(message.text)) return false;
   if (message.kind === "malformed") return false; // debug mode only (Phase 5)
   return true;
 }
@@ -93,18 +102,18 @@ export function MessageComponent({ message }: MessageComponentProps) {
         case "thinking":
           return <ThinkingBlock message={message} />;
         case "tool_use":
-          return <ToolUseBlock message={message} />;
+          return null;
       }
       return null;
 
     case "user-tool-result":
-      return <ToolResultBlock message={message} />;
+      return null;
 
     case "system-api-error":
       return <ApiErrorBlock message={message} />;
 
     case "system-turn-duration":
-      return <TurnDurationBadge message={message} />;
+      return null;
 
     case "progress-bash":
       return <BashProgressBlock message={message} />;
@@ -123,9 +132,9 @@ export function MessageComponent({ message }: MessageComponentProps) {
 
 function UserPromptBubble({ message }: { message: UserPromptMessage }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground">
-        <p className="whitespace-pre-wrap text-sm">{message.text}</p>
+    <div>
+      <div className="rounded-2xl border bg-white px-4 py-2.5 shadow-sm dark:bg-zinc-900">
+        <p className="whitespace-pre-wrap text-base">{message.text}</p>
       </div>
     </div>
   );
@@ -139,8 +148,8 @@ function AssistantTextBlock({ message }: { message: AssistantBlockMessage }) {
   const text =
     message.contentBlock.type === "text" ? message.contentBlock.text : "";
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <pre className="whitespace-pre-wrap break-words text-sm">{text}</pre>
+    <div>
+      <MarkdownRenderer content={text} />
     </div>
   );
 }
@@ -156,16 +165,16 @@ function ThinkingBlock({ message }: { message: AssistantBlockMessage }) {
       : "";
   const [open, setOpen] = useCollapsibleState(false);
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-muted/50">
-      <CollapsibleTrigger className="flex w-full cursor-pointer select-none items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground">
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex w-full cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <ChevronIcon open={open} />
         Thinking
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="border-t px-3 py-2">
-          <pre className="whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
+        <div className="pt-1">
+          <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">
             {thinking}
-          </pre>
+          </p>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -180,6 +189,7 @@ function ToolUseBlock({ message }: { message: AssistantBlockMessage }) {
   const [open, setOpen] = useCollapsibleState(false);
   if (message.contentBlock.type !== "tool_use") return null;
   const { name, input } = message.contentBlock;
+  const jsonString = JSON.stringify(input, null, 2);
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border">
       <CollapsibleTrigger className="flex w-full cursor-pointer select-none items-center gap-1.5 px-3 py-2 text-sm font-medium">
@@ -188,9 +198,9 @@ function ToolUseBlock({ message }: { message: AssistantBlockMessage }) {
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-t px-3 py-2">
-          <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-2 font-mono text-xs">
-            {JSON.stringify(input, null, 2)}
-          </pre>
+          <div className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded p-2 text-xs [&_pre]:!m-0 [&_pre]:!bg-transparent [&_pre]:!p-0">
+            <HighlightedCode code={jsonString} lang="json" />
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -203,7 +213,7 @@ function ToolUseBlock({ message }: { message: AssistantBlockMessage }) {
 
 function ToolResultBlock({ message }: { message: UserToolResultMessage }) {
   return (
-    <div className="ml-4 space-y-1">
+    <div className="space-y-1">
       {message.results.map((result) => (
         <ToolResultItem key={result.toolUseId} result={result} />
       ))}

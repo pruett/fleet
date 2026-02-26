@@ -58,16 +58,6 @@ interface TurnGroupProps {
 export function TurnGroup({ group, isFirst }: TurnGroupProps) {
   return (
     <div className="flex flex-col gap-4">
-      {/* Visual separator between turns with turn index label */}
-      {!isFirst && group.turnIndex !== null && (
-        <div className="flex items-center py-2">
-          <div className="flex-1 border-t border-border" />
-          <span className="mx-3 shrink-0 text-xs font-medium text-muted-foreground">
-            Turn {group.turnIndex}
-          </span>
-          <div className="flex-1 border-t border-border" />
-        </div>
-      )}
       {group.messages.map((msg, i) => (
         <MessageComponent key={`${msg.lineIndex}-${i}`} message={msg} />
       ))}
