@@ -1,8 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { createServer } from "./api/create-server";
-import { createResolveSessionPath } from "./api/resolve";
-import { createTransport } from "./transport/create-transport";
+import { createServer, createResolveSessionPath } from "./api";
+import { createTransport } from "./transport";
 import { scanProjects, scanSessions, groupProjects, scanWorktrees } from "./scanner";
 import { parseFullSession } from "./parser";
 import { watchSession, stopWatching } from "./watcher";
