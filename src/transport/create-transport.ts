@@ -1,5 +1,10 @@
 import type { ServerWebSocket } from "bun";
-import type { ConnectedClient, Transport, TransportOptions } from "./types";
+import type {
+  ConnectedClient,
+  LifecycleEvent,
+  Transport,
+  TransportOptions,
+} from "./types";
 import type { WatchHandle, WatchBatch } from "../watcher";
 
 /** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */
@@ -18,6 +23,22 @@ export function createTransport(options: TransportOptions): Transport {
 
   // Reverse lookup: ws reference → clientId (needed by handleMessage/handleClose)
   const wsToClientId = new Map<ServerWebSocket<unknown>, string>();
+
+  // Per-session debounce timers for session:activity broadcasts (5s window)
+  const activityTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  // --- Broadcast helper ---
+
+  function broadcastEvent(event: LifecycleEvent): void {
+    const frame = JSON.stringify(event);
+    for (const client of clients.values()) {
+      try {
+        client.ws.send(frame);
+      } catch {
+        // Broken pipe / closed socket — skip and continue to next client
+      }
+    }
+  }
 
   // --- Relay ---
 
@@ -41,6 +62,22 @@ export function createTransport(options: TransportOptions): Transport {
         // Broken pipe / closed socket — skip and continue to next client
       }
     }
+
+    // Debounced session:activity broadcast to all clients (for sidebar refresh)
+    const { sessionId } = batch;
+    const existing = activityTimers.get(sessionId);
+    if (existing !== undefined) clearTimeout(existing);
+    activityTimers.set(
+      sessionId,
+      setTimeout(() => {
+        activityTimers.delete(sessionId);
+        broadcastEvent({
+          type: "session:activity",
+          sessionId,
+          updatedAt: new Date().toISOString(),
+        });
+      }, 5_000),
+    );
   }
 
   // --- Subscribe ---
@@ -256,16 +293,7 @@ export function createTransport(options: TransportOptions): Transport {
     handleOpen,
     handleMessage,
     handleClose,
-    broadcastLifecycleEvent: (event) => {
-      const frame = JSON.stringify(event);
-      for (const client of clients.values()) {
-        try {
-          client.ws.send(frame);
-        } catch {
-          // Broken pipe / closed socket — skip and continue to next client
-        }
-      }
-    },
+    broadcastLifecycleEvent: broadcastEvent,
     getClientCount: () => clients.size,
     getSessionSubscriberCount: (sessionId: string) =>
       sessions.get(sessionId)?.size ?? 0,
@@ -276,12 +304,18 @@ export function createTransport(options: TransportOptions): Transport {
       }
       watchers.clear();
 
-      // 2. Close all WebSocket connections with 1001 (Going Away)
+      // 2. Cancel all pending activity timers
+      for (const timer of activityTimers.values()) {
+        clearTimeout(timer);
+      }
+      activityTimers.clear();
+
+      // 3. Close all WebSocket connections with 1001 (Going Away)
       for (const client of clients.values()) {
         client.ws.close(1001, "Server shutting down");
       }
 
-      // 3. Clear all internal state
+      // 4. Clear all internal state
       clients.clear();
       sessions.clear();
       wsToClientId.clear();

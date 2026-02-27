@@ -1,4 +1,4 @@
-import { watch, type FSWatcher } from "fs";
+import { watch, readFileSync, type FSWatcher } from "fs";
 import { parseLine, type ParsedMessage } from "../parser";
 import type { WatchOptions, WatchHandle, WatchBatch, WatchError } from "./types";
 
@@ -48,11 +48,22 @@ export function watchSession(options: WatchOptions): WatchHandle {
   // Get initial file size to start tailing from end
   const initialSize = Bun.file(filePath).size;
 
+  // Count newlines in existing content so lineIndex matches parseFullSession's
+  // array-index scheme (each \n starts a new line number).
+  let initialLineIndex = 0;
+  if (initialSize > 0) {
+    const buf = readFileSync(filePath);
+    const limit = Math.min(buf.length, initialSize);
+    for (let i = 0; i < limit; i++) {
+      if (buf[i] === 0x0a) initialLineIndex++;
+    }
+  }
+
   const handle: WatchHandle = {
     sessionId,
     filePath,
     byteOffset: initialSize,
-    lineIndex: 0,
+    lineIndex: initialLineIndex,
     stopped: false,
   };
 
@@ -135,21 +146,23 @@ export function watchSession(options: WatchOptions): WatchHandle {
         state.lineBuffer = segments.pop()!;
 
         for (const line of segments) {
-          if (line === "") continue; // skip blank lines
+          const currentIndex = handle.lineIndex;
+          handle.lineIndex++;
+
+          if (line === "") continue;
+
           try {
-            const parsed = parseLine(line, handle.lineIndex);
+            const parsed = parseLine(line, currentIndex);
             if (parsed !== null) {
               state.pendingMessages.push(parsed);
-              handle.lineIndex++;
             }
           } catch (err) {
             state.options.onError({
               sessionId: handle.sessionId,
               code: "PARSE_ERROR",
-              message: `Failed to parse line ${handle.lineIndex}`,
+              message: `Failed to parse line ${currentIndex}`,
               cause: err instanceof Error ? err : new Error(String(err)),
             });
-            handle.lineIndex++; // skip line, advance index
           }
         }
 

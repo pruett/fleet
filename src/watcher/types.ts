@@ -30,7 +30,7 @@ export interface WatchHandle {
   readonly filePath: string;
   /** Current read position in bytes (advances after each read). */
   byteOffset: number;
-  /** Next line number to assign (0-based, increments for each non-blank line). */
+  /** Next line number to assign (0-based, increments for every line including blank). */
   lineIndex: number;
   /** True after stopWatching has been called. */
   stopped: boolean;

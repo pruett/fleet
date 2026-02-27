@@ -8,4 +8,5 @@ export type {
   SessionStarted,
   SessionStopped,
   SessionError,
+  SessionActivity,
 } from "./types";

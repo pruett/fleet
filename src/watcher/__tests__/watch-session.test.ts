@@ -616,7 +616,7 @@ describe("watchSession — blank & malformed lines", () => {
     tmp = null;
   });
 
-  it("skips blank lines without advancing lineIndex or flushing a batch", async () => {
+  it("advances lineIndex for blank lines to match parseFullSession", async () => {
     tmp = await createTempJsonl();
 
     const batches: WatchBatch[] = [];
@@ -647,8 +647,8 @@ describe("watchSession — blank & malformed lines", () => {
     // byteOffset should have advanced past the two newline bytes
     expect(handle.byteOffset).toBe(2);
 
-    // lineIndex should not have advanced (blank lines are skipped)
-    expect(handle.lineIndex).toBe(0);
+    // lineIndex should have advanced (blank lines count to match parseFullSession)
+    expect(handle.lineIndex).toBe(2);
   });
 
   it("delivers MalformedRecord for invalid JSON with correct lineIndex", async () => {
@@ -910,6 +910,76 @@ describe("watchSession — end-to-end consistency", () => {
     const lastEnd = batches[batches.length - 1].byteRange.end;
     expect(firstStart).toBe(0);
     expect(lastEnd).toBe(Bun.file(tmp.path).size);
+  });
+});
+
+describe("watchSession — lineIndex collision regression", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("watcher lineIndexes do not collide with baseline lineIndexes for pre-existing content", async () => {
+    tmp = await createTempJsonl();
+
+    // Pre-populate with 3 lines (baseline: lineIndex 0, 1, 2)
+    const baselineLines = [
+      toLine(makeUserPrompt("Baseline 0")),
+      toLine(makeAssistantRecord(makeTextBlock("Baseline 1"))),
+      toLine(makeUserPrompt("Baseline 2")),
+    ];
+    await appendLines(tmp.path, baselineLines);
+
+    // Compute what parseFullSession would assign (lineIndex = array index)
+    const baselineIndexes = new Set([0, 1, 2]);
+
+    const batches: WatchBatch[] = [];
+    let resolve: () => void;
+    const received = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = watchSession({
+      sessionId: "test-no-collision",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        resolve();
+      },
+      onError: () => {},
+    });
+
+    // lineIndex should start at 3 (after the 3 pre-existing lines)
+    expect(handle.lineIndex).toBe(3);
+
+    // Append a new line
+    const newLine = toLine(makeUserPrompt("New message"));
+    await appendLines(tmp.path, [newLine]);
+
+    await Promise.race([
+      received,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for onMessages")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    const allMessages = batches.flatMap((b) => b.messages);
+    expect(allMessages).toHaveLength(1);
+
+    // The new message's lineIndex must NOT collide with any baseline index
+    expect(baselineIndexes.has(allMessages[0].lineIndex)).toBe(false);
+    expect(allMessages[0].lineIndex).toBe(3);
+
+    // Handle should have advanced
+    expect(handle.lineIndex).toBe(4);
   });
 });
 

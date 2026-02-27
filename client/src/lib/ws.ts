@@ -33,6 +33,12 @@ export interface SessionErrorEvent {
   occurredAt: string;
 }
 
+export interface SessionActivityEvent {
+  type: "session:activity";
+  sessionId: string;
+  updatedAt: string;
+}
+
 export interface WsError {
   type: "error";
   code: string;
@@ -42,7 +48,8 @@ export interface WsError {
 export type LifecycleEvent =
   | SessionStartedEvent
   | SessionStoppedEvent
-  | SessionErrorEvent;
+  | SessionErrorEvent
+  | SessionActivityEvent;
 
 export type ServerMessage = MessageBatch | LifecycleEvent | WsError;
 
@@ -86,6 +93,8 @@ export interface WsClient {
   onConnectionChange: ((info: ConnectionInfo) => void) | null;
   /** Called after a successful reconnect (not on initial connect). */
   onReconnect: (() => void) | null;
+  /** Called when a session:activity broadcast arrives. */
+  onSessionActivity: ((event: SessionActivityEvent) => void) | null;
 }
 
 /**
@@ -116,6 +125,7 @@ export function createWsClient(): WsClient {
     onError: null,
     onConnectionChange: null,
     onReconnect: null,
+    onSessionActivity: null,
 
     subscribe(sessionId: string) {
       currentSubscriptionId = sessionId;
@@ -232,6 +242,9 @@ export function createWsClient(): WsClient {
         case "session:stopped":
         case "session:error":
           client.onLifecycleEvent?.(msg);
+          break;
+        case "session:activity":
+          client.onSessionActivity?.(msg);
           break;
         case "error":
           client.onError?.(msg);
