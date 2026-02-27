@@ -8,6 +8,7 @@ import {
   createBrokenMockWebSocket,
   createMockTransportOptions,
   flushAsync,
+  waitMs,
   VALID_SESSION_ID,
   VALID_SESSION_ID_2,
 } from "./helpers";
@@ -809,3 +810,5 @@ describe("createTransport — Phase 2 send failures", () => {
     expect(frame1.sessionId).toBe(VALID_SESSION_ID);
   });
 });
+
+// ============================================================

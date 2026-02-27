@@ -38,7 +38,7 @@ export const _registry = registry;
  * Start tailing a session transcript file.
  * Returns a handle for inspecting state and stopping the watcher.
  */
-export function watchSession(options: WatchOptions): WatchHandle {
+export async function watchSession(options: WatchOptions): Promise<WatchHandle> {
   const { sessionId, filePath } = options;
 
   // Return existing handle if this session is already being watched
@@ -48,11 +48,24 @@ export function watchSession(options: WatchOptions): WatchHandle {
   // Get initial file size to start tailing from end
   const initialSize = Bun.file(filePath).size;
 
+  // Count newlines in existing content so lineIndex matches parseFullSession's
+  // array-index scheme (each \n starts a new line number).
+  // Read only up to initialSize to avoid TOCTOU race if the file grows.
+  let initialLineIndex = 0;
+  if (initialSize > 0) {
+    const buf = new Uint8Array(
+      await Bun.file(filePath).slice(0, initialSize).arrayBuffer(),
+    );
+    for (let i = 0; i < buf.length; i++) {
+      if (buf[i] === 0x0a) initialLineIndex++;
+    }
+  }
+
   const handle: WatchHandle = {
     sessionId,
     filePath,
     byteOffset: initialSize,
-    lineIndex: 0,
+    lineIndex: initialLineIndex,
     stopped: false,
   };
 
@@ -135,21 +148,23 @@ export function watchSession(options: WatchOptions): WatchHandle {
         state.lineBuffer = segments.pop()!;
 
         for (const line of segments) {
-          if (line === "") continue; // skip blank lines
+          const currentIndex = handle.lineIndex;
+          handle.lineIndex++;
+
+          if (line === "") continue;
+
           try {
-            const parsed = parseLine(line, handle.lineIndex);
+            const parsed = parseLine(line, currentIndex);
             if (parsed !== null) {
               state.pendingMessages.push(parsed);
-              handle.lineIndex++;
             }
           } catch (err) {
             state.options.onError({
               sessionId: handle.sessionId,
               code: "PARSE_ERROR",
-              message: `Failed to parse line ${handle.lineIndex}`,
+              message: `Failed to parse line ${currentIndex}`,
               cause: err instanceof Error ? err : new Error(String(err)),
             });
-            handle.lineIndex++; // skip line, advance index
           }
         }
 

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject } from "@/types/api";
 import { useProjects } from "@/hooks/use-projects";
+import { useSessionActivity } from "@/hooks/use-session-activity";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import {
   Sidebar,
@@ -312,6 +313,8 @@ function ProjectTreeItem({
 // ---------------------------------------------------------------------------
 
 export function DashboardView() {
+  useSessionActivity();
+
   const {
     projects,
     projectSlugs,

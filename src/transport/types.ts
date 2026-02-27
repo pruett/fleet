@@ -33,7 +33,7 @@ export interface ClientRegistry {
 
 export interface TransportOptions {
   /** Start tailing a session transcript file. From the File Watcher module. */
-  watchSession: (options: WatchOptions) => WatchHandle;
+  watchSession: (options: WatchOptions) => WatchHandle | Promise<WatchHandle>;
   /** Stop a single watcher. From the File Watcher module. */
   stopWatching: (handle: WatchHandle) => void;
   /** Resolve a sessionId to an absolute .jsonl file path, or null if unknown. */
@@ -65,7 +65,11 @@ export interface Transport {
 // Lifecycle Events (broadcast to all connected clients)
 // ============================================================
 
-export type LifecycleEvent = SessionStarted | SessionStopped | SessionError;
+export type LifecycleEvent =
+  | SessionStarted
+  | SessionStopped
+  | SessionError
+  | SessionActivity;
 
 export interface SessionStarted {
   type: "session:started";
@@ -87,4 +91,10 @@ export interface SessionError {
   sessionId: string;
   error: string;
   occurredAt: string;
+}
+
+export interface SessionActivity {
+  type: "session:activity";
+  sessionId: string;
+  updatedAt: string;
 }

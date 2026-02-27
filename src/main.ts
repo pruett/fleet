@@ -4,7 +4,7 @@ import { createServer, createResolveSessionPath } from "./api";
 import { createTransport } from "./transport";
 import { scanProjects, scanSessions, groupProjects, scanWorktrees } from "./scanner";
 import { parseFullSession } from "./parser";
-import { watchSession, stopWatching } from "./watcher";
+import { watchSession, stopWatching, watchProjectsDir } from "./watcher";
 import { readPreferences, writePreferences } from "./preferences";
 
 const port = Number(process.env.FLEET_PORT) || 3000;
@@ -19,6 +19,17 @@ const transport = createTransport({
   watchSession,
   stopWatching,
   resolveSessionPath: createResolveSessionPath(basePaths),
+});
+
+const projectsDirWatcher = watchProjectsDir({
+  basePaths,
+  onSessionActivity: (sessionId) => {
+    transport.broadcastLifecycleEvent({
+      type: "session:activity",
+      sessionId,
+      updatedAt: new Date().toISOString(),
+    });
+  },
 });
 
 const controller = {
@@ -51,6 +62,7 @@ console.log(`Fleet server listening on http://localhost:${server.port}`);
 
 function shutdown() {
   console.log("\nShutting down...");
+  projectsDirWatcher.stop();
   transport.shutdown();
   server.stop();
   process.exit(0);

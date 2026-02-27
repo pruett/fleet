@@ -1,5 +1,10 @@
 import type { ServerWebSocket } from "bun";
-import type { ConnectedClient, Transport, TransportOptions } from "./types";
+import type {
+  ConnectedClient,
+  LifecycleEvent,
+  Transport,
+  TransportOptions,
+} from "./types";
 import type { WatchHandle, WatchBatch } from "../watcher";
 
 /** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */
@@ -18,6 +23,19 @@ export function createTransport(options: TransportOptions): Transport {
 
   // Reverse lookup: ws reference → clientId (needed by handleMessage/handleClose)
   const wsToClientId = new Map<ServerWebSocket<unknown>, string>();
+
+  // --- Broadcast helper ---
+
+  function broadcastEvent(event: LifecycleEvent): void {
+    const frame = JSON.stringify(event);
+    for (const client of clients.values()) {
+      try {
+        client.ws.send(frame);
+      } catch {
+        // Broken pipe / closed socket — skip and continue to next client
+      }
+    }
+  }
 
   // --- Relay ---
 
@@ -41,6 +59,7 @@ export function createTransport(options: TransportOptions): Transport {
         // Broken pipe / closed socket — skip and continue to next client
       }
     }
+
   }
 
   // --- Subscribe ---
@@ -111,7 +130,7 @@ export function createTransport(options: TransportOptions): Transport {
     // 7. Start watcher for first subscriber
     if (subscriberSet.size === 1) {
       try {
-        const watchHandle = options.watchSession({
+        const watchHandle = await options.watchSession({
           sessionId,
           filePath,
           onMessages: (batch) => relayBatch(batch),
@@ -256,16 +275,7 @@ export function createTransport(options: TransportOptions): Transport {
     handleOpen,
     handleMessage,
     handleClose,
-    broadcastLifecycleEvent: (event) => {
-      const frame = JSON.stringify(event);
-      for (const client of clients.values()) {
-        try {
-          client.ws.send(frame);
-        } catch {
-          // Broken pipe / closed socket — skip and continue to next client
-        }
-      }
-    },
+    broadcastLifecycleEvent: broadcastEvent,
     getClientCount: () => clients.size,
     getSessionSubscriberCount: (sessionId: string) =>
       sessions.get(sessionId)?.size ?? 0,
@@ -281,7 +291,7 @@ export function createTransport(options: TransportOptions): Transport {
         client.ws.close(1001, "Server shutting down");
       }
 
-      // 3. Clear all internal state
+      // 4. Clear all internal state
       clients.clear();
       sessions.clear();
       wsToClientId.clear();

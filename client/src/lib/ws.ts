@@ -33,6 +33,12 @@ export interface SessionErrorEvent {
   occurredAt: string;
 }
 
+export interface SessionActivityEvent {
+  type: "session:activity";
+  sessionId: string;
+  updatedAt: string;
+}
+
 export interface WsError {
   type: "error";
   code: string;
@@ -42,7 +48,8 @@ export interface WsError {
 export type LifecycleEvent =
   | SessionStartedEvent
   | SessionStoppedEvent
-  | SessionErrorEvent;
+  | SessionErrorEvent
+  | SessionActivityEvent;
 
 export type ServerMessage = MessageBatch | LifecycleEvent | WsError;
 
@@ -231,6 +238,7 @@ export function createWsClient(): WsClient {
         case "session:started":
         case "session:stopped":
         case "session:error":
+        case "session:activity":
           client.onLifecycleEvent?.(msg);
           break;
         case "error":

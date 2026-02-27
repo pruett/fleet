@@ -33,7 +33,7 @@ describe("watchSession — tracer bullet", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-tracer",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -106,7 +106,7 @@ describe("watchSession — tracer bullet", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-tail-only",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -159,7 +159,7 @@ describe("watchSession — two-phase debounce", () => {
     const batches: WatchBatch[] = [];
     let totalMessages = 0;
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-debounce-coalesce",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -193,7 +193,7 @@ describe("watchSession — two-phase debounce", () => {
     const batches: WatchBatch[] = [];
     let totalMessages = 0;
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-max-wait",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -242,7 +242,7 @@ describe("watchSession — partial line buffering", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-partial-buffer",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -294,7 +294,7 @@ describe("watchSession — partial line buffering", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-complete-line",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -343,7 +343,7 @@ describe("watchSession — stop & teardown", () => {
 
     const batches: WatchBatch[] = [];
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-stop-flush",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -377,7 +377,7 @@ describe("watchSession — stop & teardown", () => {
 
     let callbackCount = 0;
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-stop-silence",
       filePath: tmp.path,
       onMessages: () => {
@@ -414,7 +414,7 @@ describe("watchSession — stop & teardown", () => {
       for (let i = 0; i < 3; i++) {
         const t = await createTempJsonl();
         tmps.push(t);
-        const h = watchSession({
+        const h = await watchSession({
           sessionId: `test-stop-all-${i}`,
           filePath: t.path,
           onMessages: () => {
@@ -490,7 +490,7 @@ describe("watchSession — registry & duplicate prevention", () => {
     };
 
     // First call — creates the watcher
-    handle = watchSession({
+    handle = await watchSession({
       ...sharedOpts,
       onMessages: (batch) => {
         batches.push(batch);
@@ -500,7 +500,7 @@ describe("watchSession — registry & duplicate prevention", () => {
     });
 
     // Second call with the same sessionId — should return the same handle
-    const handle2 = watchSession({
+    const handle2 = await watchSession({
       ...sharedOpts,
       onMessages: () => {
         throw new Error("Second onMessages should never be called");
@@ -558,7 +558,7 @@ describe("watchSession — file truncation recovery", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-truncation",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -616,12 +616,12 @@ describe("watchSession — blank & malformed lines", () => {
     tmp = null;
   });
 
-  it("skips blank lines without advancing lineIndex or flushing a batch", async () => {
+  it("advances lineIndex for blank lines to match parseFullSession", async () => {
     tmp = await createTempJsonl();
 
     const batches: WatchBatch[] = [];
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-blank-lines",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -647,8 +647,8 @@ describe("watchSession — blank & malformed lines", () => {
     // byteOffset should have advanced past the two newline bytes
     expect(handle.byteOffset).toBe(2);
 
-    // lineIndex should not have advanced (blank lines are skipped)
-    expect(handle.lineIndex).toBe(0);
+    // lineIndex should have advanced (blank lines count to match parseFullSession)
+    expect(handle.lineIndex).toBe(2);
   });
 
   it("delivers MalformedRecord for invalid JSON with correct lineIndex", async () => {
@@ -661,7 +661,7 @@ describe("watchSession — blank & malformed lines", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-malformed",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -738,7 +738,7 @@ describe("watchSession — error resilience", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-read-error",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -797,7 +797,7 @@ describe("watchSession — error resilience", () => {
 
     const errors: WatchError[] = [];
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-watch-error",
       filePath: tmp.path,
       onMessages: () => {},
@@ -864,7 +864,7 @@ describe("watchSession — end-to-end consistency", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-e2e-consistency",
       filePath: tmp.path,
       onMessages: (batch) => {
@@ -913,6 +913,76 @@ describe("watchSession — end-to-end consistency", () => {
   });
 });
 
+describe("watchSession — lineIndex collision regression", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("watcher lineIndexes do not collide with baseline lineIndexes for pre-existing content", async () => {
+    tmp = await createTempJsonl();
+
+    // Pre-populate with 3 lines (baseline: lineIndex 0, 1, 2)
+    const baselineLines = [
+      toLine(makeUserPrompt("Baseline 0")),
+      toLine(makeAssistantRecord(makeTextBlock("Baseline 1"))),
+      toLine(makeUserPrompt("Baseline 2")),
+    ];
+    await appendLines(tmp.path, baselineLines);
+
+    // Compute what parseFullSession would assign (lineIndex = array index)
+    const baselineIndexes = new Set([0, 1, 2]);
+
+    const batches: WatchBatch[] = [];
+    let resolve: () => void;
+    const received = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    handle = await watchSession({
+      sessionId: "test-no-collision",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        resolve();
+      },
+      onError: () => {},
+    });
+
+    // lineIndex should start at 3 (after the 3 pre-existing lines)
+    expect(handle.lineIndex).toBe(3);
+
+    // Append a new line
+    const newLine = toLine(makeUserPrompt("New message"));
+    await appendLines(tmp.path, [newLine]);
+
+    await Promise.race([
+      received,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout waiting for onMessages")),
+          5_000,
+        ),
+      ),
+    ]);
+
+    const allMessages = batches.flatMap((b) => b.messages);
+    expect(allMessages).toHaveLength(1);
+
+    // The new message's lineIndex must NOT collide with any baseline index
+    expect(baselineIndexes.has(allMessages[0].lineIndex)).toBe(false);
+    expect(allMessages[0].lineIndex).toBe(3);
+
+    // Handle should have advanced
+    expect(handle.lineIndex).toBe(4);
+  });
+});
+
 describe("watchSession — 100-write stress test", () => {
   let tmp: TempJsonl | null = null;
   let handle: WatchHandle | null = null;
@@ -934,7 +1004,7 @@ describe("watchSession — 100-write stress test", () => {
       resolve = r;
     });
 
-    handle = watchSession({
+    handle = await watchSession({
       sessionId: "test-stress-100",
       filePath: tmp.path,
       onMessages: (batch) => {
