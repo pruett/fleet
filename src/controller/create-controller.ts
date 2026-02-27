@@ -12,6 +12,7 @@ export interface Controller {
 export function createController(options: ControllerOptions): Controller {
   const spawn = options.spawn ?? Bun.spawn;
   const registry = new Map<string, ManagedProcess>();
+  let shuttingDown = false;
 
   async function sendMessage(
     sessionId: string,
@@ -21,10 +22,13 @@ export function createController(options: ControllerOptions): Controller {
       return { ok: false, sessionId, error: "Session is busy" };
     }
 
-    const proc = spawn(["claude", "-p", "--resume", sessionId, message], {
-      stdout: "ignore",
-      stderr: "pipe",
-    });
+    const proc = spawn(
+      ["claude", "-p", "--resume", sessionId, "--", message],
+      {
+        stdout: "ignore",
+        stderr: "pipe",
+      },
+    );
 
     const managed: ManagedProcess = {
       sessionId,
@@ -40,37 +44,43 @@ export function createController(options: ControllerOptions): Controller {
       updatedAt: managed.startedAt,
     });
 
-    proc.exited.then(async (exitCode) => {
-      registry.delete(sessionId);
+    proc.exited
+      .then(async (exitCode) => {
+        registry.delete(sessionId);
 
-      if (exitCode !== 0) {
-        let errorMsg = `Process exited with code ${exitCode}`;
-        try {
-          if (proc.stderr && typeof proc.stderr !== "number") {
-            const stderr = await new Response(proc.stderr).text();
-            if (stderr.trim()) {
-              errorMsg = stderr.trim();
+        if (shuttingDown) return;
+
+        if (exitCode !== 0) {
+          let errorMsg = `Process exited with code ${exitCode}`;
+          try {
+            if (proc.stderr && typeof proc.stderr !== "number") {
+              const stderr = await new Response(proc.stderr).text();
+              if (stderr.trim()) {
+                errorMsg = stderr.trim();
+              }
             }
+          } catch {
+            // stderr may already be consumed or closed
           }
-        } catch {
-          // stderr may already be consumed or closed
+
+          options.onLifecycleEvent({
+            type: "session:error",
+            sessionId,
+            error: errorMsg,
+            occurredAt: new Date().toISOString(),
+          });
         }
 
         options.onLifecycleEvent({
-          type: "session:error",
+          type: "session:stopped",
           sessionId,
-          error: errorMsg,
-          occurredAt: new Date().toISOString(),
+          reason: exitCode === 0 ? "completed" : "errored",
+          stoppedAt: new Date().toISOString(),
         });
-      }
-
-      options.onLifecycleEvent({
-        type: "session:stopped",
-        sessionId,
-        reason: exitCode === 0 ? "completed" : "completed",
-        stoppedAt: new Date().toISOString(),
+      })
+      .catch((err) => {
+        console.error("exit handler error", err);
       });
-    });
 
     return { ok: true, sessionId };
   }
@@ -82,6 +92,7 @@ export function createController(options: ControllerOptions): Controller {
     }
 
     managed.process.kill("SIGINT");
+    await managed.process.exited;
     return { ok: true, sessionId };
   }
 
@@ -100,6 +111,7 @@ export function createController(options: ControllerOptions): Controller {
   }
 
   function shutdown(): void {
+    shuttingDown = true;
     for (const managed of registry.values()) {
       managed.process.kill("SIGTERM");
     }

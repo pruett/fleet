@@ -117,6 +117,7 @@ describe("createController — sendMessage", () => {
       "-p",
       "--resume",
       SESSION_ID,
+      "--",
       "hello world",
     ]);
   });
@@ -203,7 +204,7 @@ describe("createController — sendMessage", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("non-zero exit broadcasts session:error then session:stopped", async () => {
+  it("non-zero exit broadcasts session:error then session:stopped with reason errored", async () => {
     const spawn = createMockSpawn();
     const events: LifecycleEvent[] = [];
     const controller = createController({
@@ -225,11 +226,16 @@ describe("createController — sendMessage", () => {
 
     const stopEvents = events.filter((e) => e.type === "session:stopped");
     expect(stopEvents).toHaveLength(1);
+    expect(stopEvents[0]).toMatchObject({
+      type: "session:stopped",
+      sessionId: SESSION_ID,
+      reason: "errored",
+    });
   });
 });
 
 describe("createController — stopSession", () => {
-  it("sends SIGINT to running process", async () => {
+  it("sends SIGINT and waits for process to exit", async () => {
     const spawn = createMockSpawn();
     const controller = createController({
       onLifecycleEvent: () => {},
@@ -238,7 +244,10 @@ describe("createController — stopSession", () => {
 
     await controller.sendMessage(SESSION_ID, "test");
 
-    const result = await controller.stopSession(SESSION_ID);
+    // Simulate the process exiting after SIGINT is sent
+    const stopPromise = controller.stopSession(SESSION_ID);
+    spawn.calls[0].exit(0);
+    const result = await stopPromise;
 
     expect(result).toEqual({ ok: true, sessionId: SESSION_ID });
     expect(spawn.calls[0].killed).toEqual({ signal: "SIGINT" });
@@ -328,6 +337,27 @@ describe("createController — shutdown", () => {
     const result = await controller.sendMessage(SESSION_ID, "second");
     expect(result.ok).toBe(true);
     expect(spawn.calls).toHaveLength(2);
+  });
+
+  it("does not broadcast lifecycle events after shutdown", async () => {
+    const spawn = createMockSpawn();
+    const events: LifecycleEvent[] = [];
+    const controller = createController({
+      onLifecycleEvent: (e) => events.push(e),
+      spawn: spawn.fn,
+    });
+
+    await controller.sendMessage(SESSION_ID, "test");
+    const eventsBeforeShutdown = events.length;
+
+    controller.shutdown();
+
+    // Process exits after shutdown
+    spawn.calls[0].exit(1);
+    await flushAsync();
+
+    // No new lifecycle events should have been broadcast
+    expect(events.length).toBe(eventsBeforeShutdown);
   });
 
   it("shutdown with no tracked processes is a no-op", () => {

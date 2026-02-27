@@ -82,7 +82,7 @@ export interface SessionStarted {
 export interface SessionStopped {
   type: "session:stopped";
   sessionId: string;
-  reason: "user" | "completed";
+  reason: "user" | "completed" | "errored";
   stoppedAt: string;
 }
 
