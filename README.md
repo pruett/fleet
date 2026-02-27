@@ -23,6 +23,8 @@ This starts two processes concurrently:
 - **Server** (`bun --watch src/main.ts`) — API + WebSocket on `http://localhost:3000`, auto-restarts on file changes
 - **Client** (Vite) — React dev server on `http://localhost:5173` with HMR, proxies `/api` and `/ws` to the server
 
+When running inside a **git worktree**, ports are automatically offset (1–99) based on the worktree name so multiple instances can run concurrently. The dev launcher prints the resolved URLs on startup. Set `FLEET_PORT` / `FLEET_CLIENT_PORT` to override.
+
 ## Production
 
 ```sh
@@ -35,6 +37,7 @@ bun start       # Serve API + static assets on port 3000
 | Variable | Default | Description |
 |---|---|---|
 | `FLEET_PORT` | `3000` | Server listen port |
+| `FLEET_CLIENT_PORT` | `5173` | Vite dev server listen port |
 | `FLEET_BASE_PATHS` | `~/.claude/projects` | Comma-separated paths to scan for Claude session data |
 | `FLEET_STATIC_DIR` | `null` (dev) / `client/dist` (production) | Directory to serve static files from |
 
