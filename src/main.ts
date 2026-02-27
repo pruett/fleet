@@ -6,6 +6,7 @@ import { scanProjects, scanSessions, groupProjects, scanWorktrees } from "./scan
 import { parseFullSession } from "./parser";
 import { watchSession, stopWatching, watchProjectsDir } from "./watcher";
 import { readPreferences, writePreferences } from "./preferences";
+import { createController } from "./controller";
 
 const port = Number(process.env.FLEET_PORT) || 3000;
 
@@ -32,16 +33,9 @@ const projectsDirWatcher = watchProjectsDir({
   },
 });
 
-const controller = {
-  startSession: async () =>
-    ({ ok: false, sessionId: "", error: "Not implemented" }) as const,
-  stopSession: async () =>
-    ({ ok: false, sessionId: "", error: "Not implemented" }) as const,
-  resumeSession: async () =>
-    ({ ok: false, sessionId: "", error: "Not implemented" }) as const,
-  sendMessage: async () =>
-    ({ ok: false, sessionId: "", error: "Not implemented" }) as const,
-};
+const controller = createController({
+  onLifecycleEvent: (event) => transport.broadcastLifecycleEvent(event),
+});
 
 const serverOptions = createServer({
   scanner: { scanProjects, scanSessions, groupProjects, scanWorktrees },
@@ -62,6 +56,7 @@ console.log(`Fleet server listening on http://localhost:${server.port}`);
 
 function shutdown() {
   console.log("\nShutting down...");
+  controller.shutdown();
   projectsDirWatcher.stop();
   transport.shutdown();
   server.stop();
