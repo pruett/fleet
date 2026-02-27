@@ -1,4 +1,4 @@
-import { watch, type FSWatcher } from "fs";
+import { existsSync, watch, type FSWatcher } from "fs";
 import { basename } from "path";
 
 /** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */
@@ -11,6 +11,8 @@ const UUID_V4_RE =
 export interface ProjectsDirWatcher {
   /** Stop watching all base paths and clear all pending timers. */
   stop(): void;
+  /** @internal — exposed for testing only. Simulates a file change event. */
+  _handleFileChange: (filename: string | null) => void;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface WatchProjectsDirOptions {
   basePaths: string[];
   /** Callback invoked when a session file changes (debounced per-sessionId). */
   onSessionActivity: (sessionId: string) => void;
-  /** Debounce delay in milliseconds (default: 3000). */
+  /** Debounce delay in milliseconds (default: 1000). */
   debounceMs?: number;
 }
 
@@ -38,7 +40,7 @@ export interface WatchProjectsDirOptions {
 export function watchProjectsDir(
   options: WatchProjectsDirOptions,
 ): ProjectsDirWatcher {
-  const { basePaths, onSessionActivity, debounceMs = 3000 } = options;
+  const { basePaths, onSessionActivity, debounceMs = 1000 } = options;
 
   const watchers: FSWatcher[] = [];
   const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -77,18 +79,38 @@ export function watchProjectsDir(
 
   // Start watching each base path
   for (const basePath of basePaths) {
-    const watcher = watch(basePath, { recursive: true }, (eventType, filename) => {
-      // Only process "change" events
-      if (eventType === "change") {
-        handleFileChange(filename);
-      }
-    });
+    if (!existsSync(basePath)) {
+      console.warn(
+        `[watch-projects-dir] Skipping non-existent base path: ${basePath}`,
+      );
+      continue;
+    }
 
-    watchers.push(watcher);
+    try {
+      const watcher = watch(basePath, { recursive: true }, (_eventType, filename) => {
+        handleFileChange(filename);
+      });
+
+      watcher.on("error", (err) => {
+        console.warn(
+          `[watch-projects-dir] Watcher error for ${basePath}:`,
+          err instanceof Error ? err.message : err,
+        );
+      });
+
+      watchers.push(watcher);
+    } catch (err) {
+      console.warn(
+        `[watch-projects-dir] Failed to watch ${basePath}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   // Return the stop handle
   return {
+    /** @internal — exposed for testing only. */
+    _handleFileChange: handleFileChange,
     stop(): void {
       // Clear all pending timers
       for (const timer of debounceTimers.values()) {

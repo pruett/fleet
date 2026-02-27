@@ -93,8 +93,6 @@ export interface WsClient {
   onConnectionChange: ((info: ConnectionInfo) => void) | null;
   /** Called after a successful reconnect (not on initial connect). */
   onReconnect: (() => void) | null;
-  /** Called when a session:activity broadcast arrives. */
-  onSessionActivity: ((event: SessionActivityEvent) => void) | null;
 }
 
 /**
@@ -125,7 +123,6 @@ export function createWsClient(): WsClient {
     onError: null,
     onConnectionChange: null,
     onReconnect: null,
-    onSessionActivity: null,
 
     subscribe(sessionId: string) {
       currentSubscriptionId = sessionId;
@@ -241,10 +238,8 @@ export function createWsClient(): WsClient {
         case "session:started":
         case "session:stopped":
         case "session:error":
-          client.onLifecycleEvent?.(msg);
-          break;
         case "session:activity":
-          client.onSessionActivity?.(msg);
+          client.onLifecycleEvent?.(msg);
           break;
         case "error":
           client.onError?.(msg);

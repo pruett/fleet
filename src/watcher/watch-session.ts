@@ -1,4 +1,4 @@
-import { watch, readFileSync, type FSWatcher } from "fs";
+import { watch, type FSWatcher } from "fs";
 import { parseLine, type ParsedMessage } from "../parser";
 import type { WatchOptions, WatchHandle, WatchBatch, WatchError } from "./types";
 
@@ -38,7 +38,7 @@ export const _registry = registry;
  * Start tailing a session transcript file.
  * Returns a handle for inspecting state and stopping the watcher.
  */
-export function watchSession(options: WatchOptions): WatchHandle {
+export async function watchSession(options: WatchOptions): Promise<WatchHandle> {
   const { sessionId, filePath } = options;
 
   // Return existing handle if this session is already being watched
@@ -50,11 +50,13 @@ export function watchSession(options: WatchOptions): WatchHandle {
 
   // Count newlines in existing content so lineIndex matches parseFullSession's
   // array-index scheme (each \n starts a new line number).
+  // Read only up to initialSize to avoid TOCTOU race if the file grows.
   let initialLineIndex = 0;
   if (initialSize > 0) {
-    const buf = readFileSync(filePath);
-    const limit = Math.min(buf.length, initialSize);
-    for (let i = 0; i < limit; i++) {
+    const buf = new Uint8Array(
+      await Bun.file(filePath).slice(0, initialSize).arrayBuffer(),
+    );
+    for (let i = 0; i < buf.length; i++) {
       if (buf[i] === 0x0a) initialLineIndex++;
     }
   }

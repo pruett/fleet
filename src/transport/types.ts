@@ -33,13 +33,11 @@ export interface ClientRegistry {
 
 export interface TransportOptions {
   /** Start tailing a session transcript file. From the File Watcher module. */
-  watchSession: (options: WatchOptions) => WatchHandle;
+  watchSession: (options: WatchOptions) => WatchHandle | Promise<WatchHandle>;
   /** Stop a single watcher. From the File Watcher module. */
   stopWatching: (handle: WatchHandle) => void;
   /** Resolve a sessionId to an absolute .jsonl file path, or null if unknown. */
   resolveSessionPath: (sessionId: string) => Promise<string | null>;
-  /** Debounce window (ms) for session:activity broadcasts. Default: 5000. */
-  activityDebounceMs?: number;
 }
 
 // ============================================================

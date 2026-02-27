@@ -32,18 +32,19 @@ export function useSessionActivity(): void {
       }, delayMs);
     }
 
-    // Lifecycle events: session:started / session:stopped change the session
-    // list itself, so invalidate quickly (500ms debounce).
+    // All lifecycle events flow through one handler.
+    // session:started / session:stopped change the session list itself,
+    // so invalidate quickly. session:activity means data changed (timestamps,
+    // tokens, etc.) — use the same 500ms debounce since the server already
+    // debounces at 1s.
     ws.onLifecycleEvent = (event) => {
-      if (event.type === "session:started" || event.type === "session:stopped") {
+      if (
+        event.type === "session:started" ||
+        event.type === "session:stopped" ||
+        event.type === "session:activity"
+      ) {
         scheduleInvalidation(500);
       }
-    };
-
-    // Activity events: session data changed (timestamps, tokens, etc.)
-    // Use a longer debounce (2s) since these fire frequently.
-    ws.onSessionActivity = () => {
-      scheduleInvalidation(2_000);
     };
 
     // Periodic poll so timeAgo() timestamps stay fresh even without events.

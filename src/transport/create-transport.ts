@@ -24,10 +24,6 @@ export function createTransport(options: TransportOptions): Transport {
   // Reverse lookup: ws reference → clientId (needed by handleMessage/handleClose)
   const wsToClientId = new Map<ServerWebSocket<unknown>, string>();
 
-  // Per-session debounce timers for session:activity broadcasts
-  const activityDebounceMs = options.activityDebounceMs ?? 5_000;
-  const activityTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
   // --- Broadcast helper ---
 
   function broadcastEvent(event: LifecycleEvent): void {
@@ -64,21 +60,6 @@ export function createTransport(options: TransportOptions): Transport {
       }
     }
 
-    // Debounced session:activity broadcast to all clients (for sidebar refresh)
-    const { sessionId } = batch;
-    const existing = activityTimers.get(sessionId);
-    if (existing !== undefined) clearTimeout(existing);
-    activityTimers.set(
-      sessionId,
-      setTimeout(() => {
-        activityTimers.delete(sessionId);
-        broadcastEvent({
-          type: "session:activity",
-          sessionId,
-          updatedAt: new Date().toISOString(),
-        });
-      }, activityDebounceMs),
-    );
   }
 
   // --- Subscribe ---
@@ -149,7 +130,7 @@ export function createTransport(options: TransportOptions): Transport {
     // 7. Start watcher for first subscriber
     if (subscriberSet.size === 1) {
       try {
-        const watchHandle = options.watchSession({
+        const watchHandle = await options.watchSession({
           sessionId,
           filePath,
           onMessages: (batch) => relayBatch(batch),
@@ -305,13 +286,7 @@ export function createTransport(options: TransportOptions): Transport {
       }
       watchers.clear();
 
-      // 2. Cancel all pending activity timers
-      for (const timer of activityTimers.values()) {
-        clearTimeout(timer);
-      }
-      activityTimers.clear();
-
-      // 3. Close all WebSocket connections with 1001 (Going Away)
+      // 2. Close all WebSocket connections with 1001 (Going Away)
       for (const client of clients.values()) {
         client.ws.close(1001, "Server shutting down");
       }

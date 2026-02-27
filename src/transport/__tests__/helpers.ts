@@ -84,7 +84,6 @@ export function createMockTransportOptions(): MockTransportOptions {
     `/mock/sessions/${id}.jsonl`;
 
   const options: TransportOptions = {
-    activityDebounceMs: 50,
     watchSession(watchOpts: WatchOptions): WatchHandle {
       const handle: WatchHandle = {
         sessionId: watchOpts.sessionId,
