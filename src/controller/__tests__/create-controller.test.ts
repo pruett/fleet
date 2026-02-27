@@ -117,7 +117,6 @@ describe("createController — sendMessage", () => {
       "-p",
       "--resume",
       SESSION_ID,
-      "--",
       "hello world",
     ]);
   });

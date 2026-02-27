@@ -23,7 +23,7 @@ export function createController(options: ControllerOptions): Controller {
     }
 
     const proc = spawn(
-      ["claude", "-p", "--resume", sessionId, "--", message],
+      ["claude", "-p", "--resume", sessionId, message],
       {
         stdout: "ignore",
         stderr: "pipe",
