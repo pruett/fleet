@@ -84,6 +84,7 @@ export function createMockTransportOptions(): MockTransportOptions {
     `/mock/sessions/${id}.jsonl`;
 
   const options: TransportOptions = {
+    activityDebounceMs: 50,
     watchSession(watchOpts: WatchOptions): WatchHandle {
       const handle: WatchHandle = {
         sessionId: watchOpts.sessionId,
@@ -144,6 +145,11 @@ export function createBrokenMockWebSocket(): MockWebSocket {
 // ============================================================
 // Utilities
 // ============================================================
+
+/** Promise-based delay for waiting on debounced timers in tests. */
+export function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /** A valid UUID v4 for use in tests. */
 export const VALID_SESSION_ID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";

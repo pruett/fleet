@@ -24,7 +24,8 @@ export function createTransport(options: TransportOptions): Transport {
   // Reverse lookup: ws reference → clientId (needed by handleMessage/handleClose)
   const wsToClientId = new Map<ServerWebSocket<unknown>, string>();
 
-  // Per-session debounce timers for session:activity broadcasts (5s window)
+  // Per-session debounce timers for session:activity broadcasts
+  const activityDebounceMs = options.activityDebounceMs ?? 5_000;
   const activityTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   // --- Broadcast helper ---
@@ -76,7 +77,7 @@ export function createTransport(options: TransportOptions): Transport {
           sessionId,
           updatedAt: new Date().toISOString(),
         });
-      }, 5_000),
+      }, activityDebounceMs),
     );
   }
 

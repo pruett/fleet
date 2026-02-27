@@ -38,6 +38,8 @@ export interface TransportOptions {
   stopWatching: (handle: WatchHandle) => void;
   /** Resolve a sessionId to an absolute .jsonl file path, or null if unknown. */
   resolveSessionPath: (sessionId: string) => Promise<string | null>;
+  /** Debounce window (ms) for session:activity broadcasts. Default: 5000. */
+  activityDebounceMs?: number;
 }
 
 // ============================================================
