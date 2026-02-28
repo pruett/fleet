@@ -243,7 +243,7 @@ export function SessionPanel({
                 <ConversationEmptyState title="No messages yet" description="" />
               </ConversationContent>
             ) : (
-              <ConversationContent className="mx-auto max-w-3xl gap-4 p-6">
+              <ConversationContent className="gap-4 p-6">
                 {groupMessagesByTurn(visibleMessages).map((group) => (
                   <TurnGroup
                     key={group.turnIndex ?? "pre"}
@@ -257,7 +257,7 @@ export function SessionPanel({
 
           {/* Message input */}
           <div className="border-t px-6 py-3">
-            <div className="mx-auto max-w-3xl">
+            <div>
               <PromptInput onSubmit={handlePromptSubmit}>
                 <PromptInputTextarea
                   placeholder="Send a message…"

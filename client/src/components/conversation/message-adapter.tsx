@@ -52,7 +52,7 @@ export function MessageAdapter({ message }: MessageAdapterProps) {
     case "user-prompt":
       if (message.isMeta) return null;
       return (
-        <Message from="user">
+        <Message from="user" data-type="user-prompt">
           <MessageContent>
             <MessageResponse>{message.text}</MessageResponse>
           </MessageContent>
@@ -63,15 +63,16 @@ export function MessageAdapter({ message }: MessageAdapterProps) {
       switch (message.contentBlock.type) {
         case "text":
           return (
-            <Message from="assistant">
-              <MessageContent>
-                <MessageResponse>{message.contentBlock.text}</MessageResponse>
-              </MessageContent>
-            </Message>
+            <MessageResponse
+              data-type="assistant-text"
+              className="min-w-0 overflow-hidden text-sm text-foreground"
+            >
+              {message.contentBlock.text}
+            </MessageResponse>
           );
         case "thinking":
           return (
-            <Reasoning defaultOpen={false}>
+            <Reasoning data-type="assistant-thinking" defaultOpen={false}>
               <ReasoningTrigger />
               <ReasoningContent>{message.contentBlock.thinking}</ReasoningContent>
             </Reasoning>
@@ -82,10 +83,10 @@ export function MessageAdapter({ message }: MessageAdapterProps) {
       return null;
 
     case "system-api-error":
-      return <ApiErrorBlock message={message} />;
+      return <ApiErrorBlock data-type="system-api-error" message={message} />;
 
     case "progress-agent":
-      return <AgentProgressBlock message={message} />;
+      return <AgentProgressBlock data-type="progress-agent" message={message} />;
 
     // Non-rendered kinds (filtered by isVisibleMessage, but kept for exhaustiveness)
     case "progress-bash":
