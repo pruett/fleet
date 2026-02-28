@@ -20,7 +20,7 @@ import type {
   ParsedMessage,
   UserPromptMessage,
 } from "@/types/api";
-import { isVisibleMessage } from "@/components/conversation/MessageComponent";
+import { isVisibleMessage } from "@/components/conversation/message-adapter";
 import {
   type AnalyticsFields,
   type IncrementalContext,
@@ -102,18 +102,12 @@ export interface UseSessionDataResult {
   handleStop: () => void;
   handleResume: () => void;
   handleNewSession: () => void;
-  handleSendMessage: () => void;
-  handleTextareaKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  handleSendMessage: (text: string) => void;
   retry: () => void;
 
   // Input state
-  messageInput: string;
-  setMessageInput: (value: string) => void;
   sendingMessage: boolean;
   actionLoading: string | null;
-
-  // Refs
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 export function useSessionData({
@@ -129,7 +123,6 @@ export function useSessionData({
   const [retryCount, setRetryCount] = useState(0);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [messageInput, setMessageInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("unknown");
   const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
@@ -137,7 +130,6 @@ export function useSessionData({
 
   const wsRef = useRef<WsClient | null>(null);
   const baselineRef = useRef<Set<number>>(new Set());
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const incrementalCtxRef = useRef<IncrementalContext | null>(null);
   const refetchingRef = useRef(false);
   const reconnectBufferRef = useRef<ParsedMessage[]>([]);
@@ -186,30 +178,19 @@ export function useSessionData({
     }
   }
 
-  async function handleSendMessage() {
-    const trimmed = messageInput.trim();
+  async function handleSendMessage(text: string) {
+    const trimmed = text.trim();
     if (!trimmed || sendingMessage) return;
     setSendingMessage(true);
     try {
       await sendMessage(sessionId, trimmed);
-      setMessageInput("");
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : "Failed to send message",
       );
+      throw err; // Re-throw so PromptInput preserves input on failure
     } finally {
       setSendingMessage(false);
-    }
-  }
-
-  function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      textareaRef.current?.blur();
     }
   }
 
@@ -383,12 +364,8 @@ export function useSessionData({
     handleResume,
     handleNewSession,
     handleSendMessage,
-    handleTextareaKeyDown,
     retry,
-    messageInput,
-    setMessageInput,
     sendingMessage,
     actionLoading,
-    textareaRef,
   };
 }

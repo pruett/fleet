@@ -1,16 +1,19 @@
+import { useCallback } from "react";
 import { timeAgo } from "@/lib/time";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Conversation,
+  ConversationContent,
   ConversationEmptyState,
   ConversationScrollButton,
-} from "@/components/conversation/Conversation";
+} from "@/components/ai-elements/conversation";
 import {
-  CollapsibleGroupProvider,
-  ExpandCollapseToggle,
-} from "@/components/conversation/CollapsibleGroup";
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputSubmit,
+} from "@/components/ai-elements/prompt-input";
 import {
   TurnGroup,
   groupMessagesByTurn,
@@ -99,13 +102,17 @@ export function SessionPanel({
     analyticsSession,
     sessionMeta,
     handleSendMessage,
-    handleTextareaKeyDown,
     retry,
-    messageInput,
-    setMessageInput,
     sendingMessage,
-    textareaRef,
   } = useSessionData({ sessionId, projectId, onGoSession });
+
+  const handlePromptSubmit = useCallback(
+    async (message: { text: string }) => {
+      if (!message.text.trim()) return;
+      await handleSendMessage(message.text);
+    },
+    [handleSendMessage],
+  );
 
   // -- Loading state --------------------------------------------------------
 
@@ -230,48 +237,36 @@ export function SessionPanel({
 
         {/* Content area — full width (analytics moved to Sheet) */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          <CollapsibleGroupProvider>
-            <Conversation messageCount={visibleMessages.length} className="flex-1 min-h-0 p-6">
-              {visibleMessages.length === 0 ? (
-                <ConversationEmptyState>No messages yet</ConversationEmptyState>
-              ) : (
-                <div className="mx-auto flex max-w-3xl flex-col gap-4">
-                  <div className="flex justify-end">
-                    <ExpandCollapseToggle />
-                  </div>
-                  {groupMessagesByTurn(visibleMessages).map((group, i) => (
-                    <TurnGroup
-                      key={group.turnIndex ?? "pre"}
-                      group={group}
-                      isFirst={i === 0}
-                    />
-                  ))}
-                </div>
-              )}
-              <ConversationScrollButton />
-            </Conversation>
-          </CollapsibleGroupProvider>
+          <Conversation className="flex-1 min-h-0">
+            {visibleMessages.length === 0 ? (
+              <ConversationContent className="h-full">
+                <ConversationEmptyState title="No messages yet" description="" />
+              </ConversationContent>
+            ) : (
+              <ConversationContent className="mx-auto max-w-3xl gap-4 p-6">
+                {groupMessagesByTurn(visibleMessages).map((group) => (
+                  <TurnGroup
+                    key={group.turnIndex ?? "pre"}
+                    group={group}
+                  />
+                ))}
+              </ConversationContent>
+            )}
+            <ConversationScrollButton />
+          </Conversation>
 
           {/* Message input */}
           <div className="border-t px-6 py-3">
-            <div className="mx-auto flex max-w-3xl gap-2">
-              <textarea
-                ref={textareaRef}
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={handleTextareaKeyDown}
-                placeholder="Send a message…"
-                rows={1}
-                disabled={sendingMessage}
-                className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-              />
-              <Button
-                size="sm"
-                onClick={handleSendMessage}
-                disabled={sendingMessage || messageInput.trim().length === 0}
-              >
-                {sendingMessage ? "Sending…" : "Send"}
-              </Button>
+            <div className="mx-auto max-w-3xl">
+              <PromptInput onSubmit={handlePromptSubmit}>
+                <PromptInputTextarea
+                  placeholder="Send a message…"
+                  disabled={sendingMessage}
+                />
+                <PromptInputSubmit
+                  disabled={sendingMessage}
+                />
+              </PromptInput>
             </div>
           </div>
         </div>

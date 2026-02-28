@@ -1,5 +1,5 @@
 import type { ParsedMessage } from "@/types/api";
-import { MessageComponent } from "./MessageComponent";
+import { MessageAdapter } from "./message-adapter";
 
 // ---------------------------------------------------------------------------
 // Turn grouping logic
@@ -47,19 +47,16 @@ export function groupMessagesByTurn(
 
 interface TurnGroupProps {
   group: TurnGroupData;
-  /** Whether this is the first group in the list (suppresses the separator). */
-  isFirst: boolean;
 }
 
 /**
- * Renders a group of messages belonging to a single turn. Shows a visual
- * separator with the turn index label between consecutive turns.
+ * Renders a group of messages belonging to a single turn.
  */
-export function TurnGroup({ group, isFirst }: TurnGroupProps) {
+export function TurnGroup({ group }: TurnGroupProps) {
   return (
     <div className="flex flex-col gap-4">
       {group.messages.map((msg, i) => (
-        <MessageComponent key={`${msg.lineIndex}-${i}`} message={msg} />
+        <MessageAdapter key={`${msg.lineIndex}-${i}`} message={msg} />
       ))}
     </div>
   );
