@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ApiError,
@@ -102,7 +102,7 @@ export interface UseSessionDataResult {
   handleStop: () => void;
   handleResume: () => void;
   handleNewSession: () => void;
-  handleSendMessage: (text: string) => void;
+  handleSendMessage: (text: string) => Promise<void>;
   retry: () => void;
 
   // Input state
@@ -134,9 +134,11 @@ export function useSessionData({
   const refetchingRef = useRef(false);
   const reconnectBufferRef = useRef<ParsedMessage[]>([]);
 
+  const sendingRef = useRef(false);
+
   // -- Action handlers ------------------------------------------------------
 
-  async function handleStop() {
+  const handleStop = useCallback(async () => {
     setActionLoading("stop");
     try {
       await stopSession(sessionId);
@@ -146,9 +148,9 @@ export function useSessionData({
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [sessionId]);
 
-  async function handleResume() {
+  const handleResume = useCallback(async () => {
     setActionLoading("resume");
     try {
       await resumeSession(sessionId);
@@ -160,9 +162,9 @@ export function useSessionData({
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [sessionId]);
 
-  async function handleNewSession() {
+  const handleNewSession = useCallback(async () => {
     if (!projectId) return;
     setActionLoading("new");
     try {
@@ -176,11 +178,12 @@ export function useSessionData({
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [projectId, onGoSession]);
 
-  async function handleSendMessage(text: string) {
+  const handleSendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || sendingMessage) return;
+    if (!trimmed || sendingRef.current) return;
+    sendingRef.current = true;
     setSendingMessage(true);
     try {
       await sendMessage(sessionId, trimmed);
@@ -190,9 +193,10 @@ export function useSessionData({
       );
       throw err; // Re-throw so PromptInput preserves input on failure
     } finally {
+      sendingRef.current = false;
       setSendingMessage(false);
     }
-  }
+  }, [sessionId]);
 
   function retry() {
     setLoading(true);
@@ -330,14 +334,16 @@ export function useSessionData({
 
   // -- Computed values ------------------------------------------------------
 
-  const baselineIndexes = session
-    ? new Set(session.messages.map((m) => m.lineIndex))
-    : new Set<number>();
-  const uniqueLive = liveMessages.filter(
-    (m) => !baselineIndexes.has(m.lineIndex),
-  );
-  const allMessages = session ? [...session.messages, ...uniqueLive] : [];
-  const visibleMessages = allMessages.filter(isVisibleMessage);
+  const visibleMessages = useMemo(() => {
+    const baselineIndexes = session
+      ? new Set(session.messages.map((m) => m.lineIndex))
+      : new Set<number>();
+    const uniqueLive = liveMessages.filter(
+      (m) => !baselineIndexes.has(m.lineIndex),
+    );
+    const allMessages = session ? [...session.messages, ...uniqueLive] : [];
+    return allMessages.filter(isVisibleMessage);
+  }, [session, liveMessages]);
 
   const sessionMeta = session ? getSessionMeta(session) : null;
   const displayTotals = analytics?.totals ?? session?.totals;

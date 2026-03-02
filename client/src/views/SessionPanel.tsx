@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { timeAgo } from "@/lib/time";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +121,11 @@ export function SessionPanel({
     [handleSendMessage],
   );
 
+  const turnGroups = useMemo(
+    () => groupMessagesByTurn(visibleMessages),
+    [visibleMessages],
+  );
+
   // -- Loading state --------------------------------------------------------
 
   if (loading) {
@@ -173,7 +178,7 @@ export function SessionPanel({
   // -- Main content ---------------------------------------------------------
 
   return (
-    <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+    <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen} modal={false}>
       <div className="flex h-full flex-col">
         {/* Header bar with status + analytics toggle */}
         <div className="flex items-center justify-between border-b px-6 py-2">
@@ -251,7 +256,7 @@ export function SessionPanel({
               </ConversationContent>
             ) : (
               <ConversationContent className="gap-4 p-6 pb-[calc(var(--prompt-input-height)*2)]">
-                {groupMessagesByTurn(visibleMessages).map((group) => (
+                {turnGroups.map((group) => (
                   <TurnGroup
                     key={group.turnIndex ?? "pre"}
                     group={group}
@@ -297,6 +302,7 @@ export function SessionPanel({
       <SheetContent
         side="right"
         showCloseButton={false}
+        showOverlay={false}
         className="w-[360px] sm:max-w-[360px] border-l-0 p-0"
         aria-describedby={undefined}
       >

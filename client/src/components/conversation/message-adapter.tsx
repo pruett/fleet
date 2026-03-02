@@ -26,7 +26,7 @@ const HIDDEN_KINDS = new Set<string>([
 /** Detect user prompts that are mostly XML tags (slash-command output, etc.). */
 function isXmlTagMessage(text: string): boolean {
   const trimmed = text.trim();
-  return /^<[a-z-]+[\s>]/i.test(trimmed) && /<\/[a-z-]+>\s*$/i.test(trimmed);
+  return /^<[a-zA-Z-]+[\s>]/.test(trimmed) && /<\/[a-zA-Z-]+>\s*$/.test(trimmed);
 }
 
 /** Determine whether a message should be rendered in the conversation. */
