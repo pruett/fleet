@@ -11,8 +11,12 @@ import {
 } from "@/components/ai-elements/conversation";
 import {
   PromptInput,
-  PromptInputTextarea,
+  PromptInputBody,
+  PromptInputButton,
+  PromptInputFooter,
   PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import {
   TurnGroup,
@@ -33,6 +37,7 @@ import {
   formatCost,
 } from "@/hooks/use-session-data";
 import type { ConnectionInfo } from "@/lib/ws";
+import { GlobeIcon, PaperclipIcon } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Shared presentational components
@@ -257,17 +262,25 @@ export function SessionPanel({
 
           {/* Message input */}
           <div className="border-t px-6 py-3">
-            <div>
-              <PromptInput onSubmit={handlePromptSubmit}>
+            <PromptInput onSubmit={handlePromptSubmit}>
+              <PromptInputBody>
                 <PromptInputTextarea
                   placeholder="Send a message…"
                   disabled={sendingMessage}
                 />
-                <PromptInputSubmit
-                  disabled={sendingMessage}
-                />
-              </PromptInput>
-            </div>
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <PromptInputButton tooltip="Attach files">
+                    <PaperclipIcon className="size-4" />
+                  </PromptInputButton>
+                  <PromptInputButton tooltip="Search the web">
+                    <GlobeIcon className="size-4" />
+                  </PromptInputButton>
+                </PromptInputTools>
+                <PromptInputSubmit disabled={sendingMessage} />
+              </PromptInputFooter>
+            </PromptInput>
           </div>
         </div>
       </div>
