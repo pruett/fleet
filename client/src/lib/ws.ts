@@ -51,7 +51,11 @@ export type LifecycleEvent =
   | SessionErrorEvent
   | SessionActivityEvent;
 
-export type ServerMessage = MessageBatch | LifecycleEvent | WsError;
+export interface Heartbeat {
+  type: "heartbeat";
+}
+
+export type ServerMessage = MessageBatch | LifecycleEvent | WsError | Heartbeat;
 
 // ============================================================
 // Connection status types
@@ -243,6 +247,9 @@ export function createWsClient(): WsClient {
           break;
         case "error":
           client.onError?.(msg);
+          break;
+        case "heartbeat":
+          // Server liveness signal — no action needed
           break;
         default:
           // Unknown message type — ignore

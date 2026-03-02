@@ -231,12 +231,21 @@ function schedulePoll(
 
   state.pollTimer = setTimeout(() => {
     state.pollTimer = null;
-    if (
-      !state.handle.stopped &&
-      !state.processing &&
-      Bun.file(state.handle.filePath).size > state.handle.byteOffset
-    ) {
-      processChanges();
+    if (state.handle.stopped) return;
+    if (state.processing) {
+      // A processChanges call is in-flight — reschedule instead of terminating
+      schedulePoll(state, processChanges);
+      return;
+    }
+    if (Bun.file(state.handle.filePath).size > state.handle.byteOffset) {
+      processChanges().catch((err) => {
+        state.options.onError({
+          sessionId: state.handle.sessionId,
+          code: "WATCH_ERROR",
+          message: `Unexpected error processing changes for ${state.handle.filePath}`,
+          cause: err instanceof Error ? err : new Error(String(err)),
+        });
+      });
     }
   }, 50);
 }

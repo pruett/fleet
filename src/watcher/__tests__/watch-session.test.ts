@@ -711,6 +711,100 @@ describe("watchSession — blank & malformed lines", () => {
   });
 });
 
+describe("watchSession — poll error recovery", () => {
+  let tmp: TempJsonl | null = null;
+  let handle: WatchHandle | null = null;
+
+  afterEach(async () => {
+    if (tmp) {
+      try {
+        await chmod(tmp.path, 0o644);
+      } catch {}
+    }
+    stopAll();
+    handle = null;
+    if (tmp) await tmp.cleanup();
+    tmp = null;
+  });
+
+  it("continues delivering messages after poll-path processChanges encounters an error", async () => {
+    tmp = await createTempJsonl();
+
+    const errors: WatchError[] = [];
+    const batches: WatchBatch[] = [];
+    let totalMessages = 0;
+    let resolveFirst: () => void;
+    const firstReceived = new Promise<void>((r) => {
+      resolveFirst = r;
+    });
+    let resolveSecond: () => void;
+    const secondReceived = new Promise<void>((r) => {
+      resolveSecond = r;
+    });
+
+    handle = await watchSession({
+      sessionId: "test-poll-error-recovery",
+      filePath: tmp.path,
+      onMessages: (batch) => {
+        batches.push(batch);
+        totalMessages += batch.messages.length;
+        if (totalMessages >= 1 && !firstResolved) {
+          firstResolved = true;
+          resolveFirst();
+        }
+        if (totalMessages >= 2) resolveSecond();
+      },
+      onError: (err) => {
+        errors.push(err);
+      },
+    });
+
+    let firstResolved = false;
+
+    // 1. Append a line so the watcher processes it normally
+    await appendLines(tmp.path, [toLine(makeUserPrompt("Before error"))]);
+
+    await Promise.race([
+      firstReceived,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout waiting for first message")), 5_000),
+      ),
+    ]);
+
+    expect(totalMessages).toBe(1);
+    expect(batches[0].messages[0].kind).toBe("user-prompt");
+
+    // 2. Make file unreadable so the poll-path processChanges will fail on read
+    await chmod(tmp.path, 0o200);
+
+    // 3. Append data while unreadable — fs.watch fires, read fails, poll also fails
+    await appendLines(tmp.path, [toLine(makeUserPrompt("During unreadable"))]);
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Should have reported at least one error
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+
+    // 4. Restore permissions and append another line — watcher should recover
+    await chmod(tmp.path, 0o644);
+    await appendLines(tmp.path, [
+      toLine(makeAssistantRecord(makeTextBlock("After recovery"))),
+    ]);
+
+    await Promise.race([
+      secondReceived,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout waiting for recovery message")), 5_000),
+      ),
+    ]);
+
+    // The watcher delivered messages after the poll error
+    expect(totalMessages).toBeGreaterThanOrEqual(2);
+
+    // Watcher is still alive (not stopped)
+    expect(handle!.stopped).toBe(false);
+  });
+});
+
 describe("watchSession — error resilience", () => {
   let tmp: TempJsonl | null = null;
   let handle: WatchHandle | null = null;
