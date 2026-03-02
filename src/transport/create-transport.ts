@@ -24,33 +24,31 @@ export function createTransport(options: TransportOptions): Transport {
   // Reverse lookup: ws reference → clientId (needed by handleMessage/handleClose)
   const wsToClientId = new Map<ServerWebSocket<unknown>, string>();
 
+  // --- Broadcast helpers ---
+
+  function broadcastRaw(frame: string): void {
+    for (const client of clients.values()) {
+      try {
+        client.ws.send(frame);
+      } catch {
+        // Broken pipe / closed socket — skip
+      }
+    }
+  }
+
+  function broadcastEvent(event: LifecycleEvent): void {
+    broadcastRaw(JSON.stringify(event));
+  }
+
   // --- Heartbeat ---
 
   const HEARTBEAT_INTERVAL_MS = 30_000;
   const heartbeatFrame = JSON.stringify({ type: "heartbeat" });
 
-  const heartbeatTimer = setInterval(() => {
-    for (const client of clients.values()) {
-      try {
-        client.ws.send(heartbeatFrame);
-      } catch {
-        // Broken pipe / closed socket — skip
-      }
-    }
-  }, HEARTBEAT_INTERVAL_MS);
-
-  // --- Broadcast helper ---
-
-  function broadcastEvent(event: LifecycleEvent): void {
-    const frame = JSON.stringify(event);
-    for (const client of clients.values()) {
-      try {
-        client.ws.send(frame);
-      } catch {
-        // Broken pipe / closed socket — skip and continue to next client
-      }
-    }
-  }
+  const heartbeatTimer = setInterval(
+    () => broadcastRaw(heartbeatFrame),
+    HEARTBEAT_INTERVAL_MS,
+  );
 
   // --- Relay ---
 

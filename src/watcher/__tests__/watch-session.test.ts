@@ -733,6 +733,7 @@ describe("watchSession — poll error recovery", () => {
     const errors: WatchError[] = [];
     const batches: WatchBatch[] = [];
     let totalMessages = 0;
+    let firstResolved = false;
     let resolveFirst: () => void;
     const firstReceived = new Promise<void>((r) => {
       resolveFirst = r;
@@ -758,8 +759,6 @@ describe("watchSession — poll error recovery", () => {
         errors.push(err);
       },
     });
-
-    let firstResolved = false;
 
     // 1. Append a line so the watcher processes it normally
     await appendLines(tmp.path, [toLine(makeUserPrompt("Before error"))]);

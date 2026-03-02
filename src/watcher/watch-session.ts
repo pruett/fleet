@@ -233,8 +233,9 @@ function schedulePoll(
     state.pollTimer = null;
     if (state.handle.stopped) return;
     if (state.processing) {
-      // A processChanges call is in-flight — reschedule instead of terminating
-      schedulePoll(state, processChanges);
+      // A processChanges call is in-flight — flag for recheck instead of
+      // scheduling a redundant poll (processChanges already reschedules on exit)
+      state.recheckNeeded = true;
       return;
     }
     if (Bun.file(state.handle.filePath).size > state.handle.byteOffset) {
