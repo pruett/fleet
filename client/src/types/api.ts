@@ -332,4 +332,5 @@ export interface EnrichedSession {
   subagents: SubagentRef[];
   contextSnapshots: ContextSnapshot[];
   contextWindowSize: number | null;
+  gitBranch: string | null;
 }

@@ -22,10 +22,14 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
 
   // First pass: build turns and track which turn each lineIndex belongs to
   let currentTurnIndex = -1;
+  let gitBranch: string | null = null;
   const lineToTurn = new Map<number, number | null>();
 
   for (const msg of messages) {
     if (msg.kind === "user-prompt" && !msg.isMeta) {
+      if (currentTurnIndex === -1) {
+        gitBranch = msg.gitBranch;
+      }
       currentTurnIndex++;
       turns.push({
         turnIndex: currentTurnIndex,
@@ -238,6 +242,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     subagents,
     contextSnapshots,
     contextWindowSize,
+    gitBranch,
   };
 }
 

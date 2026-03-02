@@ -90,6 +90,7 @@ export const UserRecordSchema = CommonFieldsSchema.extend({
     content: z.union([z.string(), z.array(ToolResultItemSchema)]),
   }),
   isMeta: z.boolean().optional(),
+  gitBranch: z.string().optional(),
   toolUseResult: ToolUseResultSchema.optional(),
 });
 
@@ -215,6 +216,7 @@ export const UserPromptMessageSchema = z.object({
   timestamp: z.string(),
   text: z.string(),
   isMeta: z.boolean(),
+  gitBranch: z.string().nullable(),
   lineIndex: z.number(),
 });
 

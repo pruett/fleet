@@ -49,6 +49,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
         timestamp: "2026-02-23T10:00:00.000Z",
         text: "Hello",
         isMeta: false,
+        gitBranch: null,
         lineIndex: 0,
       },
       {
@@ -227,6 +228,7 @@ describe("createTransport — Phase 0 tracer bullet", () => {
           timestamp: "2026-02-23T10:00:00.000Z",
           text: "Hello",
           isMeta: false,
+          gitBranch: null,
           lineIndex: 0,
         },
       ],

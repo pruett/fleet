@@ -27,6 +27,7 @@ import {
   SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuAction,
@@ -37,6 +38,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -345,8 +347,14 @@ export function DashboardView() {
   }, [refreshDirectories]);
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh !min-h-0 overflow-hidden">
       <Sidebar side="left">
+        <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+          <span className="text-sm font-semibold tracking-tight">
+            <span className="mr-1.5" aria-hidden="true">🚀</span>
+            Fleet
+          </span>
+        </SidebarHeader>
         <SidebarContent className="bg-muted/30">
           <SidebarGroup>
             <SidebarGroupLabel>Projects</SidebarGroupLabel>
@@ -395,7 +403,7 @@ export function DashboardView() {
         </SidebarContent>
       </Sidebar>
 
-      <SidebarInset className="overflow-hidden">
+      <SidebarInset>
         {selectedSessionId ? (
           <SessionPanel
             key={selectedSessionId}
@@ -403,10 +411,15 @@ export function DashboardView() {
             onGoSession={selectSession}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center p-6">
-            <p className="text-muted-foreground">
-              Select a session from the sidebar
-            </p>
+          <div className="flex h-full flex-col">
+            <header className="flex h-12 shrink-0 items-center border-b bg-background px-4">
+              <SidebarTrigger className="-ml-1" />
+            </header>
+            <div className="flex flex-1 items-center justify-center p-6">
+              <p className="text-muted-foreground">
+                Select a session from the sidebar
+              </p>
+            </div>
           </div>
         )}
       </SidebarInset>

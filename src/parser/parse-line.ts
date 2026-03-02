@@ -68,6 +68,7 @@ export function parseLine(line: string, lineIndex: number): ParsedMessage | null
           timestamp: record.timestamp,
           text: content,
           isMeta: record.isMeta ?? false,
+          gitBranch: record.gitBranch ?? null,
           lineIndex,
         };
       }
