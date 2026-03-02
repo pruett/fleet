@@ -208,24 +208,25 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
 
   const subagents = Array.from(subagentMap.values());
 
-  // Context snapshots: cumulative token totals after each non-synthetic response
+  // Context snapshots: per-response token totals (each response's input_tokens
+  // already includes the full conversation history, so no accumulation needed)
   const contextSnapshots: ContextSnapshot[] = [];
-  let cumulativeInput = 0;
-  let cumulativeOutput = 0;
 
   for (const response of responses) {
     if (response.isSynthetic) continue;
-    cumulativeInput += response.usage.input_tokens
-      + (response.usage.cache_read_input_tokens ?? 0)
-      + (response.usage.cache_creation_input_tokens ?? 0);
-    cumulativeOutput += response.usage.output_tokens;
     contextSnapshots.push({
       messageId: response.messageId,
       turnIndex: response.turnIndex,
-      cumulativeInputTokens: cumulativeInput,
-      cumulativeOutputTokens: cumulativeOutput,
+      inputTokens: response.usage.input_tokens
+        + (response.usage.cache_read_input_tokens ?? 0)
+        + (response.usage.cache_creation_input_tokens ?? 0),
+      outputTokens: response.usage.output_tokens,
     });
   }
+
+  // Derive context window size from the first non-synthetic response's model
+  const firstRealModel = responses.find((r) => !r.isSynthetic)?.model ?? null;
+  const contextWindowSize = getContextWindowSize(firstRealModel);
 
   return {
     messages,
@@ -236,5 +237,15 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     toolStats,
     subagents,
     contextSnapshots,
+    contextWindowSize,
   };
+}
+
+/** Known context window limits (in tokens) for common model families. Returns null if unknown. */
+function getContextWindowSize(model: string | null): number | null {
+  if (!model) return null;
+  const m = model.toLowerCase();
+  if (m.includes("claude")) return 200_000;
+  if (m.includes("gpt-4")) return 128_000;
+  return null;
 }

@@ -1814,18 +1814,18 @@ describe("enrichSession — context snapshots with multiple responses", () => {
     expect(session.contextSnapshots).toHaveLength(2);
   });
 
-  it("first snapshot has cumulative tokens from first response", () => {
+  it("first snapshot has per-response tokens", () => {
     const snap = session.contextSnapshots[0];
     expect(snap.messageId).toBe("msg-snap-A");
-    expect(snap.cumulativeInputTokens).toBe(100);
-    expect(snap.cumulativeOutputTokens).toBe(30);
+    expect(snap.inputTokens).toBe(100);
+    expect(snap.outputTokens).toBe(30);
   });
 
-  it("second snapshot has cumulative tokens from both responses", () => {
+  it("second snapshot has its own per-response tokens", () => {
     const snap = session.contextSnapshots[1];
     expect(snap.messageId).toBe("msg-snap-B");
-    expect(snap.cumulativeInputTokens).toBe(300); // 100 + 200
-    expect(snap.cumulativeOutputTokens).toBe(80); // 30 + 50
+    expect(snap.inputTokens).toBe(200);
+    expect(snap.outputTokens).toBe(50);
   });
 
   it("assigns correct turnIndex to each snapshot", () => {
@@ -1870,16 +1870,16 @@ describe("enrichSession — context snapshots skip synthetic responses", () => {
     expect(session.contextSnapshots).toHaveLength(2);
   });
 
-  it("skips synthetic response in cumulative totals", () => {
-    // First snapshot: 100 input, 40 output
+  it("skips synthetic response and stores per-response tokens", () => {
+    // First snapshot: per-response values
     expect(session.contextSnapshots[0].messageId).toBe("msg-snap-real");
-    expect(session.contextSnapshots[0].cumulativeInputTokens).toBe(100);
-    expect(session.contextSnapshots[0].cumulativeOutputTokens).toBe(40);
+    expect(session.contextSnapshots[0].inputTokens).toBe(100);
+    expect(session.contextSnapshots[0].outputTokens).toBe(40);
 
-    // Second snapshot: 100+150=250 input, 40+60=100 output (synthetic 0/0 skipped)
+    // Second snapshot: per-response values (synthetic skipped entirely)
     expect(session.contextSnapshots[1].messageId).toBe("msg-snap-real2");
-    expect(session.contextSnapshots[1].cumulativeInputTokens).toBe(250);
-    expect(session.contextSnapshots[1].cumulativeOutputTokens).toBe(100);
+    expect(session.contextSnapshots[1].inputTokens).toBe(150);
+    expect(session.contextSnapshots[1].outputTokens).toBe(60);
   });
 });
 
@@ -1915,15 +1915,15 @@ describe("enrichSession — context snapshots across multiple turns", () => {
     expect(session.contextSnapshots[1].turnIndex).toBe(1);
   });
 
-  it("accumulates tokens across turns", () => {
-    expect(session.contextSnapshots[0].cumulativeInputTokens).toBe(100);
-    expect(session.contextSnapshots[0].cumulativeOutputTokens).toBe(20);
-    expect(session.contextSnapshots[1].cumulativeInputTokens).toBe(300); // 100 + 200
-    expect(session.contextSnapshots[1].cumulativeOutputTokens).toBe(70); // 20 + 50
+  it("stores per-response tokens for each turn", () => {
+    expect(session.contextSnapshots[0].inputTokens).toBe(100);
+    expect(session.contextSnapshots[0].outputTokens).toBe(20);
+    expect(session.contextSnapshots[1].inputTokens).toBe(200);
+    expect(session.contextSnapshots[1].outputTokens).toBe(50);
   });
 });
 
-describe("enrichSession — context snapshots include cache tokens in cumulative input", () => {
+describe("enrichSession — context snapshots include cache tokens in per-response input", () => {
   const lines = [
     toLine(makeUserPrompt("cache token test")),
     toLine(makeAssistantRecord(makeTextBlock("response with cache"), {
@@ -1944,18 +1944,18 @@ describe("enrichSession — context snapshots include cache tokens in cumulative
   const messages = lines.map((line, i) => parseLine(line, i)).filter((m) => m !== null);
   const session = enrichSession(messages);
 
-  it("first snapshot includes cache tokens in cumulative input", () => {
+  it("first snapshot includes cache tokens in input", () => {
     const snap = session.contextSnapshots[0];
     // 50 input + 400 cache_read + 100 cache_creation = 550
-    expect(snap.cumulativeInputTokens).toBe(550);
-    expect(snap.cumulativeOutputTokens).toBe(30);
+    expect(snap.inputTokens).toBe(550);
+    expect(snap.outputTokens).toBe(30);
   });
 
-  it("second snapshot accumulates cache tokens across responses", () => {
+  it("second snapshot has its own per-response cache tokens", () => {
     const snap = session.contextSnapshots[1];
-    // 550 + (60 input + 500 cache_read + 0 cache_creation) = 1110
-    expect(snap.cumulativeInputTokens).toBe(1110);
-    expect(snap.cumulativeOutputTokens).toBe(50);
+    // 60 input + 500 cache_read + 0 cache_creation = 560
+    expect(snap.inputTokens).toBe(560);
+    expect(snap.outputTokens).toBe(20);
   });
 });
 
@@ -1980,10 +1980,10 @@ describe("enrichSession — context snapshots on minimal fixture", () => {
     expect(snap.turnIndex).toBe(0);
   });
 
-  it("snapshot has cumulative tokens matching totals", () => {
+  it("snapshot has per-response tokens", () => {
     const snap = session.contextSnapshots[0];
-    expect(snap.cumulativeInputTokens).toBe(session.totals.inputTokens);
-    expect(snap.cumulativeOutputTokens).toBe(session.totals.outputTokens);
+    expect(snap.inputTokens).toBe(10);
+    expect(snap.outputTokens).toBe(20);
   });
 });
 
@@ -2382,31 +2382,25 @@ describe("Integration — multi-turn session: context snapshots", () => {
     expect(session.contextSnapshots[5].turnIndex).toBe(2);
   });
 
-  it("cumulative tokens accumulate correctly", () => {
-    // After msg-int-001: 100 in, 50 out
-    expect(session.contextSnapshots[0].cumulativeInputTokens).toBe(100);
-    expect(session.contextSnapshots[0].cumulativeOutputTokens).toBe(50);
-    // After msg-int-002: +200 in, +30 out
-    expect(session.contextSnapshots[1].cumulativeInputTokens).toBe(300);
-    expect(session.contextSnapshots[1].cumulativeOutputTokens).toBe(80);
-    // After msg-int-003: +250 in, +20 out
-    expect(session.contextSnapshots[2].cumulativeInputTokens).toBe(550);
-    expect(session.contextSnapshots[2].cumulativeOutputTokens).toBe(100);
-    // After msg-int-004: +300 in, +40 out
-    expect(session.contextSnapshots[3].cumulativeInputTokens).toBe(850);
-    expect(session.contextSnapshots[3].cumulativeOutputTokens).toBe(140);
-    // After msg-int-005: +400 in, +80 out
-    expect(session.contextSnapshots[4].cumulativeInputTokens).toBe(1250);
-    expect(session.contextSnapshots[4].cumulativeOutputTokens).toBe(220);
-    // After msg-int-006: +500 in, +100 out (from last block)
-    expect(session.contextSnapshots[5].cumulativeInputTokens).toBe(1750);
-    expect(session.contextSnapshots[5].cumulativeOutputTokens).toBe(320);
-  });
-
-  it("final snapshot cumulative totals match aggregate totals", () => {
-    const last = session.contextSnapshots[5];
-    expect(last.cumulativeInputTokens).toBe(session.totals.inputTokens);
-    expect(last.cumulativeOutputTokens).toBe(session.totals.outputTokens);
+  it("per-response tokens are correct for each snapshot", () => {
+    // msg-int-001: 100 in, 50 out
+    expect(session.contextSnapshots[0].inputTokens).toBe(100);
+    expect(session.contextSnapshots[0].outputTokens).toBe(50);
+    // msg-int-002: 200 in, 30 out
+    expect(session.contextSnapshots[1].inputTokens).toBe(200);
+    expect(session.contextSnapshots[1].outputTokens).toBe(30);
+    // msg-int-003: 250 in, 20 out
+    expect(session.contextSnapshots[2].inputTokens).toBe(250);
+    expect(session.contextSnapshots[2].outputTokens).toBe(20);
+    // msg-int-004: 300 in, 40 out
+    expect(session.contextSnapshots[3].inputTokens).toBe(300);
+    expect(session.contextSnapshots[3].outputTokens).toBe(40);
+    // msg-int-005: 400 in, 80 out
+    expect(session.contextSnapshots[4].inputTokens).toBe(400);
+    expect(session.contextSnapshots[4].outputTokens).toBe(80);
+    // msg-int-006: 500 in, 100 out (from last block)
+    expect(session.contextSnapshots[5].inputTokens).toBe(500);
+    expect(session.contextSnapshots[5].outputTokens).toBe(100);
   });
 });
 

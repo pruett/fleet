@@ -27,21 +27,9 @@ function formatPct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
 }
 
-/** Known context window limits (in tokens) for common model families. Returns null if unknown. */
-function getContextWindowLimit(model: string | undefined): number | null {
-  if (!model) return null;
-  const m = model.toLowerCase();
-  // All Claude 3+ models: 200K tokens
-  if (m.includes("claude")) return 200_000;
-  // GPT-4 Turbo / GPT-4o: 128K
-  if (m.includes("gpt-4")) return 128_000;
-  return null;
-}
-
 export function AnalyticsPanel({ session }: AnalyticsPanelProps) {
   const { totals, toolStats, turns, contextSnapshots, responses } = session;
-  const sessionModel = responses[0]?.model;
-  const contextLimit = getContextWindowLimit(sessionModel);
+  const contextLimit = session.contextWindowSize;
 
   return (
     <div className="flex h-full flex-col overflow-y-auto border-l bg-muted/30">
@@ -391,7 +379,7 @@ function ContextTab({
   }
 
   const dataMax = Math.max(
-    ...snapshots.map((s) => s.cumulativeInputTokens + s.cumulativeOutputTokens),
+    ...snapshots.map((s) => s.inputTokens + s.outputTokens),
   );
   // Scale chart to whichever is larger: actual data or context limit
   const maxTokens = Math.max(dataMax, contextLimit ?? 0);
@@ -426,10 +414,10 @@ function ContextChart({
   const toY = (tokens: number) =>
     padY + plotH - (maxTokens > 0 ? (tokens / maxTokens) * plotH : 0);
 
-  // Cumulative output (stacked on top of input)
+  // Output (stacked on top of input)
   const totalPath = snapshots
     .map((s, i) => {
-      const y = toY(s.cumulativeInputTokens + s.cumulativeOutputTokens);
+      const y = toY(s.inputTokens + s.outputTokens);
       return `${i === 0 ? "M" : "L"} ${toX(i)} ${y}`;
     })
     .join(" ");
@@ -441,7 +429,7 @@ function ContextChart({
   // Input only
   const inputPath = snapshots
     .map((s, i) => {
-      const y = toY(s.cumulativeInputTokens);
+      const y = toY(s.inputTokens);
       return `${i === 0 ? "M" : "L"} ${toX(i)} ${y}`;
     })
     .join(" ");

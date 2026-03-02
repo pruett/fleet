@@ -109,8 +109,8 @@ export interface SubagentRef {
 export interface ContextSnapshot {
   messageId: string;
   turnIndex: number | null;
-  cumulativeInputTokens: number;
-  cumulativeOutputTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export interface EnrichedSession {
@@ -122,4 +122,5 @@ export interface EnrichedSession {
   toolStats: ToolStat[];
   subagents: SubagentRef[];
   contextSnapshots: ContextSnapshot[];
+  contextWindowSize: number | null;
 }
