@@ -22,10 +22,14 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
 
   // First pass: build turns and track which turn each lineIndex belongs to
   let currentTurnIndex = -1;
+  let gitBranch: string | null = null;
   const lineToTurn = new Map<number, number | null>();
 
   for (const msg of messages) {
     if (msg.kind === "user-prompt" && !msg.isMeta) {
+      if (currentTurnIndex === -1) {
+        gitBranch = msg.gitBranch;
+      }
       currentTurnIndex++;
       turns.push({
         turnIndex: currentTurnIndex,
@@ -227,12 +231,6 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
   // Derive context window size from the first non-synthetic response's model
   const firstRealModel = responses.find((r) => !r.isSynthetic)?.model ?? null;
   const contextWindowSize = getContextWindowSize(firstRealModel);
-
-  // Extract git branch from the first non-meta user prompt
-  const firstPrompt = messages.find(
-    (m) => m.kind === "user-prompt" && !m.isMeta,
-  );
-  const gitBranch = firstPrompt?.kind === "user-prompt" ? firstPrompt.gitBranch : null;
 
   return {
     messages,

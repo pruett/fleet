@@ -46,29 +46,7 @@ export function getSessionMeta(session: EnrichedSession) {
   return { model, startedAt, gitBranch };
 }
 
-/** Format a token count with locale separators. */
-export function formatTokens(n: number): string {
-  return n.toLocaleString("en-US");
-}
-
-/** Format a USD cost value. */
-export function formatCost(cost: number): string {
-  if (cost === 0) return "$0.00";
-  if (cost < 0.01) return "<$0.01";
-  return `$${cost.toFixed(2)}`;
-}
-
 export type SessionStatus = "unknown" | "running" | "stopped" | "error";
-
-export const statusConfig: Record<
-  SessionStatus,
-  { label: string; variant: "secondary" | "default" | "destructive"; dotClass: string | null }
-> = {
-  unknown: { label: "Unknown", variant: "secondary", dotClass: null },
-  running: { label: "Running", variant: "default", dotClass: "bg-green-500" },
-  stopped: { label: "Stopped", variant: "secondary", dotClass: "bg-muted-foreground" },
-  error: { label: "Error", variant: "destructive", dotClass: "bg-red-400" },
-};
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -94,8 +72,6 @@ export interface UseSessionDataResult {
 
   // Computed
   visibleMessages: ParsedMessage[];
-  displayTotals: EnrichedSession["totals"] | undefined;
-  displayTurns: EnrichedSession["turns"] | undefined;
   analyticsSession: EnrichedSession | null;
   sessionMeta: { model: string | null; startedAt: string | null; gitBranch: string | null } | null;
 
@@ -346,9 +322,10 @@ export function useSessionData({
     return allMessages.filter(isVisibleMessage);
   }, [session, liveMessages]);
 
-  const sessionMeta = session ? getSessionMeta(session) : null;
-  const displayTotals = analytics?.totals ?? session?.totals;
-  const displayTurns = analytics?.turns ?? session?.turns;
+  const sessionMeta = useMemo(
+    () => (session ? getSessionMeta(session) : null),
+    [session],
+  );
   const analyticsSession =
     session && analytics ? { ...session, ...analytics } : session;
 
@@ -363,8 +340,6 @@ export function useSessionData({
     setAnalyticsOpen,
     analytics,
     visibleMessages,
-    displayTotals,
-    displayTurns,
     analyticsSession,
     sessionMeta,
     handleStop,
