@@ -1,16 +1,24 @@
+import { useCallback, useMemo } from "react";
 import { timeAgo } from "@/lib/time";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   Conversation,
+  ConversationContent,
   ConversationEmptyState,
   ConversationScrollButton,
-} from "@/components/conversation/Conversation";
+} from "@/components/ai-elements/conversation";
 import {
-  CollapsibleGroupProvider,
-  ExpandCollapseToggle,
-} from "@/components/conversation/CollapsibleGroup";
+  PromptInput,
+  PromptInputBody,
+  PromptInputButton,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from "@/components/ai-elements/prompt-input";
 import {
   TurnGroup,
   groupMessagesByTurn,
@@ -30,6 +38,7 @@ import {
   formatCost,
 } from "@/hooks/use-session-data";
 import type { ConnectionInfo } from "@/lib/ws";
+import { GlobeIcon, PaperclipIcon } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Shared presentational components
@@ -84,6 +93,7 @@ export function SessionPanel({
   projectId,
   onGoSession,
 }: SessionPanelProps) {
+  const { open: sidebarOpen, isMobile } = useSidebar();
   const {
     session,
     loading,
@@ -99,13 +109,22 @@ export function SessionPanel({
     analyticsSession,
     sessionMeta,
     handleSendMessage,
-    handleTextareaKeyDown,
     retry,
-    messageInput,
-    setMessageInput,
     sendingMessage,
-    textareaRef,
   } = useSessionData({ sessionId, projectId, onGoSession });
+
+  const handlePromptSubmit = useCallback(
+    async (message: { text: string }) => {
+      if (!message.text.trim()) return;
+      await handleSendMessage(message.text);
+    },
+    [handleSendMessage],
+  );
+
+  const turnGroups = useMemo(
+    () => groupMessagesByTurn(visibleMessages),
+    [visibleMessages],
+  );
 
   // -- Loading state --------------------------------------------------------
 
@@ -159,7 +178,7 @@ export function SessionPanel({
   // -- Main content ---------------------------------------------------------
 
   return (
-    <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+    <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen} modal={false}>
       <div className="flex h-full flex-col">
         {/* Header bar with status + analytics toggle */}
         <div className="flex items-center justify-between border-b px-6 py-2">
@@ -228,52 +247,54 @@ export function SessionPanel({
           </div>
         </div>
 
-        {/* Content area — full width (analytics moved to Sheet) */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <CollapsibleGroupProvider>
-            <Conversation messageCount={visibleMessages.length} className="flex-1 min-h-0 p-6">
-              {visibleMessages.length === 0 ? (
-                <ConversationEmptyState>No messages yet</ConversationEmptyState>
-              ) : (
-                <div className="mx-auto flex max-w-3xl flex-col gap-4">
-                  <div className="flex justify-end">
-                    <ExpandCollapseToggle />
-                  </div>
-                  {groupMessagesByTurn(visibleMessages).map((group, i) => (
-                    <TurnGroup
-                      key={group.turnIndex ?? "pre"}
-                      group={group}
-                      isFirst={i === 0}
-                    />
-                  ))}
-                </div>
-              )}
-              <ConversationScrollButton />
-            </Conversation>
-          </CollapsibleGroupProvider>
+        {/* Conversation */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <Conversation className="h-full">
+            {visibleMessages.length === 0 ? (
+              <ConversationContent className="h-full">
+                <ConversationEmptyState title="No messages yet" description="" />
+              </ConversationContent>
+            ) : (
+              <ConversationContent className="gap-4 p-6 pb-[calc(var(--prompt-input-height)*2)]">
+                {turnGroups.map((group) => (
+                  <TurnGroup
+                    key={group.turnIndex ?? "pre"}
+                    group={group}
+                  />
+                ))}
+              </ConversationContent>
+            )}
+            <ConversationScrollButton className="bottom-[var(--prompt-input-height)]" />
+          </Conversation>
+        </div>
 
-          {/* Message input */}
-          <div className="border-t px-6 py-3">
-            <div className="mx-auto flex max-w-3xl gap-2">
-              <textarea
-                ref={textareaRef}
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={handleTextareaKeyDown}
+        {/* Fixed prompt input — pinned to bottom of screen, always visible */}
+        <div
+          className="pointer-events-none fixed right-0 bottom-0 h-[var(--prompt-input-height)] bg-gradient-to-t from-background from-80% to-transparent px-6 pb-4 transition-[left] duration-200 ease-linear"
+          style={{ left: sidebarOpen && !isMobile ? "var(--sidebar-width)" : 0 }}
+        >
+          <PromptInput
+            onSubmit={handlePromptSubmit}
+            className="pointer-events-auto [&_[data-slot=input-group]]:rounded-[0.5rem] [&_[data-slot=input-group]]:bg-background"
+          >
+            <PromptInputBody>
+              <PromptInputTextarea
                 placeholder="Send a message…"
-                rows={1}
                 disabled={sendingMessage}
-                className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
               />
-              <Button
-                size="sm"
-                onClick={handleSendMessage}
-                disabled={sendingMessage || messageInput.trim().length === 0}
-              >
-                {sendingMessage ? "Sending…" : "Send"}
-              </Button>
-            </div>
-          </div>
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputButton tooltip="Attach files">
+                  <PaperclipIcon className="size-4" />
+                </PromptInputButton>
+                <PromptInputButton tooltip="Search the web">
+                  <GlobeIcon className="size-4" />
+                </PromptInputButton>
+              </PromptInputTools>
+              <PromptInputSubmit disabled={sendingMessage} />
+            </PromptInputFooter>
+          </PromptInput>
         </div>
       </div>
 
@@ -281,6 +302,7 @@ export function SessionPanel({
       <SheetContent
         side="right"
         showCloseButton={false}
+        showOverlay={false}
         className="w-[360px] sm:max-w-[360px] border-l-0 p-0"
         aria-describedby={undefined}
       >

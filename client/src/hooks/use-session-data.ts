@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ApiError,
@@ -20,7 +20,7 @@ import type {
   ParsedMessage,
   UserPromptMessage,
 } from "@/types/api";
-import { isVisibleMessage } from "@/components/conversation/MessageComponent";
+import { isVisibleMessage } from "@/components/conversation/message-adapter";
 import {
   type AnalyticsFields,
   type IncrementalContext,
@@ -102,18 +102,12 @@ export interface UseSessionDataResult {
   handleStop: () => void;
   handleResume: () => void;
   handleNewSession: () => void;
-  handleSendMessage: () => void;
-  handleTextareaKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  handleSendMessage: (text: string) => Promise<void>;
   retry: () => void;
 
   // Input state
-  messageInput: string;
-  setMessageInput: (value: string) => void;
   sendingMessage: boolean;
   actionLoading: string | null;
-
-  // Refs
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 export function useSessionData({
@@ -129,7 +123,6 @@ export function useSessionData({
   const [retryCount, setRetryCount] = useState(0);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [messageInput, setMessageInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("unknown");
   const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
@@ -137,14 +130,15 @@ export function useSessionData({
 
   const wsRef = useRef<WsClient | null>(null);
   const baselineRef = useRef<Set<number>>(new Set());
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const incrementalCtxRef = useRef<IncrementalContext | null>(null);
   const refetchingRef = useRef(false);
   const reconnectBufferRef = useRef<ParsedMessage[]>([]);
 
+  const sendingRef = useRef(false);
+
   // -- Action handlers ------------------------------------------------------
 
-  async function handleStop() {
+  const handleStop = useCallback(async () => {
     setActionLoading("stop");
     try {
       await stopSession(sessionId);
@@ -154,9 +148,9 @@ export function useSessionData({
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [sessionId]);
 
-  async function handleResume() {
+  const handleResume = useCallback(async () => {
     setActionLoading("resume");
     try {
       await resumeSession(sessionId);
@@ -168,9 +162,9 @@ export function useSessionData({
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [sessionId]);
 
-  async function handleNewSession() {
+  const handleNewSession = useCallback(async () => {
     if (!projectId) return;
     setActionLoading("new");
     try {
@@ -184,34 +178,25 @@ export function useSessionData({
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [projectId, onGoSession]);
 
-  async function handleSendMessage() {
-    const trimmed = messageInput.trim();
-    if (!trimmed || sendingMessage) return;
+  const handleSendMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || sendingRef.current) return;
+    sendingRef.current = true;
     setSendingMessage(true);
     try {
       await sendMessage(sessionId, trimmed);
-      setMessageInput("");
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : "Failed to send message",
       );
+      throw err; // Re-throw so PromptInput preserves input on failure
     } finally {
+      sendingRef.current = false;
       setSendingMessage(false);
     }
-  }
-
-  function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      textareaRef.current?.blur();
-    }
-  }
+  }, [sessionId]);
 
   function retry() {
     setLoading(true);
@@ -349,14 +334,16 @@ export function useSessionData({
 
   // -- Computed values ------------------------------------------------------
 
-  const baselineIndexes = session
-    ? new Set(session.messages.map((m) => m.lineIndex))
-    : new Set<number>();
-  const uniqueLive = liveMessages.filter(
-    (m) => !baselineIndexes.has(m.lineIndex),
-  );
-  const allMessages = session ? [...session.messages, ...uniqueLive] : [];
-  const visibleMessages = allMessages.filter(isVisibleMessage);
+  const visibleMessages = useMemo(() => {
+    const baselineIndexes = session
+      ? new Set(session.messages.map((m) => m.lineIndex))
+      : new Set<number>();
+    const uniqueLive = liveMessages.filter(
+      (m) => !baselineIndexes.has(m.lineIndex),
+    );
+    const allMessages = session ? [...session.messages, ...uniqueLive] : [];
+    return allMessages.filter(isVisibleMessage);
+  }, [session, liveMessages]);
 
   const sessionMeta = session ? getSessionMeta(session) : null;
   const displayTotals = analytics?.totals ?? session?.totals;
@@ -383,12 +370,8 @@ export function useSessionData({
     handleResume,
     handleNewSession,
     handleSendMessage,
-    handleTextareaKeyDown,
     retry,
-    messageInput,
-    setMessageInput,
     sendingMessage,
     actionLoading,
-    textareaRef,
   };
 }
