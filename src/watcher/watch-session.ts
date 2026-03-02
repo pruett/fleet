@@ -185,12 +185,11 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
     // Defensive poll: the OS may coalesce fs.watch events, leaving data
     // that arrived after our last stat() call permanently unnotified.
     // Schedule a one-shot re-check to catch trailing writes.
-    schedulePoll(state, processChanges);
+    schedulePoll(state, safeProcessChanges);
   }
 
-  // Register fs.watch listener for file changes
-  const fsWatcher = watch(filePath, (eventType) => {
-    if (eventType !== "change") return;
+  /** Call processChanges, routing unexpected errors to onError. */
+  function safeProcessChanges(): void {
     processChanges().catch((err) => {
       state.options.onError({
         sessionId: handle.sessionId,
@@ -199,6 +198,12 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
         cause: err instanceof Error ? err : new Error(String(err)),
       });
     });
+  }
+
+  // Register fs.watch listener for file changes
+  const fsWatcher = watch(filePath, (eventType) => {
+    if (eventType !== "change") return;
+    safeProcessChanges();
   });
 
   fsWatcher.on("error", (err) => {
@@ -224,7 +229,7 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
  */
 function schedulePoll(
   state: WatcherState,
-  processChanges: () => Promise<void>,
+  safeProcessChanges: () => void,
 ): void {
   if (state.handle.stopped) return;
   if (state.pollTimer !== null) clearTimeout(state.pollTimer);
@@ -239,14 +244,7 @@ function schedulePoll(
       return;
     }
     if (Bun.file(state.handle.filePath).size > state.handle.byteOffset) {
-      processChanges().catch((err) => {
-        state.options.onError({
-          sessionId: state.handle.sessionId,
-          code: "WATCH_ERROR",
-          message: `Unexpected error processing changes for ${state.handle.filePath}`,
-          cause: err instanceof Error ? err : new Error(String(err)),
-        });
-      });
+      safeProcessChanges();
     }
   }, 50);
 }

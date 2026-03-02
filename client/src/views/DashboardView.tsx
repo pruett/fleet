@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { fetchSessions, fetchWorktrees } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import { cn } from "@/lib/utils";
+import { cn, truncate } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject } from "@/types/api";
 import { useProjects } from "@/hooks/use-projects";
@@ -59,10 +59,7 @@ import { SessionPanel } from "@/views/SessionPanel";
 // ---------------------------------------------------------------------------
 
 function sessionLabel(firstPrompt: string | null): string {
-  if (!firstPrompt) return "Untitled session";
-  return firstPrompt.length > 60
-    ? firstPrompt.slice(0, 60) + "\u2026"
-    : firstPrompt;
+  return truncate(firstPrompt, 60, "Untitled session");
 }
 
 // ---------------------------------------------------------------------------

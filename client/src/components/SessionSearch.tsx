@@ -10,6 +10,8 @@ import {
   CommandEmpty,
 } from "@/components/ui/command";
 import { timeAgo } from "@/lib/time";
+import { truncate } from "@/lib/utils";
+import { queryKeys } from "@/lib/query-keys";
 import type { SessionSummary, GroupedProject } from "@/types/api";
 
 interface SessionSearchProps {
@@ -40,7 +42,7 @@ export function SessionSearch({
 
     // Read all cached session queries (keys starting with ["sessions"])
     const cached = queryClient.getQueriesData<SessionSummary[]>({
-      queryKey: ["sessions"],
+      queryKey: queryKeys.sessionsAll(),
     });
 
     // Deduplicate sessions (a project may have both limited and unlimited cache entries)
@@ -69,7 +71,8 @@ export function SessionSearch({
     }
 
     return groups;
-  }, [queryClient, projects, open]); // re-derive when dialog opens
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient is stable; open triggers re-read of cache
+  }, [projects, open]);
 
   const handleSelect = (sessionId: string) => {
     onOpenChange(false);
@@ -102,11 +105,7 @@ export function SessionSearch({
               >
                 <span className="flex flex-col gap-0.5 overflow-hidden">
                   <span className="truncate text-sm">
-                    {s.firstPrompt
-                      ? s.firstPrompt.length > 80
-                        ? s.firstPrompt.slice(0, 80) + "\u2026"
-                        : s.firstPrompt
-                      : "Untitled session"}
+                    {truncate(s.firstPrompt, 80, "Untitled session")}
                   </span>
                   <span className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="truncate font-mono">{s.sessionId}</span>
