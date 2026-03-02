@@ -40,15 +40,25 @@ export function createTransport(options: TransportOptions): Transport {
     broadcastRaw(JSON.stringify(event));
   }
 
-  // --- Heartbeat ---
+  // --- Heartbeat (lazy — only runs while clients are connected) ---
 
   const HEARTBEAT_INTERVAL_MS = 30_000;
   const heartbeatFrame = JSON.stringify({ type: "heartbeat" });
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
-  const heartbeatTimer = setInterval(
-    () => broadcastRaw(heartbeatFrame),
-    HEARTBEAT_INTERVAL_MS,
-  );
+  function startHeartbeat(): void {
+    if (heartbeatTimer !== null) return;
+    heartbeatTimer = setInterval(
+      () => broadcastRaw(heartbeatFrame),
+      HEARTBEAT_INTERVAL_MS,
+    );
+  }
+
+  function stopHeartbeat(): void {
+    if (heartbeatTimer === null) return;
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
 
   // --- Relay ---
 
@@ -215,6 +225,7 @@ export function createTransport(options: TransportOptions): Transport {
     };
     clients.set(clientId, client);
     wsToClientId.set(ws, clientId);
+    startHeartbeat();
   }
 
   function handleMessage(
@@ -282,6 +293,8 @@ export function createTransport(options: TransportOptions): Transport {
 
     clients.delete(clientId);
     wsToClientId.delete(ws);
+
+    if (clients.size === 0) stopHeartbeat();
   }
 
   return {
@@ -294,7 +307,7 @@ export function createTransport(options: TransportOptions): Transport {
       sessions.get(sessionId)?.size ?? 0,
     shutdown: () => {
       // 1. Stop heartbeat
-      clearInterval(heartbeatTimer);
+      stopHeartbeat();
 
       // 2. Stop all watchers
       for (const handle of watchers.values()) {

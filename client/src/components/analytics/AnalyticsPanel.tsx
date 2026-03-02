@@ -1,3 +1,4 @@
+import { truncate } from "@/lib/utils";
 import type { EnrichedSession } from "@/types/api";
 import {
   Tabs,
@@ -628,10 +629,7 @@ function TurnsTab({ turns }: { turns: EnrichedSession["turns"] }) {
           const durationMs = turn.durationMs ?? 0;
           const durationSec = durationMs / 1000;
           const pct = maxDuration > 0 ? (durationMs / maxDuration) * 100 : 0;
-          const promptPreview =
-            turn.promptText.length > 40
-              ? turn.promptText.slice(0, 40) + "…"
-              : turn.promptText;
+          const promptPreview = truncate(turn.promptText, 40);
 
           return (
             <div key={turn.turnIndex} className="flex flex-col gap-0.5">
