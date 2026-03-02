@@ -24,18 +24,31 @@ export function createTransport(options: TransportOptions): Transport {
   // Reverse lookup: ws reference → clientId (needed by handleMessage/handleClose)
   const wsToClientId = new Map<ServerWebSocket<unknown>, string>();
 
-  // --- Broadcast helper ---
+  // --- Broadcast helpers ---
 
-  function broadcastEvent(event: LifecycleEvent): void {
-    const frame = JSON.stringify(event);
+  function broadcastRaw(frame: string): void {
     for (const client of clients.values()) {
       try {
         client.ws.send(frame);
       } catch {
-        // Broken pipe / closed socket — skip and continue to next client
+        // Broken pipe / closed socket — skip
       }
     }
   }
+
+  function broadcastEvent(event: LifecycleEvent): void {
+    broadcastRaw(JSON.stringify(event));
+  }
+
+  // --- Heartbeat ---
+
+  const HEARTBEAT_INTERVAL_MS = 30_000;
+  const heartbeatFrame = JSON.stringify({ type: "heartbeat" });
+
+  const heartbeatTimer = setInterval(
+    () => broadcastRaw(heartbeatFrame),
+    HEARTBEAT_INTERVAL_MS,
+  );
 
   // --- Relay ---
 
@@ -280,13 +293,16 @@ export function createTransport(options: TransportOptions): Transport {
     getSessionSubscriberCount: (sessionId: string) =>
       sessions.get(sessionId)?.size ?? 0,
     shutdown: () => {
-      // 1. Stop all watchers
+      // 1. Stop heartbeat
+      clearInterval(heartbeatTimer);
+
+      // 2. Stop all watchers
       for (const handle of watchers.values()) {
         options.stopWatching(handle);
       }
       watchers.clear();
 
-      // 2. Close all WebSocket connections with 1001 (Going Away)
+      // 3. Close all WebSocket connections with 1001 (Going Away)
       for (const client of clients.values()) {
         client.ws.close(1001, "Server shutting down");
       }
