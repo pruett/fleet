@@ -228,6 +228,12 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
   const firstRealModel = responses.find((r) => !r.isSynthetic)?.model ?? null;
   const contextWindowSize = getContextWindowSize(firstRealModel);
 
+  // Extract git branch from the first non-meta user prompt
+  const firstPrompt = messages.find(
+    (m) => m.kind === "user-prompt" && !m.isMeta,
+  );
+  const gitBranch = firstPrompt?.kind === "user-prompt" ? firstPrompt.gitBranch : null;
+
   return {
     messages,
     turns,
@@ -238,6 +244,7 @@ export function enrichSession(messages: ParsedMessage[]): EnrichedSession {
     subagents,
     contextSnapshots,
     contextWindowSize,
+    gitBranch,
   };
 }
 

@@ -41,8 +41,9 @@ export function getSessionMeta(session: EnrichedSession) {
     (m): m is UserPromptMessage => m.kind === "user-prompt" && !m.isMeta,
   );
   const startedAt = firstPrompt?.timestamp ?? null;
+  const gitBranch = session.gitBranch;
 
-  return { model, startedAt };
+  return { model, startedAt, gitBranch };
 }
 
 /** Format a token count with locale separators. */
@@ -96,7 +97,7 @@ export interface UseSessionDataResult {
   displayTotals: EnrichedSession["totals"] | undefined;
   displayTurns: EnrichedSession["turns"] | undefined;
   analyticsSession: EnrichedSession | null;
-  sessionMeta: { model: string | null; startedAt: string | null } | null;
+  sessionMeta: { model: string | null; startedAt: string | null; gitBranch: string | null } | null;
 
   // Actions
   handleStop: () => void;

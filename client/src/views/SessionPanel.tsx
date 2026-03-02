@@ -1,9 +1,8 @@
 import { useCallback, useMemo } from "react";
-import { timeAgo } from "@/lib/time";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useSidebar } from "@/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import {
   Conversation,
   ConversationContent,
@@ -30,31 +29,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  useSessionData,
-  type SessionStatus,
-  statusConfig,
-  formatTokens,
-  formatCost,
-} from "@/hooks/use-session-data";
+import { useSessionData } from "@/hooks/use-session-data";
 import type { ConnectionInfo } from "@/lib/ws";
-import { GlobeIcon, PaperclipIcon } from "lucide-react";
+import { GitBranch, GlobeIcon, PaperclipIcon } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Shared presentational components
 // ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: SessionStatus }) {
-  const config = statusConfig[status];
-  return (
-    <Badge variant={config.variant}>
-      {config.dotClass && (
-        <span className={`inline-block h-2 w-2 rounded-full ${config.dotClass}`} />
-      )}
-      {config.label}
-    </Badge>
-  );
-}
 
 function ConnectionStatusIndicator({ info }: { info: ConnectionInfo | null }) {
   if (!info || info.status === "connected" || info.status === "disconnected") {
@@ -99,13 +80,10 @@ export function SessionPanel({
     loading,
     error,
     errorStatus,
-    sessionStatus,
     connectionInfo,
     analyticsOpen,
     setAnalyticsOpen,
     visibleMessages,
-    displayTotals,
-    displayTurns,
     analyticsSession,
     sessionMeta,
     handleSendMessage,
@@ -181,30 +159,18 @@ export function SessionPanel({
     <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen} modal={false}>
       <div className="flex h-full flex-col">
         {/* Header bar with status + analytics toggle */}
-        <div className="flex items-center justify-between border-b px-6 py-2">
-          <div className="flex items-center gap-4 text-sm">
-            <StatusBadge status={sessionStatus} />
+        <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+          <div className="flex items-center gap-2 text-sm">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
             {sessionMeta?.model && (
               <span className="text-muted-foreground">{sessionMeta.model}</span>
             )}
-            {sessionMeta?.startedAt && (
-              <span className="text-muted-foreground">
-                Started {timeAgo(sessionMeta.startedAt)}
-              </span>
-            )}
-            {displayTotals && (
-              <>
-                <span className="text-muted-foreground">
-                  {formatTokens(displayTotals.totalTokens)} tokens
-                </span>
-                <span className="text-muted-foreground">
-                  {formatCost(displayTotals.estimatedCostUsd)}
-                </span>
-              </>
-            )}
-            {displayTurns && (
-              <span className="text-muted-foreground">
-                {displayTurns.length} {displayTurns.length === 1 ? "turn" : "turns"}
+            <span className="font-mono text-muted-foreground">{sessionId}</span>
+            {sessionMeta?.gitBranch && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <GitBranch className="size-3.5" />
+                {sessionMeta.gitBranch}
               </span>
             )}
           </div>

@@ -107,6 +107,7 @@ export function createEmptyEnrichedSession(): EnrichedSession {
     toolStats: [],
     subagents: [],
     contextSnapshots: [],
+    gitBranch: null,
     contextWindowSize: null,
   };
 }
