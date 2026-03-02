@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,6 +20,7 @@ import type { GroupedProject } from "@/types/api";
 import { useProjects } from "@/hooks/use-projects";
 import { useSessionActivity } from "@/hooks/use-session-activity";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
+import { SessionSearch } from "@/components/SessionSearch";
 import {
   Sidebar,
   SidebarContent,
@@ -333,6 +334,18 @@ export function DashboardView() {
   const navigate = useNavigate();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const selectSession = useCallback(
     (sessionId: string) => {
@@ -358,10 +371,24 @@ export function DashboardView() {
         <SidebarContent className="bg-muted/30">
           <SidebarGroup>
             <SidebarGroupLabel>Projects</SidebarGroupLabel>
-            <SidebarGroupAction title="Add project" onClick={handleOpenDialog}>
-              <Plus />
-              <span className="sr-only">Add project</span>
-            </SidebarGroupAction>
+            <div className="flex items-center gap-0.5">
+              <SidebarGroupAction
+                title="Search sessions (⌘K)"
+                onClick={() => setSearchOpen(true)}
+                className="static"
+              >
+                <Search />
+                <span className="sr-only">Search sessions</span>
+              </SidebarGroupAction>
+              <SidebarGroupAction
+                title="Add project"
+                onClick={handleOpenDialog}
+                className="static"
+              >
+                <Plus />
+                <span className="sr-only">Add project</span>
+              </SidebarGroupAction>
+            </div>
             <SidebarGroupContent>
               <SidebarMenu>
                 {loading && (
@@ -431,6 +458,12 @@ export function DashboardView() {
         loading={loadingDirectories}
         existingSlugs={projectSlugs}
         onAddProject={addProject}
+      />
+
+      <SessionSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        projects={projects}
       />
     </SidebarProvider>
   );
