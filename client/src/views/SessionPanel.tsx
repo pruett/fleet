@@ -3,6 +3,7 @@ import { timeAgo } from "@/lib/time";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   Conversation,
   ConversationContent,
@@ -92,6 +93,7 @@ export function SessionPanel({
   projectId,
   onGoSession,
 }: SessionPanelProps) {
+  const { open: sidebarOpen, isMobile } = useSidebar();
   const {
     session,
     loading,
@@ -240,15 +242,15 @@ export function SessionPanel({
           </div>
         </div>
 
-        {/* Content area — full width (analytics moved to Sheet) */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Conversation className="flex-1 min-h-0">
+        {/* Conversation */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <Conversation className="h-full">
             {visibleMessages.length === 0 ? (
               <ConversationContent className="h-full">
                 <ConversationEmptyState title="No messages yet" description="" />
               </ConversationContent>
             ) : (
-              <ConversationContent className="gap-4 p-6">
+              <ConversationContent className="gap-4 p-6 pb-[calc(var(--prompt-input-height)*2)]">
                 {groupMessagesByTurn(visibleMessages).map((group) => (
                   <TurnGroup
                     key={group.turnIndex ?? "pre"}
@@ -257,31 +259,37 @@ export function SessionPanel({
                 ))}
               </ConversationContent>
             )}
-            <ConversationScrollButton />
+            <ConversationScrollButton className="bottom-[var(--prompt-input-height)]" />
           </Conversation>
+        </div>
 
-          {/* Message input */}
-          <div className="border-t px-6 py-3">
-            <PromptInput onSubmit={handlePromptSubmit}>
-              <PromptInputBody>
-                <PromptInputTextarea
-                  placeholder="Send a message…"
-                  disabled={sendingMessage}
-                />
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools>
-                  <PromptInputButton tooltip="Attach files">
-                    <PaperclipIcon className="size-4" />
-                  </PromptInputButton>
-                  <PromptInputButton tooltip="Search the web">
-                    <GlobeIcon className="size-4" />
-                  </PromptInputButton>
-                </PromptInputTools>
-                <PromptInputSubmit disabled={sendingMessage} />
-              </PromptInputFooter>
-            </PromptInput>
-          </div>
+        {/* Fixed prompt input — pinned to bottom of screen, always visible */}
+        <div
+          className="pointer-events-none fixed right-0 bottom-0 h-[var(--prompt-input-height)] bg-gradient-to-t from-background from-80% to-transparent px-6 pb-4 transition-[left] duration-200 ease-linear"
+          style={{ left: sidebarOpen && !isMobile ? "var(--sidebar-width)" : 0 }}
+        >
+          <PromptInput
+            onSubmit={handlePromptSubmit}
+            className="pointer-events-auto [&_[data-slot=input-group]]:rounded-[0.5rem] [&_[data-slot=input-group]]:bg-background"
+          >
+            <PromptInputBody>
+              <PromptInputTextarea
+                placeholder="Send a message…"
+                disabled={sendingMessage}
+              />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputButton tooltip="Attach files">
+                  <PaperclipIcon className="size-4" />
+                </PromptInputButton>
+                <PromptInputButton tooltip="Search the web">
+                  <GlobeIcon className="size-4" />
+                </PromptInputButton>
+              </PromptInputTools>
+              <PromptInputSubmit disabled={sendingMessage} />
+            </PromptInputFooter>
+          </PromptInput>
         </div>
       </div>
 
