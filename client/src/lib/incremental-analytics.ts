@@ -119,19 +119,20 @@ export function applyBatch(
                 : totals.estimatedCostUsd,
           };
 
-          // Context snapshot for this new response
-          const prevSnap = contextSnapshots[contextSnapshots.length - 1];
-          contextSnapshots.push({
-            messageId: msg.messageId,
-            turnIndex:
-              turns.length > 0
-                ? turns[turns.length - 1].turnIndex
-                : null,
-            cumulativeInputTokens:
-              (prevSnap?.cumulativeInputTokens ?? 0) + input + cacheRead,
-            cumulativeOutputTokens:
-              (prevSnap?.cumulativeOutputTokens ?? 0) + output,
-          });
+          // Context snapshot: per-response values (each response's input_tokens
+          // already includes the full conversation history).
+          // Skip synthetic responses to match server-side enrichSession behavior.
+          if (!msg.isSynthetic) {
+            contextSnapshots.push({
+              messageId: msg.messageId,
+              turnIndex:
+                turns.length > 0
+                  ? turns[turns.length - 1].turnIndex
+                  : null,
+              inputTokens: input + cacheRead + cacheCreate,
+              outputTokens: output,
+            });
+          }
         }
 
         // Tool use tracking

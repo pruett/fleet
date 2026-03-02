@@ -107,5 +107,6 @@ export function createEmptyEnrichedSession(): EnrichedSession {
     toolStats: [],
     subagents: [],
     contextSnapshots: [],
+    contextWindowSize: null,
   };
 }

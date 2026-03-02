@@ -32,6 +32,7 @@ type _AssertEnrichedSession = Pick<
   | "toolStats"
   | "subagents"
   | "contextSnapshots"
+  | "contextWindowSize"
 >;
 
 type _AssertTurn = Pick<
