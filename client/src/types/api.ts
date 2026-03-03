@@ -231,20 +231,20 @@ export type ParsedMessage =
 export interface GroupedProject {
   slug: string;
   title: string;
-  projectDirs: string[];
+  projectIds: string[];
   matchedDirIds: string[];
   sessionCount: number;
   lastActiveAt: string | null;
 }
 
-// --- Fleet preferences (src/preferences/index.ts) ---
+// --- Fleet config (src/config/index.ts) ---
 
 export interface ProjectConfig {
   title: string;
-  projectDirs: string[];
+  projectIds: string[];
 }
 
-export interface FleetPreferences {
+export interface FleetConfig {
   projects: ProjectConfig[];
 }
 

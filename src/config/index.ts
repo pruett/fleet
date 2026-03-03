@@ -4,14 +4,14 @@ import { mkdir } from "node:fs/promises";
 
 export interface ProjectConfig {
   title: string;
-  projectDirs: string[];
+  projectIds: string[];
 }
 
-export interface FleetPreferences {
+export interface FleetConfig {
   projects: ProjectConfig[];
 }
 
-const DEFAULT_PREFERENCES: FleetPreferences = { projects: [] };
+const DEFAULT_CONFIG: FleetConfig = { projects: [] };
 
 /**
  * Convert a title to a URL-safe slug.
@@ -24,7 +24,7 @@ export function slugify(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export function getPreferencesPath(): string {
+export function getConfigPath(): string {
   return join(homedir(), ".config", "fleet", "settings.json");
 }
 
@@ -33,44 +33,44 @@ export function getPreferencesPath(): string {
  * `{ projects: ProjectConfig[] }` format. Each pinned ID becomes an
  * exact-match pattern with a title derived from the last path segment.
  */
-function migrateLegacy(parsed: Record<string, unknown>): FleetPreferences {
+function migrateLegacy(parsed: Record<string, unknown>): FleetConfig {
   const ids = parsed.pinnedProjects as string[];
   const projects: ProjectConfig[] = ids.map((id) => {
     // Decode the dir name to a path, then take the last segment as title
     const decoded = id.replaceAll("-", "/");
     const title =
       decoded.split("/").filter(Boolean).pop() ?? id;
-    return { title, projectDirs: [id] };
+    return { title, projectIds: [id] };
   });
   return { projects };
 }
 
-export async function readPreferences(): Promise<FleetPreferences> {
+export async function readConfig(): Promise<FleetConfig> {
   try {
-    const file = Bun.file(getPreferencesPath());
+    const file = Bun.file(getConfigPath());
     const text = await file.text();
     const parsed = JSON.parse(text);
     if (!parsed || typeof parsed !== "object") {
-      return DEFAULT_PREFERENCES;
+      return DEFAULT_CONFIG;
     }
     // New format
     if (Array.isArray(parsed.projects)) {
-      return { projects: parsed.projects } as FleetPreferences;
+      return { projects: parsed.projects } as FleetConfig;
     }
     // Legacy format — migrate
     if (Array.isArray(parsed.pinnedProjects)) {
       return migrateLegacy(parsed);
     }
-    return DEFAULT_PREFERENCES;
+    return DEFAULT_CONFIG;
   } catch {
-    return DEFAULT_PREFERENCES;
+    return DEFAULT_CONFIG;
   }
 }
 
-export async function writePreferences(
-  prefs: FleetPreferences,
+export async function writeConfig(
+  config: FleetConfig,
 ): Promise<void> {
-  const filePath = getPreferencesPath();
+  const filePath = getConfigPath();
   await mkdir(dirname(filePath), { recursive: true });
-  await Bun.write(filePath, JSON.stringify(prefs, null, 2) + "\n");
+  await Bun.write(filePath, JSON.stringify(config, null, 2) + "\n");
 }

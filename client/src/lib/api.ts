@@ -3,7 +3,7 @@ import type {
   GroupedProject,
   SessionSummary,
   EnrichedSession,
-  FleetPreferences,
+  FleetConfig,
 } from "@/types/api";
 
 class ApiError extends Error {
@@ -130,17 +130,17 @@ export async function sendMessage(
   });
 }
 
-export async function fetchPreferences(): Promise<FleetPreferences> {
-  return requestWithRetry<FleetPreferences>("/api/preferences");
+export async function fetchConfig(): Promise<FleetConfig> {
+  return requestWithRetry<FleetConfig>("/api/config");
 }
 
-export async function updatePreferences(
-  prefs: FleetPreferences,
-): Promise<FleetPreferences> {
-  return request<FleetPreferences>("/api/preferences", {
+export async function updateConfig(
+  config: FleetConfig,
+): Promise<FleetConfig> {
+  return request<FleetConfig>("/api/config", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(prefs),
+    body: JSON.stringify(config),
   });
 }
 

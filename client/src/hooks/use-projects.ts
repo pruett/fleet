@@ -1,17 +1,17 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchPreferences,
+  fetchConfig,
   fetchProjects,
   fetchDirectories,
-  updatePreferences,
+  updateConfig,
 } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   GroupedProject,
   ProjectSummary,
   ProjectConfig,
-  FleetPreferences,
+  FleetConfig,
 } from "@/types/api";
 
 export interface UseProjectsResult {
@@ -40,9 +40,9 @@ export function useProjects(): UseProjectsResult {
     queryFn: fetchProjects,
   });
 
-  const preferencesQuery = useQuery({
-    queryKey: queryKeys.preferences(),
-    queryFn: fetchPreferences,
+  const configQuery = useQuery({
+    queryKey: queryKeys.config(),
+    queryFn: fetchConfig,
   });
 
   const directoriesQuery = useQuery({
@@ -53,18 +53,18 @@ export function useProjects(): UseProjectsResult {
 
   const mutation = useMutation({
     mutationFn: async (nextConfigs: ProjectConfig[]) => {
-      const prefs: FleetPreferences = { projects: nextConfigs };
-      await updatePreferences(prefs);
+      const config: FleetConfig = { projects: nextConfigs };
+      await updateConfig(config);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.projects() });
-      qc.invalidateQueries({ queryKey: queryKeys.preferences() });
+      qc.invalidateQueries({ queryKey: queryKeys.config() });
     },
   });
 
   const configs = useMemo(
-    () => preferencesQuery.data?.projects ?? [],
-    [preferencesQuery.data?.projects],
+    () => configQuery.data?.projects ?? [],
+    [configQuery.data?.projects],
   );
 
   const addProject = useCallback(
@@ -99,7 +99,7 @@ export function useProjects(): UseProjectsResult {
     projects,
     projectSlugs,
     allDirectories: directoriesQuery.data ?? [],
-    loading: projectsQuery.isLoading || preferencesQuery.isLoading,
+    loading: projectsQuery.isLoading || configQuery.isLoading,
     loadingDirectories: directoriesQuery.isFetching,
     addProject,
     removeProject,

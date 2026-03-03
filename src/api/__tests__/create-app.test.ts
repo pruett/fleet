@@ -17,7 +17,7 @@ describe("GET /api/projects", () => {
       {
         slug: "bar",
         title: "bar",
-        projectDirs: ["-Users-foo-code-bar"],
+        projectIds: ["-Users-foo-code-bar"],
         matchedDirIds: ["-Users-foo-code-bar"],
         sessionCount: 3,
         lastActiveAt: null,
@@ -454,16 +454,16 @@ describe("GET /api/projects/:slug/sessions", () => {
 
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
-      preferences: {
-        readPreferences: async () => ({
+      config: {
+        readConfig: async () => ({
           projects: [
             {
               title: "project-alpha",
-              projectDirs: ["-Users-project-alpha"],
+              projectIds: ["-Users-project-alpha"],
             },
           ],
         }),
-        writePreferences: async () => {},
+        writeConfig: async () => {},
       },
       scanner: {
         scanProjects: async () => [],
@@ -488,7 +488,7 @@ describe("GET /api/projects/:slug/sessions", () => {
     expect(body.sessions).toHaveLength(2);
   });
 
-  test("returns 404 when slug not found in preferences", async () => {
+  test("returns 404 when slug not found in config", async () => {
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
     });
@@ -510,16 +510,16 @@ describe("GET /api/projects/:slug/sessions", () => {
 
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
-      preferences: {
-        readPreferences: async () => ({
+      config: {
+        readConfig: async () => ({
           projects: [
             {
               title: "project-alpha",
-              projectDirs: ["-Users-project-alpha"],
+              projectIds: ["-Users-project-alpha"],
             },
           ],
         }),
-        writePreferences: async () => {},
+        writeConfig: async () => {},
       },
       scanner: {
         scanProjects: async () => [],
@@ -548,16 +548,16 @@ describe("GET /api/projects/:slug/sessions", () => {
 
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
-      preferences: {
-        readPreferences: async () => ({
+      config: {
+        readConfig: async () => ({
           projects: [
             {
               title: "project-alpha",
-              projectDirs: ["-Users-project-alpha"],
+              projectIds: ["-Users-project-alpha"],
             },
           ],
         }),
-        writePreferences: async () => {},
+        writeConfig: async () => {},
       },
       scanner: {
         scanProjects: async () => [],
@@ -597,11 +597,11 @@ describe("GET /api/projects/:slug/worktrees", () => {
           return worktrees;
         },
       },
-      preferences: {
-        readPreferences: async () => ({
-          projects: [{ title: "Project Alpha", projectDirs: ["-Users-project-alpha"] }],
+      config: {
+        readConfig: async () => ({
+          projects: [{ title: "Project Alpha", projectIds: ["-Users-project-alpha"] }],
         }),
-        writePreferences: async () => {},
+        writeConfig: async () => {},
       },
     });
 
@@ -642,11 +642,11 @@ describe("GET /api/projects/:slug/worktrees", () => {
         groupProjects: () => [],
         scanWorktrees: async () => [],
       },
-      preferences: {
-        readPreferences: async () => ({
-          projects: [{ title: "Project Alpha", projectDirs: ["-Users-project-alpha"] }],
+      config: {
+        readConfig: async () => ({
+          projects: [{ title: "Project Alpha", projectIds: ["-Users-project-alpha"] }],
         }),
-        writePreferences: async () => {},
+        writeConfig: async () => {},
       },
     });
 
@@ -721,7 +721,7 @@ describe("Static file serving", () => {
       {
         slug: "test-project",
         title: "test-project",
-        projectDirs: ["test-project"],
+        projectIds: ["test-project"],
         matchedDirIds: ["test-project"],
         sessionCount: 0,
         lastActiveAt: null,

@@ -28,7 +28,7 @@ type _AssertAppDependencies = Pick<
   | "scanner"
   | "parser"
   | "controller"
-  | "preferences"
+  | "config"
   | "transport"
   | "basePaths"
   | "staticDir"
@@ -100,9 +100,9 @@ const EXPECTED_ROUTES: { method: string; path: string }[] = [
   { method: "POST", path: "/api/sessions/:sessionId/resume" },
   { method: "POST", path: "/api/sessions/:sessionId/message" },
 
-  // Preferences
-  { method: "GET", path: "/api/preferences" },
-  { method: "PUT", path: "/api/preferences" },
+  // Config
+  { method: "GET", path: "/api/config" },
+  { method: "PUT", path: "/api/config" },
 ];
 
 /**

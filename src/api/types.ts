@@ -6,7 +6,7 @@ import type {
 } from "../scanner";
 import type { EnrichedSession } from "../parser";
 import type { Transport } from "../transport";
-import type { FleetPreferences, ProjectConfig } from "../preferences";
+import type { FleetConfig, ProjectConfig } from "../config";
 
 export interface AppDependencies {
   scanner: {
@@ -30,9 +30,9 @@ export interface AppDependencies {
       message: string,
     ) => Promise<ControlResult>;
   };
-  preferences: {
-    readPreferences: () => Promise<FleetPreferences>;
-    writePreferences: (prefs: FleetPreferences) => Promise<void>;
+  config: {
+    readConfig: () => Promise<FleetConfig>;
+    writeConfig: (config: FleetConfig) => Promise<void>;
   };
   transport: Transport;
   basePaths: string[];

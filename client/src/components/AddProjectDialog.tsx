@@ -146,7 +146,7 @@ export function AddProjectDialog({
 
   const handleSave = useCallback(() => {
     if (!title.trim() || !pattern.trim()) return;
-    onAddProject({ title: title.trim(), projectDirs: [pattern.trim()] });
+    onAddProject({ title: title.trim(), projectIds: [pattern.trim()] });
     handleClose();
   }, [title, pattern, onAddProject, handleClose]);
 

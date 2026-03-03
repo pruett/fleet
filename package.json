@@ -1,8 +1,14 @@
 {
-  "name": "fleet",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@pruett/fleet",
+  "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "fleet": "bin/fleet.ts"
+  },
+  "files": ["bin/", "src/", "client/dist/"],
+  "publishConfig": {
+    "access": "public"
+  },
   "workspaces": ["client"],
   "scripts": {
     "dev": "bun run scripts/dev.ts",
@@ -10,6 +16,7 @@
     "dev:client": "bun run --filter @fleet/client dev",
     "start": "FLEET_STATIC_DIR=client/dist bun run src/main.ts",
     "build": "bun run --filter @fleet/client build",
+    "prepublishOnly": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit && bun run --filter @fleet/client typecheck"
   },
