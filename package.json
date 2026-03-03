@@ -1,7 +1,7 @@
 {
   "name": "@pruett/fleet",
   "version": "0.1.0",
-  "description": "A local dashboard for monitoring AI coding agent sessions in real time",
+  "description": "A companion dashboard for your AI coding agents",
   "license": "MIT",
   "type": "module",
   "bin": {
