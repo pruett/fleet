@@ -1,6 +1,6 @@
 {
   "name": "@pruett/fleet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A companion dashboard for your AI coding agents",
   "license": "MIT",
   "type": "module",
