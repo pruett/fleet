@@ -97,6 +97,11 @@ export function createTransport(options: TransportOptions): Transport {
     if (!client) return;
 
     const { sessionId } = msg;
+    const byteOffset =
+      typeof (msg as Record<string, unknown>).byteOffset === "number" &&
+      ((msg as Record<string, unknown>).byteOffset as number) >= 0
+        ? ((msg as Record<string, unknown>).byteOffset as number)
+        : undefined;
 
     // 1. Validate sessionId format (UUID v4)
     if (typeof sessionId !== "string" || !UUID_V4_RE.test(sessionId)) {
@@ -156,6 +161,7 @@ export function createTransport(options: TransportOptions): Transport {
         const watchHandle = await options.watchSession({
           sessionId,
           filePath,
+          byteOffset,
           onMessages: (batch) => relayBatch(batch),
           onError: (err) => {
             console.error(

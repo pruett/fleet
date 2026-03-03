@@ -17,6 +17,8 @@ export interface WatchOptions {
   debounceMs?: number;
   /** Max-wait ceiling in ms (default: 500). */
   maxWaitMs?: number;
+  /** Start tailing from this byte offset instead of the current file end. */
+  byteOffset?: number;
 }
 
 // ============================================================

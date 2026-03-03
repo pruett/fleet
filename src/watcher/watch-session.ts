@@ -45,16 +45,17 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
   const existing = registry.get(sessionId);
   if (existing) return existing.handle;
 
-  // Get initial file size to start tailing from end
-  const initialSize = Bun.file(filePath).size;
+  // Determine starting read position: use caller-supplied byteOffset if
+  // provided (e.g. to close a snapshot-subscription gap), else tail from end.
+  const currentSize = Bun.file(filePath).size;
+  const startOffset = options.byteOffset ?? currentSize;
 
-  // Count newlines in existing content so lineIndex matches parseFullSession's
+  // Count newlines in [0, startOffset) so lineIndex matches parseFullSession's
   // array-index scheme (each \n starts a new line number).
-  // Read only up to initialSize to avoid TOCTOU race if the file grows.
   let initialLineIndex = 0;
-  if (initialSize > 0) {
+  if (startOffset > 0) {
     const buf = new Uint8Array(
-      await Bun.file(filePath).slice(0, initialSize).arrayBuffer(),
+      await Bun.file(filePath).slice(0, startOffset).arrayBuffer(),
     );
     for (let i = 0; i < buf.length; i++) {
       if (buf[i] === 0x0a) initialLineIndex++;
@@ -64,7 +65,7 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
   const handle: WatchHandle = {
     sessionId,
     filePath,
-    byteOffset: initialSize,
+    byteOffset: startOffset,
     lineIndex: initialLineIndex,
     stopped: false,
   };
@@ -218,6 +219,13 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
 
   state.watcher = fsWatcher;
   registry.set(sessionId, state);
+
+  // If there's already unread data (startOffset < currentSize), trigger an
+  // immediate catchup so gap messages are processed without waiting for a
+  // new fs.watch event.
+  if (startOffset < currentSize) {
+    safeProcessChanges();
+  }
 
   return handle;
 }
