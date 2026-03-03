@@ -8,5 +8,4 @@ export const queryKeys = {
       ? (["sessions", slug, limit] as const)
       : (["sessions", slug] as const),
   sessionsPrefix: (slug: string) => ["sessions", slug] as const,
-  worktrees: (slug: string) => ["worktrees", slug] as const,
 };

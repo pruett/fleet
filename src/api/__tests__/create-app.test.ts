@@ -89,6 +89,7 @@ describe("GET /api/directories", () => {
         scanProjects: async () => projects,
         scanSessions: async () => [],
         groupProjects: () => [],
+        scanWorktrees: async () => [],
       },
     });
 
@@ -509,16 +510,28 @@ describe("GET /api/projects/:slug/sessions", () => {
 
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
+      config: {
+        readConfig: async () => ({
+          projects: [
+            {
+              title: "project-alpha",
+              projectIds: ["-Users-project-alpha"],
+            },
+          ],
+        }),
+        writeConfig: async () => {},
+      },
       scanner: {
         scanProjects: async () => [],
         scanSessions: async () => sessions,
+        groupProjects: () => [],
         scanWorktrees: async () => [],
       },
     });
 
     const app = createApp(deps);
     const res = await app.request(
-      "/api/projects/-Users-project-alpha/sessions?limit=3",
+      "/api/projects/project-alpha/sessions?limit=3",
     );
 
     expect(res.status).toBe(200);
@@ -535,16 +548,28 @@ describe("GET /api/projects/:slug/sessions", () => {
 
     const deps = createMockDeps({
       basePaths: [join(FIXTURES, "resolve-base-1")],
+      config: {
+        readConfig: async () => ({
+          projects: [
+            {
+              title: "project-alpha",
+              projectIds: ["-Users-project-alpha"],
+            },
+          ],
+        }),
+        writeConfig: async () => {},
+      },
       scanner: {
         scanProjects: async () => [],
         scanSessions: async () => sessions,
+        groupProjects: () => [],
         scanWorktrees: async () => [],
       },
     });
 
     const app = createApp(deps);
     const res = await app.request(
-      "/api/projects/-Users-project-alpha/sessions",
+      "/api/projects/project-alpha/sessions",
     );
 
     expect(res.status).toBe(200);

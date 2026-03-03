@@ -62,7 +62,10 @@ export function useProjects(): UseProjectsResult {
     },
   });
 
-  const configs = configQuery.data?.projects ?? [];
+  const configs = useMemo(
+    () => configQuery.data?.projects ?? [],
+    [configQuery.data?.projects],
+  );
 
   const addProject = useCallback(
     (config: ProjectConfig) => {
@@ -83,7 +86,10 @@ export function useProjects(): UseProjectsResult {
     await directoriesQuery.refetch();
   }, [directoriesQuery]);
 
-  const projects = projectsQuery.data ?? [];
+  const projects = useMemo(
+    () => projectsQuery.data ?? [],
+    [projectsQuery.data],
+  );
   const projectSlugs = useMemo(
     () => new Set(projects.map((p) => p.slug)),
     [projects],

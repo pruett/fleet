@@ -653,7 +653,6 @@ export const PromptInput = ({
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup only on unmount; filesRef always current
     [usingProvider]
   );
 
@@ -713,16 +712,16 @@ export const PromptInput = ({
       try {
         // Convert blob URLs to data URLs asynchronously
         const convertedFiles: FileUIPart[] = await Promise.all(
-          files.map(async ({ id: _id, ...item }) => {
-            if (item.url?.startsWith("blob:")) {
-              const dataUrl = await convertBlobUrlToDataUrl(item.url);
-              // If conversion failed, keep the original blob URL
-              return {
-                ...item,
-                url: dataUrl ?? item.url,
-              };
-            }
-            return item;
+          files.map(async (file): Promise<FileUIPart> => {
+            const url = file.url?.startsWith("blob:")
+              ? (await convertBlobUrlToDataUrl(file.url)) ?? file.url
+              : file.url;
+            return {
+              type: file.type,
+              filename: file.filename,
+              mediaType: file.mediaType,
+              url,
+            };
           })
         );
 
