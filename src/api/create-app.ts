@@ -5,8 +5,8 @@ import {
   resolveSessionFile,
   resolveGroupedProjectDirs,
 } from "./resolve";
-import { slugify } from "../preferences";
-import type { ProjectConfig } from "../preferences";
+import { slugify } from "../config";
+import type { ProjectConfig } from "../config";
 
 const HASHED_ASSET_RE = /[.-][a-zA-Z0-9]{8,}\.\w+$/;
 
@@ -44,11 +44,11 @@ export function createApp(deps: AppDependencies): Hono {
   });
 
   app.get("/api/projects", async (c) => {
-    const [rawProjects, prefs] = await Promise.all([
+    const [rawProjects, config] = await Promise.all([
       deps.scanner.scanProjects(deps.basePaths),
-      deps.preferences.readPreferences(),
+      deps.config.readConfig(),
     ]);
-    const projects = deps.scanner.groupProjects(rawProjects, prefs.projects);
+    const projects = deps.scanner.groupProjects(rawProjects, config.projects);
     return c.json({ projects });
   });
 
@@ -57,12 +57,12 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ directories });
   });
 
-  app.get("/api/preferences", async (c) => {
-    const prefs = await deps.preferences.readPreferences();
-    return c.json(prefs);
+  app.get("/api/config", async (c) => {
+    const config = await deps.config.readConfig();
+    return c.json(config);
   });
 
-  app.put("/api/preferences", async (c) => {
+  app.put("/api/config", async (c) => {
     const body = await c.req.json();
     if (!body || !Array.isArray(body.projects)) {
       return c.json(
@@ -75,8 +75,8 @@ export function createApp(deps: AppDependencies): Hono {
         p &&
         typeof p === "object" &&
         typeof (p as ProjectConfig).title === "string" &&
-        Array.isArray((p as ProjectConfig).projectDirs) &&
-        (p as ProjectConfig).projectDirs.every(
+        Array.isArray((p as ProjectConfig).projectIds) &&
+        (p as ProjectConfig).projectIds.every(
           (d: unknown) => typeof d === "string",
         ),
     );
@@ -84,14 +84,14 @@ export function createApp(deps: AppDependencies): Hono {
       return c.json(
         {
           error:
-            "Each project must have a string title and projectDirs string array",
+            "Each project must have a string title and projectIds string array",
         },
         400,
       );
     }
-    const prefs = { projects: body.projects as ProjectConfig[] };
-    await deps.preferences.writePreferences(prefs);
-    return c.json(prefs);
+    const config = { projects: body.projects as ProjectConfig[] };
+    await deps.config.writeConfig(config);
+    return c.json(config);
   });
 
   app.post("/api/sessions", async (c) => {
@@ -154,8 +154,8 @@ export function createApp(deps: AppDependencies): Hono {
 
   app.get("/api/projects/:slug/sessions", async (c) => {
     const slug = c.req.param("slug");
-    const prefs = await deps.preferences.readPreferences();
-    const config = prefs.projects.find((p) => slugify(p.title) === slug);
+    const fleetConfig = await deps.config.readConfig();
+    const config = fleetConfig.projects.find((p) => slugify(p.title) === slug);
     if (!config) {
       return c.json({ error: "Project not found" }, 404);
     }
@@ -163,7 +163,7 @@ export function createApp(deps: AppDependencies): Hono {
     const limit = limitParam ? parseInt(limitParam, 10) : undefined;
     const dirs = await resolveGroupedProjectDirs(
       deps.basePaths,
-      config.projectDirs,
+      config.projectIds,
     );
     if (dirs.length === 0) {
       return c.json({ sessions: [] });
@@ -184,14 +184,14 @@ export function createApp(deps: AppDependencies): Hono {
 
   app.get("/api/projects/:slug/worktrees", async (c) => {
     const slug = c.req.param("slug");
-    const prefs = await deps.preferences.readPreferences();
-    const config = prefs.projects.find((p) => slugify(p.title) === slug);
+    const fleetConfig = await deps.config.readConfig();
+    const config = fleetConfig.projects.find((p) => slugify(p.title) === slug);
     if (!config) {
       return c.json({ error: "Project not found" }, 404);
     }
     const dirs = await resolveGroupedProjectDirs(
       deps.basePaths,
-      config.projectDirs,
+      config.projectIds,
     );
     if (dirs.length === 0) {
       return c.json({ worktrees: [] });

@@ -5,7 +5,7 @@ import { createTransport } from "./transport";
 import { scanProjects, scanSessions, groupProjects, scanWorktrees } from "./scanner";
 import { parseFullSession } from "./parser";
 import { watchSession, stopWatching, watchProjectsDir } from "./watcher";
-import { readPreferences, writePreferences } from "./preferences";
+import { readConfig, writeConfig } from "./config";
 import { createController } from "./controller";
 
 const port = Number(process.env.FLEET_PORT) || 3000;
@@ -41,7 +41,7 @@ const serverOptions = createServer({
   scanner: { scanProjects, scanSessions, groupProjects, scanWorktrees },
   parser: { parseFullSession },
   controller,
-  preferences: { readPreferences, writePreferences },
+  config: { readConfig, writeConfig },
   transport,
   basePaths,
   staticDir,

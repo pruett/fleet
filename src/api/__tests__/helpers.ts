@@ -42,9 +42,9 @@ export function createMockDeps(
       resumeSession: async () => defaultResult,
       sendMessage: async () => defaultResult,
     },
-    preferences: {
-      readPreferences: async () => ({ projects: [] }),
-      writePreferences: async () => {},
+    config: {
+      readConfig: async () => ({ projects: [] }),
+      writeConfig: async () => {},
     },
     transport: mockTransport,
     basePaths: ["/mock/base/path"],

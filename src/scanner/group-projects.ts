@@ -1,18 +1,18 @@
 import type { ProjectSummary, GroupedProject } from "./types";
-import type { ProjectConfig } from "../preferences";
-import { slugify } from "../preferences";
+import type { ProjectConfig } from "../config";
+import { slugify } from "../config";
 
 /**
  * Group raw project directories into logical projects based on glob patterns.
  * For each ProjectConfig, matches raw projects whose `id` matches any of the
- * config's `projectDirs` glob patterns, then aggregates counts and timestamps.
+ * config's `projectIds` glob patterns, then aggregates counts and timestamps.
  */
 export function groupProjects(
   rawProjects: ProjectSummary[],
   configs: ProjectConfig[],
 ): GroupedProject[] {
   return configs.map((config) => {
-    const globs = config.projectDirs.map((pattern) => new Bun.Glob(pattern));
+    const globs = config.projectIds.map((pattern) => new Bun.Glob(pattern));
 
     const matched = rawProjects.filter((p) =>
       globs.some((g) => g.match(p.id)),
@@ -29,7 +29,7 @@ export function groupProjects(
     return {
       slug: slugify(config.title),
       title: config.title,
-      projectDirs: config.projectDirs,
+      projectIds: config.projectIds,
       matchedDirIds: matched.map((p) => p.id),
       sessionCount,
       lastActiveAt,

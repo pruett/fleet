@@ -21,7 +21,7 @@ export interface GroupedProject {
   /** User-visible name */
   title: string;
   /** Glob patterns from config */
-  projectDirs: string[];
+  projectIds: string[];
   /** Raw directory names that matched the patterns */
   matchedDirIds: string[];
   /** Aggregated session count across all matched directories */
