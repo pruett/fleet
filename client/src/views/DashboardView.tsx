@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Folder,
   ChevronRight,
-  GitBranch,
   Plus,
   X,
   ChevronsDown,
   RefreshCw,
   Search,
+  Ship,
 } from "lucide-react";
-import { toast } from "sonner";
-import { fetchSessions, fetchWorktrees } from "@/lib/api";
+import { fetchSessions } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, truncate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject } from "@/types/api";
 import { useProjects } from "@/hooks/use-projects";
@@ -55,36 +54,25 @@ import { Button } from "@/components/ui/button";
 import { SessionPanel } from "@/views/SessionPanel";
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function sessionLabel(firstPrompt: string | null): string {
-  return truncate(firstPrompt, 60, "Untitled session");
-}
-
-// ---------------------------------------------------------------------------
 // ProjectTreeItem — a single collapsible project with lazy-loaded sessions
 // ---------------------------------------------------------------------------
 
 interface ProjectTreeItemProps {
   project: GroupedProject;
   selectedSessionId: string | null;
-  onSelectSession: (sessionId: string) => void;
   onRemove: (slug: string) => void;
 }
 
-const SESSION_PAGE_SIZE = 10;
+const SESSION_PAGE_SIZE = 15;
 
 function ProjectTreeItem({
   project,
   selectedSessionId,
-  onSelectSession: _onSelectSession,
   onRemove,
 }: ProjectTreeItemProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [sessionFilter, setSessionFilter] = useState("");
   const limit = showAll ? undefined : SESSION_PAGE_SIZE;
 
   const sessionsQuery = useQuery({
@@ -93,45 +81,18 @@ function ProjectTreeItem({
     enabled: open,
   });
 
-  const worktreesQuery = useQuery({
-    queryKey: queryKeys.worktrees(project.slug),
-    queryFn: () => fetchWorktrees(project.slug),
-    enabled: open,
-  });
-
-  const loading = sessionsQuery.isLoading || worktreesQuery.isLoading;
+  const loading = sessionsQuery.isLoading;
   const isRefreshing =
-    (sessionsQuery.isFetching && !sessionsQuery.isLoading) ||
-    (worktreesQuery.isFetching && !worktreesQuery.isLoading);
+    sessionsQuery.isFetching && !sessionsQuery.isLoading;
 
   const sessions = sessionsQuery.data;
-  const worktrees = worktreesQuery.data;
   const truncated = !showAll && sessions?.length === SESSION_PAGE_SIZE;
 
-  const filteredSessions = useMemo(() => {
-    if (!sessions || !sessionFilter.trim()) return sessions;
-    const q = sessionFilter.toLowerCase();
-    return sessions.filter(
-      (s) =>
-        s.sessionId.toLowerCase().includes(q) ||
-        s.firstPrompt?.toLowerCase().includes(q),
-    );
-  }, [sessions, sessionFilter]);
-
-  const handleRefresh = async (e: React.MouseEvent) => {
+  const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.sessionsPrefix(project.slug),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.worktrees(project.slug),
-        }),
-      ]);
-    } catch {
-      toast.error("Failed to refresh project data");
-    }
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.sessionsPrefix(project.slug),
+    });
   };
 
   const handleShowAll = () => setShowAll(true);
@@ -187,45 +148,6 @@ function ProjectTreeItem({
               </>
             )}
 
-            {/* Worktrees section */}
-            {!loading && worktrees !== undefined && (
-              <>
-                <SidebarMenuSubItem>
-                  <span className="px-2 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    worktrees
-                  </span>
-                </SidebarMenuSubItem>
-                {worktrees.length === 0 ? (
-                  <SidebarMenuSubItem>
-                    <span className="px-2 py-1 text-xs italic text-muted-foreground">
-                      (no worktrees)
-                    </span>
-                  </SidebarMenuSubItem>
-                ) : (
-                  worktrees.map((wt) => (
-                    <SidebarMenuSubItem key={wt.name}>
-                      <SidebarMenuSubButton asChild={false}>
-                        <GitBranch className="size-3.5 shrink-0" />
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="flex flex-col gap-0 truncate">
-                              <span className="truncate text-xs">{wt.name}</span>
-                              {wt.branch && (
-                                <span className="truncate text-[10px] text-muted-foreground">
-                                  {wt.branch}
-                                </span>
-                              )}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">{wt.path}</TooltipContent>
-                        </Tooltip>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ))
-                )}
-              </>
-            )}
-
             {/* Sessions section */}
             {!loading && sessions !== undefined && (
               <>
@@ -234,29 +156,15 @@ function ProjectTreeItem({
                     sessions
                   </span>
                 </SidebarMenuSubItem>
-                {sessions.length > 0 && (
-                  <SidebarMenuSubItem>
-                    <div className="relative px-2 py-1">
-                      <Search className="pointer-events-none absolute left-3.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        type="text"
-                        placeholder="Filter by ID or prompt…"
-                        value={sessionFilter}
-                        onChange={(e) => setSessionFilter(e.target.value)}
-                        className="h-6 w-full rounded border border-sidebar-border bg-transparent pl-5 pr-2 text-[11px] text-sidebar-foreground placeholder:text-muted-foreground/60 outline-none focus:border-sidebar-ring"
-                      />
-                    </div>
-                  </SidebarMenuSubItem>
-                )}
-                {filteredSessions?.length === 0 ? (
+                {sessions.length === 0 ? (
                   <SidebarMenuSubItem>
                     <span className="px-2 py-1 text-xs text-muted-foreground">
-                      {sessionFilter.trim() ? "No matching sessions" : "No sessions"}
+                      No sessions
                     </span>
                   </SidebarMenuSubItem>
                 ) : (
                   <>
-                    {filteredSessions?.map((session) => (
+                    {sessions.map((session) => (
                       <SidebarMenuSubItem key={session.sessionId}>
                         <SidebarMenuSubButton
                           asChild
@@ -266,9 +174,6 @@ function ProjectTreeItem({
                             to={`/session/${encodeURIComponent(session.sessionId)}`}
                           >
                             <span className="flex flex-col gap-0.5">
-                              <span className="truncate text-xs">
-                                {sessionLabel(session.firstPrompt)}
-                              </span>
                               <span className="truncate text-[10px] font-mono text-muted-foreground/70">
                                 {session.sessionId}
                               </span>
@@ -282,7 +187,7 @@ function ProjectTreeItem({
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}
-                    {truncated && !sessionFilter.trim() && (
+                    {truncated && (
                       <SidebarMenuSubItem>
                         <button
                           type="button"
@@ -359,33 +264,35 @@ export function DashboardView() {
   return (
     <SidebarProvider className="h-svh !min-h-0 overflow-hidden">
       <Sidebar side="left">
-        <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-          <span className="text-sm font-semibold tracking-tight">
-            <span className="mr-1.5" aria-hidden="true">🚀</span>
+        <SidebarHeader className="px-4 py-3">
+          <span className="flex items-center gap-3 text-sm font-light font-mono uppercase tracking-widest">
+            <Ship className="h-4 w-4" aria-hidden="true" />
             Fleet
           </span>
         </SidebarHeader>
-        <SidebarContent className="bg-muted/30">
+        <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Projects</SidebarGroupLabel>
-            <div className="flex items-center gap-0.5">
-              <SidebarGroupAction
-                title="Search sessions (⌘K)"
-                onClick={() => setSearchOpen(true)}
-                className="static"
-              >
-                <Search />
-                <span className="sr-only">Search sessions</span>
-              </SidebarGroupAction>
-              <SidebarGroupAction
-                title="Add project"
-                onClick={handleOpenDialog}
-                className="static"
-              >
-                <Plus />
-                <span className="sr-only">Add project</span>
-              </SidebarGroupAction>
-            </div>
+            <SidebarGroupLabel className="uppercase font-mono">
+              Projects
+              <span className="ml-auto flex items-center gap-0.5">
+                <SidebarGroupAction
+                  title="Search sessions (⌘K)"
+                  onClick={() => setSearchOpen(true)}
+                  className="static"
+                >
+                  <Search />
+                  <span className="sr-only">Search sessions</span>
+                </SidebarGroupAction>
+                <SidebarGroupAction
+                  title="Add project"
+                  onClick={handleOpenDialog}
+                  className="static"
+                >
+                  <Plus />
+                  <span className="sr-only">Add project</span>
+                </SidebarGroupAction>
+              </span>
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {loading && (
@@ -402,7 +309,6 @@ export function DashboardView() {
                       key={project.slug}
                       project={project}
                       selectedSessionId={selectedSessionId}
-                      onSelectSession={selectSession}
                       onRemove={removeProject}
                     />
                   ))}
