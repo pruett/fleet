@@ -2,7 +2,6 @@
 
 A companion dashboard for AI coding agents.
 
-<!-- TODO: screenshot or demo gif -->
 
 Fleet is a local dashboard that runs alongside your agent CLI(s). It reads session transcripts from disk, parses, and streams updates in real time — so you can easily search, monitor, inspect, and continue sessions from any device.
 

@@ -10,7 +10,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "types": ["bun"]
   },
-  "include": ["src"]
+  "include": ["src", "bin"]
 }
