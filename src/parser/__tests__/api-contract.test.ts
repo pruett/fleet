@@ -70,7 +70,7 @@ type _UseAll =
 // Runtime layer — export name & type checks
 // ────────────────────────────────────────────────────────────
 
-const EXPECTED_RUNTIME_EXPORTS = ["parseFullSession", "parseLine"];
+const EXPECTED_RUNTIME_EXPORTS = ["computeCost", "parseFullSession", "parseLine"];
 
 describe("Parser API Contract", () => {
   it("exports exactly the expected runtime symbols", () => {

@@ -20,7 +20,6 @@ import type {
   ParsedMessage,
   UserPromptMessage,
 } from "@/types/api";
-import { isVisibleMessage } from "@/components/conversation/message-adapter";
 import {
   type AnalyticsFields,
   type IncrementalContext,
@@ -28,6 +27,7 @@ import {
   createIncrementalContext,
   extractAnalytics,
 } from "@/lib/incremental-analytics";
+import { isVisibleMessage } from "@/components/conversation/message-adapter";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,14 +66,11 @@ export interface UseSessionDataResult {
   errorStatus: number | null;
   sessionStatus: SessionStatus;
   connectionInfo: ConnectionInfo | null;
-  analyticsOpen: boolean;
-  setAnalyticsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  analytics: AnalyticsFields | null;
 
   // Computed
   visibleMessages: ParsedMessage[];
-  analyticsSession: EnrichedSession | null;
   sessionMeta: { model: string | null; startedAt: string | null; gitBranch: string | null } | null;
+  liveAnalytics: AnalyticsFields | null;
 
   // Actions
   handleStop: () => void;
@@ -98,18 +95,16 @@ export function useSessionData({
   const [error, setError] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("unknown");
   const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
-  const [analytics, setAnalytics] = useState<AnalyticsFields | null>(null);
-
+  const [liveAnalytics, setLiveAnalytics] = useState<AnalyticsFields | null>(null);
   const wsRef = useRef<WsClient | null>(null);
   const baselineRef = useRef<Set<number>>(new Set());
-  const incrementalCtxRef = useRef<IncrementalContext | null>(null);
   const refetchingRef = useRef(false);
   const reconnectBufferRef = useRef<ParsedMessage[]>([]);
+  const incrementalCtxRef = useRef<IncrementalContext | null>(null);
 
   const sendingRef = useRef(false);
 
@@ -193,7 +188,7 @@ export function useSessionData({
         if (cancelled) return;
 
         setSession(data);
-        setAnalytics(extractAnalytics(data));
+        setLiveAnalytics(extractAnalytics(data));
         incrementalCtxRef.current = createIncrementalContext(data);
         setLoading(false);
         baselineRef.current = new Set(data.messages.map((m) => m.lineIndex));
@@ -218,10 +213,12 @@ export function useSessionData({
             return novel.length > 0 ? [...prev, ...novel] : prev;
           });
 
-          const ctx = incrementalCtxRef.current;
-          if (ctx) {
-            setAnalytics((prev) =>
-              prev ? applyBatch(prev, batch.messages, ctx) : prev,
+          // Incrementally update analytics from the batch
+          if (incrementalCtxRef.current) {
+            setLiveAnalytics((prev) =>
+              prev
+                ? applyBatch(prev, batch.messages, incrementalCtxRef.current!)
+                : prev,
             );
           }
         };
@@ -253,9 +250,8 @@ export function useSessionData({
             .then((freshData) => {
               if (cancelled) return;
               setSession(freshData);
-              setAnalytics(extractAnalytics(freshData));
-              const freshCtx = createIncrementalContext(freshData);
-              incrementalCtxRef.current = freshCtx;
+              setLiveAnalytics(extractAnalytics(freshData));
+              incrementalCtxRef.current = createIncrementalContext(freshData);
               const freshBaseline = new Set(
                 freshData.messages.map((m) => m.lineIndex),
               );
@@ -270,9 +266,6 @@ export function useSessionData({
               );
               if (novel.length > 0) {
                 setLiveMessages(novel);
-                setAnalytics((prev) =>
-                  prev ? applyBatch(prev, novel, freshCtx) : prev,
-                );
               } else {
                 setLiveMessages([]);
               }
@@ -326,9 +319,6 @@ export function useSessionData({
     () => (session ? getSessionMeta(session) : null),
     [session],
   );
-  const analyticsSession =
-    session && analytics ? { ...session, ...analytics } : session;
-
   return {
     session,
     loading,
@@ -336,12 +326,9 @@ export function useSessionData({
     errorStatus,
     sessionStatus,
     connectionInfo,
-    analyticsOpen,
-    setAnalyticsOpen,
-    analytics,
     visibleMessages,
-    analyticsSession,
     sessionMeta,
+    liveAnalytics,
     handleStop,
     handleResume,
     handleNewSession,

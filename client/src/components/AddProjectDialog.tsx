@@ -133,12 +133,6 @@ export function AddProjectDialog({
     setSearch("");
   }, []);
 
-  const handleSave = useCallback(() => {
-    if (!title.trim() || !pattern.trim()) return;
-    onAddProject({ title: title.trim(), projectDirs: [pattern.trim()] });
-    handleClose();
-  }, [title, pattern, onAddProject]);
-
   const handleClose = useCallback(() => {
     onOpenChange(false);
     // Reset after close animation
@@ -149,6 +143,12 @@ export function AddProjectDialog({
       setPattern("");
     }, 200);
   }, [onOpenChange]);
+
+  const handleSave = useCallback(() => {
+    if (!title.trim() || !pattern.trim()) return;
+    onAddProject({ title: title.trim(), projectDirs: [pattern.trim()] });
+    handleClose();
+  }, [title, pattern, onAddProject, handleClose]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
