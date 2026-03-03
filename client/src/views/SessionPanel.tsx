@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import type { AnalyticsFields } from "@/lib/incremental-analytics";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
@@ -22,13 +23,17 @@ import {
   TurnGroup,
   groupMessagesByTurn,
 } from "@/components/conversation/TurnGroup";
-import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
 import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Context,
+  ContextContent,
+  ContextContentBody,
+  ContextContentFooter,
+  ContextContentHeader,
+  ContextInputUsage,
+  ContextOutputUsage,
+  ContextCacheUsage,
+  ContextTrigger,
+} from "@/components/ai-elements/context";
 import { useSessionData } from "@/hooks/use-session-data";
 import type { ConnectionInfo } from "@/lib/ws";
 import { GitBranch, GlobeIcon, PaperclipIcon } from "lucide-react";
@@ -60,6 +65,60 @@ function ConnectionStatusIndicator({ info }: { info: ConnectionInfo | null }) {
 }
 
 // ---------------------------------------------------------------------------
+// Context usage indicator (AI Elements compound component)
+// ---------------------------------------------------------------------------
+
+function SessionContextUsage({
+  analytics,
+  contextWindowSize,
+  modelId,
+}: {
+  analytics: AnalyticsFields;
+  contextWindowSize: number;
+  modelId: string | null;
+}) {
+  const { contextSnapshots, totals } = analytics;
+  if (contextSnapshots.length === 0) return null;
+
+  const last = contextSnapshots[contextSnapshots.length - 1];
+  const usedTokens = last.inputTokens + last.outputTokens;
+
+  return (
+    <Context
+      usedTokens={usedTokens}
+      maxTokens={contextWindowSize}
+      usage={{
+        inputTokens: totals.inputTokens,
+        outputTokens: totals.outputTokens,
+        totalTokens: totals.totalTokens,
+        cachedInputTokens: totals.cacheReadInputTokens,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: totals.cacheReadInputTokens || undefined,
+          cacheWriteTokens: totals.cacheCreationInputTokens || undefined,
+        },
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
+      }}
+      modelId={modelId ?? undefined}
+    >
+      <ContextTrigger size="sm" />
+      <ContextContent align="end" side="top" sideOffset={8}>
+        <ContextContentHeader />
+        <ContextContentBody className="space-y-1">
+          <ContextInputUsage />
+          <ContextOutputUsage />
+          <ContextCacheUsage />
+        </ContextContentBody>
+        <ContextContentFooter />
+      </ContextContent>
+    </Context>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // SessionPanel — embedded session viewer for SidebarInset
 // ---------------------------------------------------------------------------
 
@@ -81,11 +140,9 @@ export function SessionPanel({
     error,
     errorStatus,
     connectionInfo,
-    analyticsOpen,
-    setAnalyticsOpen,
     visibleMessages,
-    analyticsSession,
     sessionMeta,
+    liveAnalytics,
     handleSendMessage,
     retry,
     sendingMessage,
@@ -156,125 +213,89 @@ export function SessionPanel({
   // -- Main content ---------------------------------------------------------
 
   return (
-    <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen} modal={false}>
-      <div className="flex h-full flex-col">
-        {/* Header bar with status + analytics toggle */}
-        <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-          <div className="flex items-center gap-2 text-sm">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            {sessionMeta?.model && (
-              <span className="text-muted-foreground">{sessionMeta.model}</span>
-            )}
-            <span className="font-mono text-muted-foreground">{sessionId}</span>
-            {sessionMeta?.gitBranch && (
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <GitBranch className="size-3.5" />
-                {sessionMeta.gitBranch}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <ConnectionStatusIndicator info={connectionInfo} />
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={analyticsOpen ? "Hide analytics" : "Show analytics"}
-                title={analyticsOpen ? "Hide analytics" : "Show analytics"}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  {analyticsOpen ? (
-                    <>
-                      <rect width="18" height="18" x="3" y="3" rx="2" />
-                      <path d="M15 3v18" />
-                      <path d="m10 15-3-3 3-3" />
-                    </>
-                  ) : (
-                    <>
-                      <rect width="18" height="18" x="3" y="3" rx="2" />
-                      <path d="M15 3v18" />
-                      <path d="m10 9 3 3-3 3" />
-                    </>
-                  )}
-                </svg>
-              </Button>
-            </SheetTrigger>
-          </div>
+    <div className="flex h-full flex-col">
+      {/* Header bar with status */}
+      <div className="sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between border-b bg-background px-4 shadow-[0_1px_3px_0_rgba(0,0,0,0.08)]">
+        <div className="flex items-center gap-2 text-sm">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          {sessionMeta?.model && (
+            <span className="text-muted-foreground">
+              <span className="text-muted-foreground/50">Model:</span> {sessionMeta.model}
+            </span>
+          )}
+          <span className="font-mono text-muted-foreground">
+            <span className="font-sans text-muted-foreground/50">Session ID:</span> {sessionId}
+          </span>
+          {sessionMeta?.gitBranch && (
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <span className="text-muted-foreground/50">Branch:</span>
+              <GitBranch className="size-3.5" />
+              {sessionMeta.gitBranch}
+            </span>
+          )}
         </div>
-
-        {/* Conversation */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <Conversation className="h-full">
-            {visibleMessages.length === 0 ? (
-              <ConversationContent className="h-full">
-                <ConversationEmptyState title="No messages yet" description="" />
-              </ConversationContent>
-            ) : (
-              <ConversationContent className="gap-4 p-6 pb-[calc(var(--prompt-input-height)*2)]">
-                {turnGroups.map((group) => (
-                  <TurnGroup
-                    key={group.turnIndex ?? "pre"}
-                    group={group}
-                  />
-                ))}
-              </ConversationContent>
-            )}
-            <ConversationScrollButton className="bottom-[var(--prompt-input-height)]" />
-          </Conversation>
-        </div>
-
-        {/* Fixed prompt input — pinned to bottom of screen, always visible */}
-        <div
-          className="pointer-events-none fixed right-0 bottom-0 h-[var(--prompt-input-height)] bg-gradient-to-t from-background from-80% to-transparent px-6 pb-4 transition-[left] duration-200 ease-linear"
-          style={{ left: sidebarOpen && !isMobile ? "var(--sidebar-width)" : 0 }}
-        >
-          <PromptInput
-            onSubmit={handlePromptSubmit}
-            className="pointer-events-auto [&_[data-slot=input-group]]:rounded-[0.5rem] [&_[data-slot=input-group]]:bg-background"
-          >
-            <PromptInputBody>
-              <PromptInputTextarea
-                placeholder="Send a message…"
-                disabled={sendingMessage}
-              />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
-                <PromptInputButton tooltip="Attach files">
-                  <PaperclipIcon className="size-4" />
-                </PromptInputButton>
-                <PromptInputButton tooltip="Search the web">
-                  <GlobeIcon className="size-4" />
-                </PromptInputButton>
-              </PromptInputTools>
-              <PromptInputSubmit disabled={sendingMessage} />
-            </PromptInputFooter>
-          </PromptInput>
-        </div>
+        <ConnectionStatusIndicator info={connectionInfo} />
       </div>
 
-      {/* Analytics side sheet */}
-      <SheetContent
-        side="right"
-        showCloseButton={false}
-        showOverlay={false}
-        className="w-[360px] sm:max-w-[360px] border-l-0 p-0"
-        aria-describedby={undefined}
+      {/* Conversation */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <Conversation className="h-full">
+          {visibleMessages.length === 0 ? (
+            <ConversationContent className="h-full">
+              <ConversationEmptyState title="No messages yet" description="" />
+            </ConversationContent>
+          ) : (
+            <ConversationContent className="gap-4 p-6 pb-[calc(var(--prompt-input-height)*2)]">
+              {turnGroups.map((group) => (
+                <TurnGroup
+                  key={group.turnIndex ?? "pre"}
+                  group={group}
+                />
+              ))}
+            </ConversationContent>
+          )}
+          <ConversationScrollButton className="bottom-[var(--prompt-input-height)]" />
+        </Conversation>
+      </div>
+
+      {/* Fixed prompt input — pinned to bottom of screen, always visible */}
+      <div
+        className="pointer-events-none fixed right-0 bottom-0 h-[var(--prompt-input-height)] bg-gradient-to-t from-background from-80% to-transparent px-6 pb-4 transition-[left] duration-200 ease-linear"
+        style={{ left: sidebarOpen && !isMobile ? "var(--sidebar-width)" : 0 }}
       >
-        <SheetTitle className="sr-only">Session Analytics</SheetTitle>
-        {analyticsSession && <AnalyticsPanel session={analyticsSession} />}
-      </SheetContent>
-    </Sheet>
+        <PromptInput
+          onSubmit={handlePromptSubmit}
+          className="pointer-events-auto [&_[data-slot=input-group]]:rounded-[0.5rem] [&_[data-slot=input-group]]:bg-background"
+        >
+          <PromptInputBody>
+            <PromptInputTextarea
+              placeholder="Send a message…"
+              disabled={sendingMessage}
+            />
+          </PromptInputBody>
+          <PromptInputFooter>
+            <PromptInputTools>
+              <PromptInputButton tooltip="Attach files">
+                <PaperclipIcon className="size-4" />
+              </PromptInputButton>
+              <PromptInputButton tooltip="Search the web">
+                <GlobeIcon className="size-4" />
+              </PromptInputButton>
+            </PromptInputTools>
+            <div className="flex items-center gap-2">
+              {liveAnalytics && session?.contextWindowSize && (
+                <SessionContextUsage
+                  analytics={liveAnalytics}
+                  contextWindowSize={session.contextWindowSize}
+                  modelId={sessionMeta?.model ?? null}
+                />
+              )}
+              <PromptInputSubmit disabled={sendingMessage} />
+            </div>
+          </PromptInputFooter>
+        </PromptInput>
+      </div>
+    </div>
   );
 }
