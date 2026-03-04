@@ -58,6 +58,22 @@ export interface ConnectionInfo {
 }
 
 // ============================================================
+// Event emitter types — supports multiple listeners per event
+// ============================================================
+
+export type WsEvents = {
+  message: MessageBatch;
+  lifecycle: LifecycleEvent;
+  error: WsError;
+  "global-activity": GlobalActivityEvent;
+  "connection-change": ConnectionInfo;
+  reconnect: undefined;
+};
+
+export type WsEventHandler<K extends keyof WsEvents> =
+  WsEvents[K] extends undefined ? () => void : (data: WsEvents[K]) => void;
+
+// ============================================================
 // WsClient — WebSocket wrapper with auto-reconnection
 // ============================================================
 
@@ -66,23 +82,14 @@ export interface WsClient {
   subscribe(sessionId: string): void;
   /** Unsubscribe from the current session. */
   unsubscribe(): void;
-  /** Close the WebSocket connection permanently (no reconnect). */
-  close(): void;
 
-  // --- Callbacks (assign before or after connecting) ---
+  /** Register an event listener. Multiple listeners per event are supported. */
+  on<K extends keyof WsEvents>(event: K, handler: WsEventHandler<K>): void;
+  /** Remove a previously registered event listener. */
+  off<K extends keyof WsEvents>(event: K, handler: WsEventHandler<K>): void;
 
-  /** Called when a batch of new messages arrives for the subscribed session. */
-  onMessage: ((batch: MessageBatch) => void) | null;
-  /** Called for session lifecycle events (started/stopped/error). */
-  onLifecycleEvent: ((event: LifecycleEvent) => void) | null;
-  /** Called when the server sends an error frame. */
-  onError: ((error: WsError) => void) | null;
-  /** Called when a global activity event fires (sidebar refresh signal). */
-  onGlobalActivity: ((event: GlobalActivityEvent) => void) | null;
-  /** Called when the connection status changes. */
-  onConnectionChange: ((info: ConnectionInfo) => void) | null;
-  /** Called after a successful reconnect (not on initial connect). */
-  onReconnect: (() => void) | null;
+  /** Tear down the connection permanently (no reconnect). */
+  destroy(): void;
 }
 
 /**
@@ -91,7 +98,10 @@ export interface WsClient {
  * The connection is opened immediately. On unexpected disconnection the client
  * automatically reconnects using exponential backoff (base 1s, max 30s, random
  * jitter 0–500ms). On reconnect the active subscription is restored and the
- * `onReconnect` callback is fired so the consumer can re-fetch baseline data.
+ * `reconnect` event is emitted so consumers can re-fetch baseline data.
+ *
+ * Typically you don't call this directly — use `<WsProvider>` and `useWsClient()`
+ * to share a single connection across the component tree.
  */
 export function createWsClient(): WsClient {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -104,44 +114,59 @@ export function createWsClient(): WsClient {
   let currentSubscriptionId: string | null = null;
   let hasConnectedOnce = false;
 
-  // Queue commands sent before the socket is open
-  const pendingQueue: string[] = [];
+  // Queue commands sent before the socket is open or while reconnecting.
+  // Tagged so we can distinguish subscribe/unsubscribe from other payloads.
+  interface QueuedCommand {
+    data: string;
+    /** If true, this is a subscribe/unsubscribe that the auto-reconnect will
+     *  re-issue — safe to discard on reconnect. */
+    isSubscription: boolean;
+  }
+  const pendingQueue: QueuedCommand[] = [];
 
-  const client: WsClient = {
-    onMessage: null,
-    onLifecycleEvent: null,
-    onGlobalActivity: null,
-    onError: null,
-    onConnectionChange: null,
-    onReconnect: null,
+  // ---------------------------------------------------------------------------
+  // Event listener registry
+  // ---------------------------------------------------------------------------
 
-    subscribe(sessionId: string) {
-      currentSubscriptionId = sessionId;
-      send(JSON.stringify({ type: "subscribe", sessionId }));
-    },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const listeners = new Map<keyof WsEvents, Set<(...args: any[]) => void>>();
 
-    unsubscribe() {
-      currentSubscriptionId = null;
-      send(JSON.stringify({ type: "unsubscribe" }));
-    },
+  function getListeners<K extends keyof WsEvents>(event: K): Set<WsEventHandler<K>> {
+    let set = listeners.get(event);
+    if (!set) {
+      set = new Set();
+      listeners.set(event, set);
+    }
+    return set as Set<WsEventHandler<K>>;
+  }
 
-    close() {
-      intentionalClose = true;
-      if (reconnectTimer !== null) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
+  function emit<K extends keyof WsEvents>(
+    event: K,
+    ...args: WsEvents[K] extends undefined ? [] : [WsEvents[K]]
+  ): void {
+    const set = listeners.get(event);
+    if (!set) return;
+    for (const handler of set) {
+      try {
+        handler(...args);
+      } catch (err) {
+        console.error(`[ws] Error in "${event}" handler:`, err);
       }
-      ws?.close();
-    },
-  };
+    }
+  }
 
-  function send(data: string): void {
+  // ---------------------------------------------------------------------------
+  // Transport helpers
+  // ---------------------------------------------------------------------------
+
+  function send(data: string, isSubscription = false): void {
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(data);
-    } else if (ws?.readyState === WebSocket.CONNECTING) {
-      pendingQueue.push(data);
+    } else {
+      // Queue on ANY non-OPEN state (CONNECTING, CLOSING, CLOSED) so
+      // subscribe/unsubscribe commands are never silently dropped.
+      pendingQueue.push({ data, isSubscription });
     }
-    // CLOSING / CLOSED — silently drop
   }
 
   /** Compute reconnect delay: min(1000 * 2^attempt, 30000) + jitter(0–500). */
@@ -156,7 +181,7 @@ export function createWsClient(): WsClient {
   function scheduleReconnect(): void {
     const delay = getReconnectDelay(reconnectAttempt);
     reconnectAttempt++;
-    client.onConnectionChange?.({
+    emit("connection-change", {
       status: "reconnecting",
       attempt: reconnectAttempt,
     });
@@ -166,9 +191,12 @@ export function createWsClient(): WsClient {
   function connect(): void {
     if (intentionalClose) return;
 
-    // Clear any commands queued from a previous connection attempt to avoid
-    // sending stale/duplicate subscribes alongside the automatic re-subscribe.
+    // Only discard subscription commands from the queue — the reconnect
+    // handler will re-subscribe automatically using currentSubscriptionId.
+    // Preserve any non-subscription commands so they aren't silently lost.
+    const preserved = pendingQueue.filter((cmd) => !cmd.isSubscription);
     pendingQueue.length = 0;
+    pendingQueue.push(...preserved);
 
     ws = new WebSocket(url);
 
@@ -177,16 +205,20 @@ export function createWsClient(): WsClient {
       hasConnectedOnce = true;
       reconnectAttempt = 0;
       reconnectTimer = null;
-      client.onConnectionChange?.({ status: "connected", attempt: 0 });
+      emit("connection-change", { status: "connected", attempt: 0 });
 
-      // Flush any commands queued while connecting
-      for (const data of pendingQueue) {
-        ws!.send(data);
-      }
+      // Flush any commands queued while connecting. Filter out subscription
+      // commands here as well — the auto-re-subscribe below uses the latest
+      // currentSubscriptionId, so stale subscribe/unsubscribe from the queue
+      // (e.g. if the user navigated sessions during reconnect) must be dropped.
+      const toFlush = pendingQueue.filter((cmd) => !cmd.isSubscription);
       pendingQueue.length = 0;
+      for (const cmd of toFlush) {
+        ws!.send(cmd.data);
+      }
 
       if (isReconnect) {
-        // Re-subscribe to the active session
+        // Re-subscribe to the active session (uses latest sessionId)
         if (currentSubscriptionId) {
           ws!.send(
             JSON.stringify({
@@ -195,7 +227,15 @@ export function createWsClient(): WsClient {
             }),
           );
         }
-        client.onReconnect?.();
+        emit("reconnect");
+      } else if (currentSubscriptionId) {
+        // Initial connect: send the subscription that was queued while CONNECTING
+        ws!.send(
+          JSON.stringify({
+            type: "subscribe",
+            sessionId: currentSubscriptionId,
+          }),
+        );
       }
     });
 
@@ -203,7 +243,7 @@ export function createWsClient(): WsClient {
       if (!intentionalClose) {
         scheduleReconnect();
       } else {
-        client.onConnectionChange?.({ status: "disconnected", attempt: 0 });
+        emit("connection-change", { status: "disconnected", attempt: 0 });
       }
     });
 
@@ -217,36 +257,68 @@ export function createWsClient(): WsClient {
       try {
         msg = JSON.parse(event.data as string);
       } catch {
-        // Malformed frame — log and discard, do not crash
         console.warn("[ws] Malformed WebSocket message, discarding:", event.data);
         return;
       }
 
       switch (msg.type) {
         case "messages":
-          client.onMessage?.(msg);
+          emit("message", msg);
           break;
         case "session:started":
         case "session:stopped":
         case "session:error":
         case "session:activity":
-          client.onLifecycleEvent?.(msg as LifecycleEvent);
+          emit("lifecycle", msg as LifecycleEvent);
           break;
         case "global:activity":
-          client.onGlobalActivity?.(msg as GlobalActivityEvent);
+          emit("global-activity", msg as GlobalActivityEvent);
           break;
         case "error":
-          client.onError?.(msg);
+          emit("error", msg);
           break;
         case "heartbeat":
-          // Server liveness signal — no action needed
+          // Respond to server heartbeat with a pong for bidirectional liveness.
+          // Only send on OPEN — pongs are meaningless after reconnect.
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "pong" }));
+          }
           break;
         default:
-          // Unknown message type — ignore
           break;
       }
     });
   }
+
+  const client: WsClient = {
+    subscribe(sessionId: string) {
+      currentSubscriptionId = sessionId;
+      send(JSON.stringify({ type: "subscribe", sessionId }), true);
+    },
+
+    unsubscribe() {
+      currentSubscriptionId = null;
+      send(JSON.stringify({ type: "unsubscribe" }), true);
+    },
+
+    on<K extends keyof WsEvents>(event: K, handler: WsEventHandler<K>) {
+      getListeners(event).add(handler);
+    },
+
+    off<K extends keyof WsEvents>(event: K, handler: WsEventHandler<K>) {
+      getListeners(event).delete(handler);
+    },
+
+    destroy() {
+      intentionalClose = true;
+      if (reconnectTimer !== null) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      listeners.clear();
+      ws?.close();
+    },
+  };
 
   // Start the initial connection
   connect();

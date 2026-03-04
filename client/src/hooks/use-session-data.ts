@@ -8,13 +8,13 @@ import {
   resumeSession,
   sendMessage,
 } from "@/lib/api";
-import {
-  createWsClient,
-  type ConnectionInfo,
-  type LifecycleEvent,
-  type MessageBatch,
-  type WsClient,
+import type {
+  ConnectionInfo,
+  LifecycleEvent,
+  MessageBatch,
+  WsError,
 } from "@/lib/ws";
+import { useWsClient } from "@/hooks/use-ws-client";
 import type {
   EnrichedSession,
   ParsedMessage,
@@ -89,6 +89,8 @@ export function useSessionData({
   projectId,
   onGoSession,
 }: UseSessionDataOptions): UseSessionDataResult {
+  const ws = useWsClient();
+
   const [session, setSession] = useState<EnrichedSession | null>(null);
   const [liveMessages, setLiveMessages] = useState<ParsedMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,6 @@ export function useSessionData({
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("unknown");
   const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
   const [liveAnalytics, setLiveAnalytics] = useState<AnalyticsFields | null>(null);
-  const wsRef = useRef<WsClient | null>(null);
   const baselineRef = useRef<Set<number>>(new Set());
   const refetchingRef = useRef(false);
   const reconnectBufferRef = useRef<ParsedMessage[]>([]);
@@ -182,17 +183,24 @@ export function useSessionData({
   useEffect(() => {
     let cancelled = false;
 
-    // Create WS synchronously so cleanup always has a valid reference
-    const ws = createWsClient();
-    wsRef.current = ws;
+    // Reset state for clean transition when sessionId changes
+    setSession(null);
+    setLiveMessages([]);
+    setLoading(true);
+    setError(null);
+    setErrorStatus(null);
+    setSessionStatus("unknown");
+    setLiveAnalytics(null);
+
     ws.subscribe(sessionId);
 
-    // Callbacks that don't depend on baseline data — wire up immediately
-    ws.onConnectionChange = (info) => {
+    // --- Event handlers (stable references for cleanup) ---
+
+    const handleConnectionChange = (info: ConnectionInfo) => {
       if (!cancelled) setConnectionInfo(info);
     };
 
-    ws.onLifecycleEvent = (event: LifecycleEvent) => {
+    const handleLifecycle = (event: LifecycleEvent) => {
       if (cancelled || event.sessionId !== sessionId) return;
       switch (event.type) {
         case "session:started":
@@ -208,7 +216,14 @@ export function useSessionData({
       }
     };
 
-    ws.onReconnect = () => {
+    const handleWsError = (err: WsError) => {
+      if (cancelled) return;
+      console.warn("[ws] Server error:", err.code, err.message);
+      toast.error(`Server error: ${err.message}`);
+    };
+
+    const handleReconnect = () => {
+      if (cancelled) return;
       refetchingRef.current = true;
       reconnectBufferRef.current = [];
 
@@ -230,16 +245,16 @@ export function useSessionData({
           const novel = buffered.filter(
             (m) => !freshBaseline.has(m.lineIndex),
           );
-          if (novel.length > 0) {
-            setLiveMessages(novel);
-          } else {
-            setLiveMessages([]);
-          }
+          setLiveMessages(novel.length > 0 ? novel : []);
         })
         .catch((err: unknown) => {
           if (cancelled) return;
           refetchingRef.current = false;
           reconnectBufferRef.current = [];
+
+          // Clear stale liveMessages on failed refetch so the UI doesn't show
+          // potentially duplicated or outdated data.
+          setLiveMessages([]);
           toast.error(
             err instanceof Error
               ? err.message
@@ -248,7 +263,15 @@ export function useSessionData({
         });
     };
 
-    // onMessage wired after baseline is available from the REST fetch
+    // Wire up event listeners on the shared client
+    ws.on("connection-change", handleConnectionChange);
+    ws.on("lifecycle", handleLifecycle);
+    ws.on("error", handleWsError);
+    ws.on("reconnect", handleReconnect);
+
+    // onMessage handler — wired after baseline is available from the REST fetch
+    let handleMessage: ((batch: MessageBatch) => void) | null = null;
+
     fetchSession(sessionId)
       .then((data) => {
         if (cancelled) return;
@@ -259,7 +282,7 @@ export function useSessionData({
         setLoading(false);
         baselineRef.current = new Set(data.messages.map((m) => m.lineIndex));
 
-        ws.onMessage = (batch: MessageBatch) => {
+        handleMessage = (batch: MessageBatch) => {
           if (cancelled) return;
           if (refetchingRef.current) {
             reconnectBufferRef.current.push(...batch.messages);
@@ -276,7 +299,6 @@ export function useSessionData({
             return novel.length > 0 ? [...prev, ...novel] : prev;
           });
 
-          // Incrementally update analytics from the batch
           if (incrementalCtxRef.current) {
             setLiveAnalytics((prev) =>
               prev
@@ -285,6 +307,8 @@ export function useSessionData({
             );
           }
         };
+
+        ws.on("message", handleMessage);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -299,10 +323,15 @@ export function useSessionData({
     return () => {
       cancelled = true;
       ws.unsubscribe();
-      ws.close();
-      wsRef.current = null;
+      ws.off("connection-change", handleConnectionChange);
+      ws.off("lifecycle", handleLifecycle);
+      ws.off("error", handleWsError);
+      ws.off("reconnect", handleReconnect);
+      if (handleMessage) {
+        ws.off("message", handleMessage);
+      }
     };
-  }, [sessionId, retryCount]);
+  }, [ws, sessionId, retryCount]);
 
   // -- Computed values ------------------------------------------------------
 
