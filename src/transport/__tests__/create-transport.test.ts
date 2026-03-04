@@ -813,4 +813,77 @@ describe("createTransport — Phase 2 send failures", () => {
   });
 });
 
+describe("createTransport — lifecycle event type coverage", () => {
+  it("broadcastLifecycleEvent delivers session:activity events unchanged", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+    const ws = createMockWebSocket();
+
+    transport.handleOpen(ws.ws);
+
+    const event: LifecycleEvent = {
+      type: "session:activity",
+      sessionId: VALID_SESSION_ID,
+      updatedAt: "2026-02-23T12:00:00.000Z",
+    };
+
+    transport.broadcastLifecycleEvent(event);
+
+    expect(ws.sent).toHaveLength(1);
+    const frame = JSON.parse(ws.sent[0]);
+    expect(frame).toEqual(event);
+    expect(frame.type).toBe("session:activity");
+    expect(frame.sessionId).toBe(VALID_SESSION_ID);
+    expect(frame.updatedAt).toBe("2026-02-23T12:00:00.000Z");
+  });
+
+  it("broadcastLifecycleEvent delivers session:error with all fields intact", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+    const ws = createMockWebSocket();
+
+    transport.handleOpen(ws.ws);
+
+    const event: LifecycleEvent = {
+      type: "session:error",
+      sessionId: VALID_SESSION_ID,
+      error: "Process exited with code 1",
+      occurredAt: "2026-02-23T12:01:00.000Z",
+    };
+
+    transport.broadcastLifecycleEvent(event);
+
+    expect(ws.sent).toHaveLength(1);
+    const frame = JSON.parse(ws.sent[0]);
+    expect(frame).toEqual(event);
+    expect(frame.type).toBe("session:error");
+    expect(frame.error).toBe("Process exited with code 1");
+    expect(frame.occurredAt).toBe("2026-02-23T12:01:00.000Z");
+  });
+
+  it("broadcastLifecycleEvent delivers session:stopped with reason 'errored'", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+    const ws = createMockWebSocket();
+
+    transport.handleOpen(ws.ws);
+
+    const event: LifecycleEvent = {
+      type: "session:stopped",
+      sessionId: VALID_SESSION_ID,
+      reason: "errored",
+      stoppedAt: "2026-02-23T12:02:00.000Z",
+    };
+
+    transport.broadcastLifecycleEvent(event);
+
+    expect(ws.sent).toHaveLength(1);
+    const frame = JSON.parse(ws.sent[0]);
+    expect(frame).toEqual(event);
+    expect(frame.type).toBe("session:stopped");
+    expect(frame.reason).toBe("errored");
+    expect(frame.stoppedAt).toBe("2026-02-23T12:02:00.000Z");
+  });
+});
+
 // ============================================================

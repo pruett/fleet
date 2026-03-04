@@ -38,11 +38,15 @@ export function createController(options: ControllerOptions): Controller {
 
     registry.set(sessionId, managed);
 
-    options.onLifecycleEvent({
-      type: "session:activity",
-      sessionId,
-      updatedAt: managed.startedAt,
-    });
+    try {
+      options.onLifecycleEvent({
+        type: "session:activity",
+        sessionId,
+        updatedAt: managed.startedAt,
+      });
+    } catch {
+      // Callback errors must not prevent sendMessage from succeeding
+    }
 
     proc.exited
       .then(async (exitCode) => {
