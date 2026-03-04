@@ -10,7 +10,4 @@ Reads and writes Fleet's user configuration (`~/.config/fleet/settings.json`).
 - **`readConfig(): Promise<FleetConfig>`** — Reads and parses the config file. Returns defaults on error. Handles legacy format migration.
 - **`writeConfig(config: FleetConfig): Promise<void>`** — Writes config to file, creating parent directories as needed.
 
-### Types
-
-- **`FleetConfig`** — The full configuration object.
-- **`ProjectConfig`** — Per-project configuration entry.
+Types used by this module (`FleetConfig`, `ProjectConfig`) are defined in `@fleet/shared`.
