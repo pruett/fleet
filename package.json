@@ -7,11 +7,11 @@
   "bin": {
     "fleet": "bin/fleet.ts"
   },
-  "files": ["bin/", "src/", "client/dist/"],
+  "files": ["bin/", "src/", "shared/", "client/dist/"],
   "publishConfig": {
     "access": "public"
   },
-  "workspaces": ["client"],
+  "workspaces": ["client", "shared"],
   "scripts": {
     "dev": "bun run scripts/dev.ts",
     "dev:server": "bun --watch src/main.ts",

@@ -1,7 +1,3 @@
-// ============================================================
-// Scanner summary types
-// ============================================================
-
 export interface ProjectSummary {
   /** Raw directory name, e.g. "-Users-foo-code-bar" */
   id: string;

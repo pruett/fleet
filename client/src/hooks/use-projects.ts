@@ -12,7 +12,7 @@ import type {
   ProjectSummary,
   ProjectConfig,
   FleetConfig,
-} from "@/types/api";
+} from "@fleet/shared";
 
 export interface UseProjectsResult {
   projects: GroupedProject[];

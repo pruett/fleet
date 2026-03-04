@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { ProjectSummary } from "./types";
+import type { ProjectSummary } from "@fleet/shared";
 import { scanSessions } from "./scan-sessions";
 
 /**

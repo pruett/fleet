@@ -1,5 +1,4 @@
-import type { ProjectSummary, GroupedProject } from "./types";
-import type { ProjectConfig } from "../config";
+import type { ProjectSummary, GroupedProject, ProjectConfig } from "@fleet/shared";
 import { slugify } from "../config";
 
 /**

@@ -4,7 +4,7 @@ import type {
   SessionSummary,
   EnrichedSession,
   FleetConfig,
-} from "@/types/api";
+} from "@fleet/shared";
 
 class ApiError extends Error {
   status: number;

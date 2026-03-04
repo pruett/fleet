@@ -1,6 +1,19 @@
 import type { ServerWebSocket } from "bun";
 import type { WatchOptions, WatchHandle } from "../watcher";
 
+// Re-export shared lifecycle and file-change event types
+export type {
+  SessionStarted,
+  SessionStopped,
+  SessionError,
+  SessionActivity,
+  LifecycleEvent,
+  SessionFileChanged,
+  FileChangeEvent,
+} from "@fleet/shared";
+
+import type { LifecycleEvent, FileChangeEvent } from "@fleet/shared";
+
 // ============================================================
 // Connected Client (internal tracking for each WebSocket)
 // ============================================================
@@ -64,53 +77,3 @@ export interface Transport {
   /** Disconnect all clients, stop all watchers, clear state. */
   shutdown: () => void;
 }
-
-// ============================================================
-// Lifecycle Events (broadcast to all connected clients)
-// ============================================================
-
-export type LifecycleEvent =
-  | SessionStarted
-  | SessionStopped
-  | SessionError
-  | SessionActivity;
-
-export interface SessionStarted {
-  type: "session:started";
-  sessionId: string;
-  projectId: string;
-  cwd: string;
-  startedAt: string;
-}
-
-export interface SessionStopped {
-  type: "session:stopped";
-  sessionId: string;
-  reason: "user" | "completed" | "errored";
-  stoppedAt: string;
-}
-
-export interface SessionError {
-  type: "session:error";
-  sessionId: string;
-  error: string;
-  occurredAt: string;
-}
-
-export interface SessionActivity {
-  type: "session:activity";
-  sessionId: string;
-  updatedAt: string;
-}
-
-// ============================================================
-// File Change Events (ProjectsDir watcher — broadcast to all)
-// ============================================================
-
-export interface SessionFileChanged {
-  type: "session:file-changed";
-  sessionId: string;
-  updatedAt: string;
-}
-
-export type FileChangeEvent = SessionFileChanged;

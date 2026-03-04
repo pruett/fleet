@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join, basename, extname } from "node:path";
-import type { SessionSummary } from "./types";
+import type { SessionSummary } from "@fleet/shared";
 import { extractSessionSummary } from "./extract-session-summary";
 
 const UUID_RE =

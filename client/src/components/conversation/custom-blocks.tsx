@@ -2,7 +2,7 @@ import type { HTMLAttributes } from "react";
 import type {
   ProgressAgentMessage,
   SystemApiErrorMessage,
-} from "@/types/api";
+} from "@fleet/shared";
 
 // ---------------------------------------------------------------------------
 // ApiErrorBlock — red error banner

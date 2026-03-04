@@ -1,4 +1,4 @@
-import type { ParsedMessage } from "@/types/api";
+import type { ParsedMessage } from "@fleet/shared";
 import {
   Message,
   MessageContent,

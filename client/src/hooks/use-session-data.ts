@@ -19,7 +19,7 @@ import type {
   EnrichedSession,
   ParsedMessage,
   UserPromptMessage,
-} from "@/types/api";
+} from "@fleet/shared";
 import {
   type AnalyticsFields,
   type IncrementalContext,

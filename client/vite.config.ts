@@ -15,6 +15,7 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: true,
     port: clientPort,
     strictPort: true,
     proxy: {

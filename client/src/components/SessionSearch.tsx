@@ -12,7 +12,7 @@ import {
 import { timeAgo } from "@/lib/time";
 import { truncate } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
-import type { SessionSummary, GroupedProject } from "@/types/api";
+import type { SessionSummary, GroupedProject } from "@fleet/shared";
 
 interface SessionSearchProps {
   open: boolean;

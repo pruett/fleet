@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { ArrowLeft, Folder, Loader2 } from "lucide-react";
-import type { ProjectSummary, ProjectConfig } from "@/types/api";
+import type { ProjectSummary, ProjectConfig } from "@fleet/shared";
 import {
   Dialog,
   DialogContent,

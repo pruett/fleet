@@ -2,7 +2,7 @@ import type {
   AssistantBlockMessage,
   EnrichedSession,
   ParsedMessage,
-} from "@/types/api";
+} from "@fleet/shared";
 
 /**
  * Analytics fields extracted from EnrichedSession that can be

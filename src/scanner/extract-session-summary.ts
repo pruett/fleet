@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { computeCost } from "../parser";
-import type { SessionSummary } from "./types";
+import type { SessionSummary } from "@fleet/shared";
 
 interface ResponseUsage {
   model: string;

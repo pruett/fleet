@@ -2,14 +2,8 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 
-export interface ProjectConfig {
-  title: string;
-  projectIds: string[];
-}
-
-export interface FleetConfig {
-  projects: ProjectConfig[];
-}
+export type { ProjectConfig, FleetConfig } from "@fleet/shared";
+import type { ProjectConfig, FleetConfig } from "@fleet/shared";
 
 const DEFAULT_CONFIG: FleetConfig = { projects: [] };
 

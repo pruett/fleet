@@ -1,4 +1,13 @@
-import type { ParsedMessage } from "@/types/api";
+import type {
+  ParsedMessage,
+  SessionStarted,
+  SessionStopped,
+  SessionError,
+  SessionActivity,
+  LifecycleEvent,
+  SessionFileChanged,
+  FileChangeEvent,
+} from "@fleet/shared";
 
 // ============================================================
 // Server → Client message types
@@ -11,59 +20,28 @@ export interface MessageBatch {
   byteRange: { start: number; end: number };
 }
 
-export interface SessionStartedEvent {
-  type: "session:started";
-  sessionId: string;
-  projectId: string;
-  cwd: string;
-  startedAt: string;
-}
-
-export interface SessionStoppedEvent {
-  type: "session:stopped";
-  sessionId: string;
-  reason: "user" | "completed" | "errored";
-  stoppedAt: string;
-}
-
-export interface SessionErrorEvent {
-  type: "session:error";
-  sessionId: string;
-  error: string;
-  occurredAt: string;
-}
-
-export interface SessionActivityEvent {
-  type: "session:activity";
-  sessionId: string;
-  updatedAt: string;
-}
-
-export interface SessionFileChangedEvent {
-  type: "session:file-changed";
-  sessionId: string;
-  updatedAt: string;
-}
-
-export type FileChangeEvent = SessionFileChangedEvent;
-
 export interface WsError {
   type: "error";
   code: string;
   message: string;
 }
 
-export type LifecycleEvent =
-  | SessionStartedEvent
-  | SessionStoppedEvent
-  | SessionErrorEvent
-  | SessionActivityEvent;
-
 export interface Heartbeat {
   type: "heartbeat";
 }
 
 export type ServerMessage = MessageBatch | LifecycleEvent | FileChangeEvent | WsError | Heartbeat;
+
+// Re-export shared types used by consumers of this module
+export type {
+  LifecycleEvent,
+  FileChangeEvent,
+  SessionStarted,
+  SessionStopped,
+  SessionError,
+  SessionActivity,
+  SessionFileChanged,
+};
 
 // ============================================================
 // Connection status types

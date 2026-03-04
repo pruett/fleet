@@ -8,6 +8,11 @@ import type { EnrichedSession } from "../parser";
 import type { Transport } from "../transport";
 import type { FleetConfig, ProjectConfig } from "../config";
 
+// Re-export shared API types
+export type { ControlResult, StartSessionOpts } from "@fleet/shared";
+
+import type { ControlResult, StartSessionOpts } from "@fleet/shared";
+
 export interface AppDependencies {
   scanner: {
     scanProjects: (basePaths: string[]) => Promise<ProjectSummary[]>;
@@ -37,16 +42,4 @@ export interface AppDependencies {
   transport: Transport;
   basePaths: string[];
   staticDir: string | null;
-}
-
-export interface ControlResult {
-  ok: boolean;
-  sessionId: string;
-  error?: string;
-}
-
-export interface StartSessionOpts {
-  projectDir: string;
-  prompt?: string;
-  cwd?: string;
 }

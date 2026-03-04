@@ -1,5 +1,5 @@
 import { truncate } from "@/lib/utils";
-import type { EnrichedSession } from "@/types/api";
+import type { EnrichedSession } from "@fleet/shared";
 import {
   Tabs,
   TabsContent,

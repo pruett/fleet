@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ParsedMessage, ContentBlock, TokenUsage } from "@fleet/shared";
 
 // ============================================================
 // Common Building Blocks
@@ -325,3 +326,11 @@ export const ParsedMessageSchema = z.discriminatedUnion("kind", [
   QueueOperationMessageSchema,
   MalformedRecordSchema,
 ]);
+
+// ============================================================
+// Compile-time conformance checks: Zod output ⊆ shared type
+// ============================================================
+
+type _CheckParsedMessage = z.infer<typeof ParsedMessageSchema> extends ParsedMessage ? true : never;
+type _CheckContentBlock = z.infer<typeof ContentBlockSchema> extends ContentBlock ? true : never;
+type _CheckTokenUsage = z.infer<typeof TokenUsageSchema> extends TokenUsage ? true : never;

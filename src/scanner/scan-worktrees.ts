@@ -1,7 +1,7 @@
 import { execFile as cpExecFile } from "node:child_process";
 import { basename } from "node:path";
 import { promisify } from "node:util";
-import type { WorktreeSummary } from "./types";
+import type { WorktreeSummary } from "@fleet/shared";
 
 const defaultExec = promisify(cpExecFile);
 

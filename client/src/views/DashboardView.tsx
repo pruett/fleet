@@ -15,7 +15,7 @@ import { fetchSessions } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
-import type { GroupedProject } from "@/types/api";
+import type { GroupedProject } from "@fleet/shared";
 import { useProjects } from "@/hooks/use-projects";
 import { useSessionActivity } from "@/hooks/use-session-activity";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
