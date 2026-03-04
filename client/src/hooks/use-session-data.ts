@@ -192,8 +192,6 @@ export function useSessionData({
     setSessionStatus("unknown");
     setLiveAnalytics(null);
 
-    ws.subscribe(sessionId);
-
     // --- Event handlers (stable references for cleanup) ---
 
     const handleConnectionChange = (info: ConnectionInfo) => {
@@ -263,14 +261,63 @@ export function useSessionData({
         });
     };
 
-    // Wire up event listeners on the shared client
+    // Track whether the initial REST fetch has resolved. Messages that
+    // arrive before the baseline is ready are buffered and drained once
+    // the fetch completes — this closes the race between ws.subscribe()
+    // (which tells the server to start streaming) and the REST fetch.
+    const baselineReadyRef = { current: false };
+    const initialBufferRef = { current: [] as ParsedMessage[] };
+
+    const handleMessage = (batch: MessageBatch) => {
+      console.debug(
+        `[DEBUG:hook:handleMessage] msgs=${batch.messages.length} cancelled=${cancelled} refetching=${refetchingRef.current} baselineReady=${baselineReadyRef.current}`,
+      );
+      if (cancelled) return;
+
+      // Buffer during reconnect refetch (existing logic)
+      if (refetchingRef.current) {
+        console.debug(`[DEBUG:hook:handleMessage] → buffered to reconnectBuffer (${reconnectBufferRef.current.length + batch.messages.length} total)`);
+        reconnectBufferRef.current.push(...batch.messages);
+        return;
+      }
+
+      // Buffer until initial baseline is ready
+      if (!baselineReadyRef.current) {
+        console.debug(`[DEBUG:hook:handleMessage] → buffered to initialBuffer (${initialBufferRef.current.length + batch.messages.length} total)`);
+        initialBufferRef.current.push(...batch.messages);
+        return;
+      }
+
+      setLiveMessages((prev) => {
+        const liveIndexes = new Set(prev.map((m) => m.lineIndex));
+        const novel = batch.messages.filter(
+          (m) =>
+            !baselineRef.current.has(m.lineIndex) &&
+            !liveIndexes.has(m.lineIndex),
+        );
+        console.debug(
+          `[DEBUG:hook:handleMessage] → dedup: ${batch.messages.length} in, ${novel.length} novel, ${prev.length} existing live, baseline size=${baselineRef.current.size}`,
+        );
+        return novel.length > 0 ? [...prev, ...novel] : prev;
+      });
+
+      if (incrementalCtxRef.current) {
+        setLiveAnalytics((prev) =>
+          prev
+            ? applyBatch(prev, batch.messages, incrementalCtxRef.current!)
+            : prev,
+        );
+      }
+    };
+
+    // Wire up ALL event listeners before subscribing so no frames are missed
+    ws.on("message", handleMessage);
     ws.on("connection-change", handleConnectionChange);
     ws.on("lifecycle", handleLifecycle);
     ws.on("error", handleWsError);
     ws.on("reconnect", handleReconnect);
 
-    // onMessage handler — wired after baseline is available from the REST fetch
-    let handleMessage: ((batch: MessageBatch) => void) | null = null;
+    ws.subscribe(sessionId);
 
     fetchSession(sessionId)
       .then((data) => {
@@ -282,33 +329,32 @@ export function useSessionData({
         setLoading(false);
         baselineRef.current = new Set(data.messages.map((m) => m.lineIndex));
 
-        handleMessage = (batch: MessageBatch) => {
-          if (cancelled) return;
-          if (refetchingRef.current) {
-            reconnectBufferRef.current.push(...batch.messages);
-            return;
-          }
+        // Drain any messages that arrived while the REST fetch was in-flight
+        const buffered = initialBufferRef.current;
+        initialBufferRef.current = [];
+        baselineReadyRef.current = true;
 
-          setLiveMessages((prev) => {
-            const liveIndexes = new Set(prev.map((m) => m.lineIndex));
-            const novel = batch.messages.filter(
-              (m) =>
-                !baselineRef.current.has(m.lineIndex) &&
-                !liveIndexes.has(m.lineIndex),
-            );
-            return novel.length > 0 ? [...prev, ...novel] : prev;
-          });
+        console.debug(
+          `[DEBUG:hook:baselineReady] baseline=${baselineRef.current.size} msgs, buffered=${buffered.length} msgs`,
+        );
 
-          if (incrementalCtxRef.current) {
-            setLiveAnalytics((prev) =>
-              prev
-                ? applyBatch(prev, batch.messages, incrementalCtxRef.current!)
-                : prev,
-            );
-          }
-        };
+        const novel = buffered.filter(
+          (m) => !baselineRef.current.has(m.lineIndex),
+        );
+        console.debug(
+          `[DEBUG:hook:baselineReady] novel after dedup=${novel.length}`,
+        );
+        if (novel.length > 0) {
+          setLiveMessages(novel);
+        }
 
-        ws.on("message", handleMessage);
+        if (novel.length > 0 && incrementalCtxRef.current) {
+          setLiveAnalytics((prev) =>
+            prev
+              ? applyBatch(prev, novel, incrementalCtxRef.current!)
+              : prev,
+          );
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -323,13 +369,11 @@ export function useSessionData({
     return () => {
       cancelled = true;
       ws.unsubscribe();
+      ws.off("message", handleMessage);
       ws.off("connection-change", handleConnectionChange);
       ws.off("lifecycle", handleLifecycle);
       ws.off("error", handleWsError);
       ws.off("reconnect", handleReconnect);
-      if (handleMessage) {
-        ws.off("message", handleMessage);
-      }
     };
   }, [ws, sessionId, retryCount]);
 
@@ -343,7 +387,11 @@ export function useSessionData({
       (m) => !baselineIndexes.has(m.lineIndex),
     );
     const allMessages = session ? [...session.messages, ...uniqueLive] : [];
-    return allMessages.filter(isVisibleMessage);
+    const visible = allMessages.filter(isVisibleMessage);
+    console.debug(
+      `[DEBUG:hook:visibleMessages] baseline=${baselineIndexes.size} live=${liveMessages.length} uniqueLive=${uniqueLive.length} total=${allMessages.length} visible=${visible.length}`,
+    );
+    return visible;
   }, [session, liveMessages]);
 
   const sessionMeta = useMemo(

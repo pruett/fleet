@@ -24,6 +24,8 @@ interface WatcherState {
   recheckNeeded: boolean;
   /** One-shot poll timer — catches trailing writes when OS coalesces fs.watch events. */
   pollTimer: ReturnType<typeof setTimeout> | null;
+  /** Recurring fallback poll — catches missed fs.watch events on macOS. */
+  fallbackPollTimer: ReturnType<typeof setInterval> | null;
 }
 
 /**
@@ -44,7 +46,10 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
 
   // Return existing handle if this session is already being watched
   const existing = registry.get(sessionId);
-  if (existing) return existing.handle;
+  if (existing) {
+    console.debug(`[DEBUG:watcher:start] REUSING existing watcher for session=${sessionId} offset=${existing.handle.byteOffset}`);
+    return existing.handle;
+  }
 
   // Determine starting read position: use caller-supplied byteOffset if
   // provided (e.g. to close a snapshot-subscription gap), else tail from end.
@@ -83,6 +88,7 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
     processing: false,
     recheckNeeded: false,
     pollTimer: null,
+    fallbackPollTimer: null,
   };
 
   /** Process new data from the file. Serialized via the `processing` flag. */
@@ -204,6 +210,7 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
 
   // Register fs.watch listener for file changes
   const fsWatcher = watch(filePath, (eventType) => {
+    console.debug(`[DEBUG:watcher:fsEvent] session=${sessionId} eventType=${eventType}`);
     if (eventType !== "change") return;
     safeProcessChanges();
   });
@@ -220,6 +227,18 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
 
   state.watcher = fsWatcher;
   registry.set(sessionId, state);
+  console.debug(`[DEBUG:watcher:start] NEW watcher for session=${sessionId} file=${filePath} startOffset=${startOffset} lineIndex=${initialLineIndex}`);
+
+  // Recurring fallback poll: fs.watch on macOS can silently miss events.
+  // Check every 2s if unread data exists and trigger processing.
+  const FALLBACK_POLL_MS = 2_000;
+  state.fallbackPollTimer = setInterval(() => {
+    if (handle.stopped || state.processing) return;
+    if (Bun.file(filePath).size > handle.byteOffset) {
+      console.debug(`[DEBUG:watcher:fallbackPoll] session=${sessionId} detected unread data`);
+      safeProcessChanges();
+    }
+  }, FALLBACK_POLL_MS);
 
   // If there's already unread data (startOffset < currentSize), trigger an
   // immediate catchup so gap messages are processed without waiting for a
@@ -306,6 +325,9 @@ function flush(state: WatcherState): void {
   state.pendingMessages = [];
   state.batchStartOffset = null;
 
+  console.debug(
+    `[DEBUG:watcher:flush] session=${batch.sessionId} msgs=${batch.messages.length} bytes=${batch.byteRange.start}-${batch.byteRange.end} kinds=${batch.messages.map((m) => m.kind).join(",")}`,
+  );
   state.options.onMessages(batch);
 }
 
@@ -323,6 +345,10 @@ export function stopWatching(handle: WatchHandle): void {
     if (state.pollTimer !== null) {
       clearTimeout(state.pollTimer);
       state.pollTimer = null;
+    }
+    if (state.fallbackPollTimer !== null) {
+      clearInterval(state.fallbackPollTimer);
+      state.fallbackPollTimer = null;
     }
     flush(state);
     registry.delete(handle.sessionId);

@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject } from "@fleet/shared";
 import { useProjects } from "@/hooks/use-projects";
-import { useGlobalActivity } from "@/hooks/use-global-activity";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import { SessionSearch } from "@/components/SessionSearch";
 import {
@@ -218,7 +217,13 @@ function ProjectTreeItem({
 // ---------------------------------------------------------------------------
 
 export function DashboardView() {
-  useGlobalActivity();
+  const queryClient = useQueryClient();
+
+  const refreshAll = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.projects() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.config() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.sessionsAll() });
+  }, [queryClient]);
 
   const {
     projects,
@@ -268,6 +273,16 @@ export function DashboardView() {
           <span className="flex items-center gap-3 text-sm font-light font-mono uppercase tracking-widest">
             <Ship className="h-4 w-4" aria-hidden="true" />
             Fleet
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto size-6"
+              onClick={refreshAll}
+              title="Refresh all"
+            >
+              <RefreshCw className="size-3.5" />
+              <span className="sr-only">Refresh all</span>
+            </Button>
           </span>
         </SidebarHeader>
         <SidebarContent>

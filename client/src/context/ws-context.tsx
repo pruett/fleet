@@ -1,4 +1,4 @@
-import { createContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useEffect, useState, type ReactNode } from "react";
 import { createWsClient, type WsClient } from "@/lib/ws";
 
 export const WsContext = createContext<WsClient | null>(null);
@@ -8,26 +8,27 @@ export const WsContext = createContext<WsClient | null>(null);
  *
  * Mount once near the app root (after QueryClientProvider, inside BrowserRouter).
  * All hooks that need WebSocket access call `useWsClient()`.
+ *
+ * The client is created inside useEffect so that React StrictMode's
+ * mount → cleanup → remount cycle works correctly — the destroyed client
+ * from the first mount is never served to children.
  */
 export function WsProvider({ children }: { children: ReactNode }) {
-  const clientRef = useRef<WsClient | null>(null);
-
-  // Create the client synchronously on first render so it's available
-  // immediately for child components (no null flash).
-  if (!clientRef.current) {
-    clientRef.current = createWsClient();
-  }
+  const [client, setClient] = useState<WsClient | null>(null);
 
   useEffect(() => {
-    const client = clientRef.current;
+    const ws = createWsClient();
+    setClient(ws);
     return () => {
-      client?.destroy();
-      clientRef.current = null;
+      ws.destroy();
+      setClient(null);
     };
   }, []);
 
+  if (!client) return null;
+
   return (
-    <WsContext.Provider value={clientRef.current}>
+    <WsContext.Provider value={client}>
       {children}
     </WsContext.Provider>
   );
