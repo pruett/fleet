@@ -181,8 +181,74 @@ export function useSessionData({
 
   useEffect(() => {
     let cancelled = false;
-    let ws: WsClient | null = null;
 
+    // Create WS synchronously so cleanup always has a valid reference
+    const ws = createWsClient();
+    wsRef.current = ws;
+    ws.subscribe(sessionId);
+
+    // Callbacks that don't depend on baseline data — wire up immediately
+    ws.onConnectionChange = (info) => {
+      if (!cancelled) setConnectionInfo(info);
+    };
+
+    ws.onLifecycleEvent = (event: LifecycleEvent) => {
+      if (cancelled || event.sessionId !== sessionId) return;
+      switch (event.type) {
+        case "session:started":
+        case "session:activity":
+          setSessionStatus("running");
+          break;
+        case "session:stopped":
+          setSessionStatus("stopped");
+          break;
+        case "session:error":
+          setSessionStatus("error");
+          break;
+      }
+    };
+
+    ws.onReconnect = () => {
+      refetchingRef.current = true;
+      reconnectBufferRef.current = [];
+
+      fetchSession(sessionId)
+        .then((freshData) => {
+          if (cancelled) return;
+          setSession(freshData);
+          setLiveAnalytics(extractAnalytics(freshData));
+          incrementalCtxRef.current = createIncrementalContext(freshData);
+          const freshBaseline = new Set(
+            freshData.messages.map((m) => m.lineIndex),
+          );
+          baselineRef.current = freshBaseline;
+
+          const buffered = reconnectBufferRef.current;
+          reconnectBufferRef.current = [];
+          refetchingRef.current = false;
+
+          const novel = buffered.filter(
+            (m) => !freshBaseline.has(m.lineIndex),
+          );
+          if (novel.length > 0) {
+            setLiveMessages(novel);
+          } else {
+            setLiveMessages([]);
+          }
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          refetchingRef.current = false;
+          reconnectBufferRef.current = [];
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "Failed to refresh session after reconnect",
+          );
+        });
+    };
+
+    // onMessage wired after baseline is available from the REST fetch
     fetchSession(sessionId)
       .then((data) => {
         if (cancelled) return;
@@ -193,11 +259,8 @@ export function useSessionData({
         setLoading(false);
         baselineRef.current = new Set(data.messages.map((m) => m.lineIndex));
 
-        ws = createWsClient();
-        wsRef.current = ws;
-        ws.subscribe(sessionId);
-
         ws.onMessage = (batch: MessageBatch) => {
+          if (cancelled) return;
           if (refetchingRef.current) {
             reconnectBufferRef.current.push(...batch.messages);
             return;
@@ -222,66 +285,6 @@ export function useSessionData({
             );
           }
         };
-
-        ws.onLifecycleEvent = (event: LifecycleEvent) => {
-          if (event.sessionId !== sessionId) return;
-          switch (event.type) {
-            case "session:started":
-            case "session:activity":
-              setSessionStatus("running");
-              break;
-            case "session:stopped":
-              setSessionStatus("stopped");
-              break;
-            case "session:error":
-              setSessionStatus("error");
-              break;
-          }
-        };
-
-        ws.onConnectionChange = (info) => {
-          if (!cancelled) setConnectionInfo(info);
-        };
-
-        ws.onReconnect = () => {
-          refetchingRef.current = true;
-          reconnectBufferRef.current = [];
-
-          fetchSession(sessionId)
-            .then((freshData) => {
-              if (cancelled) return;
-              setSession(freshData);
-              setLiveAnalytics(extractAnalytics(freshData));
-              incrementalCtxRef.current = createIncrementalContext(freshData);
-              const freshBaseline = new Set(
-                freshData.messages.map((m) => m.lineIndex),
-              );
-              baselineRef.current = freshBaseline;
-
-              const buffered = reconnectBufferRef.current;
-              reconnectBufferRef.current = [];
-              refetchingRef.current = false;
-
-              const novel = buffered.filter(
-                (m) => !freshBaseline.has(m.lineIndex),
-              );
-              if (novel.length > 0) {
-                setLiveMessages(novel);
-              } else {
-                setLiveMessages([]);
-              }
-            })
-            .catch((err: unknown) => {
-              if (cancelled) return;
-              refetchingRef.current = false;
-              reconnectBufferRef.current = [];
-              toast.error(
-                err instanceof Error
-                  ? err.message
-                  : "Failed to refresh session after reconnect",
-              );
-            });
-        };
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -295,10 +298,8 @@ export function useSessionData({
 
     return () => {
       cancelled = true;
-      if (ws) {
-        ws.unsubscribe();
-        ws.close();
-      }
+      ws.unsubscribe();
+      ws.close();
       wsRef.current = null;
     };
   }, [sessionId, retryCount]);
