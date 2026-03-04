@@ -25,8 +25,8 @@ const transport = createTransport({
 const projectsDirWatcher = watchProjectsDir({
   basePaths,
   onSessionActivity: (sessionId) => {
-    transport.broadcastLifecycleEvent({
-      type: "session:activity",
+    transport.broadcastFileChangeEvent({
+      type: "session:file-changed",
       sessionId,
       updatedAt: new Date().toISOString(),
     });
@@ -34,7 +34,13 @@ const projectsDirWatcher = watchProjectsDir({
 });
 
 const controller = createController({
-  onLifecycleEvent: (event) => transport.broadcastLifecycleEvent(event),
+  onLifecycleEvent: (event) => {
+    transport.relayLifecycleEvent(event);
+    // Also broadcast started/stopped so sidebar picks them up
+    if (event.type === "session:started" || event.type === "session:stopped") {
+      transport.broadcastLifecycleEvent(event);
+    }
+  },
 });
 
 const serverOptions = createServer({

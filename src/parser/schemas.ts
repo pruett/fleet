@@ -18,7 +18,7 @@ export const TokenUsageSchema = z.object({
   output_tokens: z.number(),
   cache_creation_input_tokens: z.number().optional(),
   cache_read_input_tokens: z.number().optional(),
-  service_tier: z.string().optional(),
+  service_tier: z.string().nullish(),
 });
 
 // --- Content Blocks (inside assistant messages) ---

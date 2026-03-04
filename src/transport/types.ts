@@ -53,6 +53,10 @@ export interface Transport {
   handleClose: (ws: ServerWebSocket<unknown>) => void;
   /** Send a lifecycle event to all connected clients. */
   broadcastLifecycleEvent: (event: LifecycleEvent) => void;
+  /** Send a file-change event to all connected clients. */
+  broadcastFileChangeEvent: (event: FileChangeEvent) => void;
+  /** Send a lifecycle event only to clients subscribed to the event's sessionId. */
+  relayLifecycleEvent: (event: LifecycleEvent) => void;
   /** Number of currently connected clients. */
   getClientCount: () => number;
   /** Number of clients subscribed to a specific session. */
@@ -98,3 +102,15 @@ export interface SessionActivity {
   sessionId: string;
   updatedAt: string;
 }
+
+// ============================================================
+// File Change Events (ProjectsDir watcher — broadcast to all)
+// ============================================================
+
+export interface SessionFileChanged {
+  type: "session:file-changed";
+  sessionId: string;
+  updatedAt: string;
+}
+
+export type FileChangeEvent = SessionFileChanged;

@@ -1,6 +1,7 @@
 import type { ServerWebSocket } from "bun";
 import type {
   ConnectedClient,
+  FileChangeEvent,
   LifecycleEvent,
   Transport,
   TransportOptions,
@@ -38,6 +39,25 @@ export function createTransport(options: TransportOptions): Transport {
 
   function broadcastEvent(event: LifecycleEvent): void {
     broadcastRaw(JSON.stringify(event));
+  }
+
+  function broadcastFileChangeEvent(event: FileChangeEvent): void {
+    broadcastRaw(JSON.stringify(event));
+  }
+
+  function relayLifecycleEvent(event: LifecycleEvent): void {
+    const subscriberIds = sessions.get(event.sessionId);
+    if (!subscriberIds || subscriberIds.size === 0) return;
+    const frame = JSON.stringify(event);
+    for (const clientId of subscriberIds) {
+      const client = clients.get(clientId);
+      if (!client) continue;
+      try {
+        client.ws.send(frame);
+      } catch {
+        // Broken pipe / closed socket — skip
+      }
+    }
   }
 
   // --- Heartbeat (lazy — only runs while clients are connected) ---
@@ -308,6 +328,8 @@ export function createTransport(options: TransportOptions): Transport {
     handleMessage,
     handleClose,
     broadcastLifecycleEvent: broadcastEvent,
+    broadcastFileChangeEvent,
+    relayLifecycleEvent,
     getClientCount: () => clients.size,
     getSessionSubscriberCount: (sessionId: string) =>
       sessions.get(sessionId)?.size ?? 0,

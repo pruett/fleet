@@ -227,6 +227,7 @@ export function useSessionData({
           if (event.sessionId !== sessionId) return;
           switch (event.type) {
             case "session:started":
+            case "session:activity":
               setSessionStatus("running");
               break;
             case "session:stopped":

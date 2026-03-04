@@ -22,7 +22,7 @@ export interface SessionStartedEvent {
 export interface SessionStoppedEvent {
   type: "session:stopped";
   sessionId: string;
-  reason: "user" | "completed";
+  reason: "user" | "completed" | "errored";
   stoppedAt: string;
 }
 
@@ -38,6 +38,14 @@ export interface SessionActivityEvent {
   sessionId: string;
   updatedAt: string;
 }
+
+export interface SessionFileChangedEvent {
+  type: "session:file-changed";
+  sessionId: string;
+  updatedAt: string;
+}
+
+export type FileChangeEvent = SessionFileChangedEvent;
 
 export interface WsError {
   type: "error";
@@ -55,7 +63,7 @@ export interface Heartbeat {
   type: "heartbeat";
 }
 
-export type ServerMessage = MessageBatch | LifecycleEvent | WsError | Heartbeat;
+export type ServerMessage = MessageBatch | LifecycleEvent | FileChangeEvent | WsError | Heartbeat;
 
 // ============================================================
 // Connection status types
@@ -91,6 +99,8 @@ export interface WsClient {
   onMessage: ((batch: MessageBatch) => void) | null;
   /** Called for session lifecycle events (started/stopped/error). */
   onLifecycleEvent: ((event: LifecycleEvent) => void) | null;
+  /** Called when a session file changes on disk (from ProjectsDir watcher). */
+  onFileChange: ((event: FileChangeEvent) => void) | null;
   /** Called when the server sends an error frame. */
   onError: ((error: WsError) => void) | null;
   /** Called when the connection status changes. */
@@ -124,6 +134,7 @@ export function createWsClient(): WsClient {
   const client: WsClient = {
     onMessage: null,
     onLifecycleEvent: null,
+    onFileChange: null,
     onError: null,
     onConnectionChange: null,
     onReconnect: null,
@@ -243,7 +254,10 @@ export function createWsClient(): WsClient {
         case "session:stopped":
         case "session:error":
         case "session:activity":
-          client.onLifecycleEvent?.(msg);
+          client.onLifecycleEvent?.(msg as LifecycleEvent);
+          break;
+        case "session:file-changed":
+          client.onFileChange?.(msg as FileChangeEvent);
           break;
         case "error":
           client.onError?.(msg);

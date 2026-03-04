@@ -887,3 +887,172 @@ describe("createTransport — lifecycle event type coverage", () => {
 });
 
 // ============================================================
+
+describe("createTransport — broadcastFileChangeEvent", () => {
+  it("reaches all connected clients regardless of subscription", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    // Client 1: subscribed to a session
+    const ws1 = createMockWebSocket();
+    transport.handleOpen(ws1.ws);
+    transport.handleMessage(
+      ws1.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await flushAsync();
+
+    // Client 2: connected but NOT subscribed
+    const ws2 = createMockWebSocket();
+    transport.handleOpen(ws2.ws);
+
+    transport.broadcastFileChangeEvent({
+      type: "session:file-changed",
+      sessionId: VALID_SESSION_ID,
+      updatedAt: "2026-03-03T12:00:00.000Z",
+    });
+
+    // Both clients receive the event
+    for (const mock of [ws1, ws2]) {
+      const frames = mock.sent.map((s) => JSON.parse(s));
+      const fileChangeFrames = frames.filter(
+        (f: Record<string, unknown>) => f.type === "session:file-changed",
+      );
+      expect(fileChangeFrames).toHaveLength(1);
+      expect(fileChangeFrames[0].sessionId).toBe(VALID_SESSION_ID);
+    }
+  });
+
+  it("broadcast to zero clients is a no-op (does not throw)", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    transport.broadcastFileChangeEvent({
+      type: "session:file-changed",
+      sessionId: VALID_SESSION_ID,
+      updatedAt: "2026-03-03T12:00:00.000Z",
+    });
+  });
+});
+
+describe("createTransport — relayLifecycleEvent", () => {
+  it("only reaches clients subscribed to the event's sessionId", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    // Client 1: subscribed to VALID_SESSION_ID
+    const ws1 = createMockWebSocket();
+    transport.handleOpen(ws1.ws);
+    transport.handleMessage(
+      ws1.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await flushAsync();
+
+    // Client 2: subscribed to VALID_SESSION_ID_2
+    const ws2 = createMockWebSocket();
+    transport.handleOpen(ws2.ws);
+    transport.handleMessage(
+      ws2.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID_2 }),
+    );
+    await flushAsync();
+
+    // Client 3: connected but NOT subscribed
+    const ws3 = createMockWebSocket();
+    transport.handleOpen(ws3.ws);
+
+    const event: LifecycleEvent = {
+      type: "session:activity",
+      sessionId: VALID_SESSION_ID,
+      updatedAt: "2026-03-03T12:00:00.000Z",
+    };
+
+    transport.relayLifecycleEvent(event);
+
+    // Only client 1 (subscribed to the target session) should receive it
+    const frames1 = ws1.sent.map((s) => JSON.parse(s));
+    const activityFrames1 = frames1.filter(
+      (f: Record<string, unknown>) => f.type === "session:activity",
+    );
+    expect(activityFrames1).toHaveLength(1);
+    expect(activityFrames1[0].sessionId).toBe(VALID_SESSION_ID);
+
+    // Client 2 (different session) should NOT receive it
+    const frames2 = ws2.sent.map((s) => JSON.parse(s));
+    const activityFrames2 = frames2.filter(
+      (f: Record<string, unknown>) => f.type === "session:activity",
+    );
+    expect(activityFrames2).toHaveLength(0);
+
+    // Client 3 (unsubscribed) should NOT receive it
+    expect(ws3.sent).toHaveLength(0);
+  });
+
+  it("relay to session with no subscribers is a no-op (does not throw)", () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    const ws1 = createMockWebSocket();
+    transport.handleOpen(ws1.ws);
+
+    const event: LifecycleEvent = {
+      type: "session:activity",
+      sessionId: VALID_SESSION_ID,
+      updatedAt: "2026-03-03T12:00:00.000Z",
+    };
+
+    // Should not throw
+    transport.relayLifecycleEvent(event);
+    expect(ws1.sent).toHaveLength(0);
+  });
+
+  it("skips broken client and delivers to remaining subscribers", async () => {
+    const mock = createMockTransportOptions();
+    const transport = createTransport(mock.options);
+
+    // Client 1: healthy, subscribed
+    const ws1 = createMockWebSocket();
+    transport.handleOpen(ws1.ws);
+    transport.handleMessage(
+      ws1.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await flushAsync();
+
+    // Client 2: broken, subscribed
+    const ws2 = createBrokenMockWebSocket();
+    transport.handleOpen(ws2.ws);
+    transport.handleMessage(
+      ws2.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await flushAsync();
+
+    // Client 3: healthy, subscribed
+    const ws3 = createMockWebSocket();
+    transport.handleOpen(ws3.ws);
+    transport.handleMessage(
+      ws3.ws,
+      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
+    );
+    await flushAsync();
+
+    const event: LifecycleEvent = {
+      type: "session:stopped",
+      sessionId: VALID_SESSION_ID,
+      reason: "completed",
+      stoppedAt: "2026-03-03T12:05:00.000Z",
+    };
+
+    // Should not throw despite ws2 being broken
+    transport.relayLifecycleEvent(event);
+
+    // Healthy clients receive the event
+    const frames1 = ws1.sent.map((s) => JSON.parse(s));
+    expect(frames1.filter((f: Record<string, unknown>) => f.type === "session:stopped")).toHaveLength(1);
+
+    const frames3 = ws3.sent.map((s) => JSON.parse(s));
+    expect(frames3.filter((f: Record<string, unknown>) => f.type === "session:stopped")).toHaveLength(1);
+  });
+});

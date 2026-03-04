@@ -32,19 +32,21 @@ export function useSessionActivity(): void {
       }, delayMs);
     }
 
-    // All lifecycle events flow through one handler.
-    // session:started / session:stopped change the session list itself,
-    // so invalidate quickly. session:activity means data changed (timestamps,
-    // tokens, etc.) — use the same 500ms debounce since the server already
-    // debounces at 1s.
+    // Lifecycle events from the Controller: started/stopped change the session
+    // list, so invalidate quickly.
     ws.onLifecycleEvent = (event) => {
       if (
         event.type === "session:started" ||
-        event.type === "session:stopped" ||
-        event.type === "session:activity"
+        event.type === "session:stopped"
       ) {
         scheduleInvalidation(500);
       }
+    };
+
+    // File-change events from the ProjectsDir watcher: data changed on disk
+    // (timestamps, tokens, etc.) — debounce since the server already debounces.
+    ws.onFileChange = () => {
+      scheduleInvalidation(500);
     };
 
     // Periodic poll so timeAgo() timestamps stay fresh even without events.

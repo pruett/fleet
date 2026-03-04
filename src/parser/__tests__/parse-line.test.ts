@@ -288,6 +288,27 @@ describe("parseLine — assistant-block (text)", () => {
     expect(msg.isSynthetic).toBe(true);
   });
 
+  it("synthetic assistant message with service_tier: null parses as assistant-block", () => {
+    const record = makeAssistantRecord(makeTextBlock("Synthetic response"), {
+      message: {
+        model: "<synthetic>",
+        id: "msg-synthetic",
+        stop_reason: "end_turn",
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          service_tier: null,
+        },
+      },
+    });
+    const msg = parseLine(toLine(record), 0);
+    expect(msg).not.toBeNull();
+    expect(msg!.kind).toBe("assistant-block");
+    if (msg!.kind !== "assistant-block") return;
+    expect(msg.model).toBe("<synthetic>");
+    expect(msg.usage.service_tier).toBeNull();
+  });
+
   it("empty content array → malformed (rejected by schema)", () => {
     const record = makeAssistantRecord(makeTextBlock("test"), {
       message: {

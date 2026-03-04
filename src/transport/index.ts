@@ -9,4 +9,6 @@ export type {
   SessionStopped,
   SessionError,
   SessionActivity,
+  FileChangeEvent,
+  SessionFileChanged,
 } from "./types";
