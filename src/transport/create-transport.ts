@@ -88,21 +88,15 @@ export function createTransport(options: TransportOptions): Transport {
       byteRange: batch.byteRange,
     });
 
-    console.debug(
-      `[DEBUG:transport:relay] session=${batch.sessionId} msgs=${batch.messages.length} subscribers=${subscriberIds.size} frameBytes=${frame.length}`,
-    );
-
     for (const clientId of subscriberIds) {
       const client = clients.get(clientId);
       if (!client) continue;
       try {
         client.ws.send(frame);
-        console.debug(`[DEBUG:transport:relay] sent to client=${clientId}`);
       } catch {
-        console.debug(`[DEBUG:transport:relay] FAILED send to client=${clientId}`);
+        // Broken pipe / closed socket — skip
       }
     }
-
   }
 
   // --- Subscribe ---
@@ -136,11 +130,7 @@ export function createTransport(options: TransportOptions): Transport {
     }
 
     // 2. Already subscribed to this session — no-op
-    if (client.sessionId === sessionId) {
-      console.debug(`[DEBUG:transport:subscribe] client=${clientId} already subscribed to ${sessionId}, no-op`);
-      return;
-    }
-    console.debug(`[DEBUG:transport:subscribe] client=${clientId} subscribing to session=${sessionId}`);
+    if (client.sessionId === sessionId) return;
 
     // 3. Resolve session file path
     const filePath = await options.resolveSessionPath(sessionId);
@@ -246,7 +236,6 @@ export function createTransport(options: TransportOptions): Transport {
   // --- Connection lifecycle ---
 
   function handleOpen(ws: ServerWebSocket<unknown>): void {
-    console.debug(`[DEBUG:transport:open] new WebSocket connection`);
     const clientId = crypto.randomUUID();
     const client: ConnectedClient = {
       clientId,
@@ -290,7 +279,6 @@ export function createTransport(options: TransportOptions): Transport {
 
     // 3. Dispatch on message.type
     const msg = message as Record<string, unknown>;
-    console.debug(`[DEBUG:transport:message] type=${String(msg.type)}`);
     switch (msg.type) {
       case "subscribe":
         handleSubscribe(ws, msg).catch((err) => {

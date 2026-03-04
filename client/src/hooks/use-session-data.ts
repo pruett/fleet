@@ -80,7 +80,6 @@ export interface UseSessionDataResult {
   retry: () => void;
 
   // Input state
-  sendingMessage: boolean;
   actionLoading: string | null;
 }
 
@@ -98,7 +97,6 @@ export function useSessionData({
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("ready");
   const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
   const [liveAnalytics, setLiveAnalytics] = useState<AnalyticsFields | null>(null);
@@ -157,18 +155,17 @@ export function useSessionData({
     const trimmed = text.trim();
     if (!trimmed || sendingRef.current) return;
     sendingRef.current = true;
-    setSendingMessage(true);
     setSessionStatus("working");
     try {
       await sendMessage(sessionId, trimmed);
     } catch (err: unknown) {
+      setSessionStatus("ready");
       toast.error(
         err instanceof Error ? err.message : "Failed to send message",
       );
       throw err; // Re-throw so PromptInput preserves input on failure
     } finally {
       sendingRef.current = false;
-      setSendingMessage(false);
     }
   }, [sessionId]);
 
@@ -202,6 +199,9 @@ export function useSessionData({
     const handleLifecycle = (event: LifecycleEvent) => {
       if (cancelled || event.sessionId !== sessionId) return;
       switch (event.type) {
+        case "session:started":
+          setSessionStatus("working");
+          break;
         case "session:stopped":
           setSessionStatus("ready");
           break;
@@ -266,21 +266,16 @@ export function useSessionData({
     const initialBufferRef = { current: [] as ParsedMessage[] };
 
     const handleMessage = (batch: MessageBatch) => {
-      console.debug(
-        `[DEBUG:hook:handleMessage] msgs=${batch.messages.length} cancelled=${cancelled} refetching=${refetchingRef.current} baselineReady=${baselineReadyRef.current}`,
-      );
       if (cancelled) return;
 
       // Buffer during reconnect refetch (existing logic)
       if (refetchingRef.current) {
-        console.debug(`[DEBUG:hook:handleMessage] → buffered to reconnectBuffer (${reconnectBufferRef.current.length + batch.messages.length} total)`);
         reconnectBufferRef.current.push(...batch.messages);
         return;
       }
 
       // Buffer until initial baseline is ready
       if (!baselineReadyRef.current) {
-        console.debug(`[DEBUG:hook:handleMessage] → buffered to initialBuffer (${initialBufferRef.current.length + batch.messages.length} total)`);
         initialBufferRef.current.push(...batch.messages);
         return;
       }
@@ -291,9 +286,6 @@ export function useSessionData({
           (m) =>
             !baselineRef.current.has(m.lineIndex) &&
             !liveIndexes.has(m.lineIndex),
-        );
-        console.debug(
-          `[DEBUG:hook:handleMessage] → dedup: ${batch.messages.length} in, ${novel.length} novel, ${prev.length} existing live, baseline size=${baselineRef.current.size}`,
         );
         return novel.length > 0 ? [...prev, ...novel] : prev;
       });
@@ -331,15 +323,8 @@ export function useSessionData({
         initialBufferRef.current = [];
         baselineReadyRef.current = true;
 
-        console.debug(
-          `[DEBUG:hook:baselineReady] baseline=${baselineRef.current.size} msgs, buffered=${buffered.length} msgs`,
-        );
-
         const novel = buffered.filter(
           (m) => !baselineRef.current.has(m.lineIndex),
-        );
-        console.debug(
-          `[DEBUG:hook:baselineReady] novel after dedup=${novel.length}`,
         );
         if (novel.length > 0) {
           setLiveMessages(novel);
@@ -385,9 +370,6 @@ export function useSessionData({
     );
     const allMessages = session ? [...session.messages, ...uniqueLive] : [];
     const visible = allMessages.filter(isVisibleMessage);
-    console.debug(
-      `[DEBUG:hook:visibleMessages] baseline=${baselineIndexes.size} live=${liveMessages.length} uniqueLive=${uniqueLive.length} total=${allMessages.length} visible=${visible.length}`,
-    );
     return visible;
   }, [session, liveMessages]);
 
@@ -410,7 +392,6 @@ export function useSessionData({
     handleNewSession,
     handleSendMessage,
     retry,
-    sendingMessage,
     actionLoading,
   };
 }

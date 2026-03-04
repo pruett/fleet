@@ -161,7 +161,6 @@ export function SessionPanel({
     liveAnalytics,
     handleSendMessage,
     retry,
-    sendingMessage,
   } = useSessionData({ sessionId, projectId, onGoSession });
 
   const handlePromptSubmit = useCallback(

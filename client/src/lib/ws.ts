@@ -198,7 +198,6 @@ export function createWsClient(): WsClient {
     ws = new WebSocket(url);
 
     ws.addEventListener("open", () => {
-      console.debug(`[DEBUG:ws:open] WebSocket connected, readyState=${ws!.readyState}`);
       const isReconnect = hasConnectedOnce;
       hasConnectedOnce = true;
       reconnectAttempt = 0;
@@ -261,9 +260,6 @@ export function createWsClient(): WsClient {
 
       switch (msg.type) {
         case "messages":
-          console.debug(
-            `[DEBUG:ws:frame] type=messages session=${msg.sessionId} msgs=${msg.messages.length} byteRange=${msg.byteRange.start}-${msg.byteRange.end}`,
-          );
           emit("message", msg);
           break;
         case "session:started":
@@ -291,7 +287,6 @@ export function createWsClient(): WsClient {
   const client: WsClient = {
     subscribe(sessionId: string) {
       currentSubscriptionId = sessionId;
-      console.debug(`[DEBUG:ws:subscribe] sessionId=${sessionId} readyState=${ws?.readyState}`);
       send(JSON.stringify({ type: "subscribe", sessionId }), true);
     },
 
