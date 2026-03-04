@@ -3,12 +3,13 @@ import type {
   SessionSummary,
   GroupedProject,
   WorktreeSummary,
-} from "../scanner";
-import type { EnrichedSession } from "@fleet/shared";
+  EnrichedSession,
+  FleetConfig,
+  ProjectConfig,
+  ControlResult,
+  StartSessionOpts,
+} from "@fleet/shared";
 import type { Transport } from "../transport";
-import type { FleetConfig, ProjectConfig } from "../config";
-
-import type { ControlResult, StartSessionOpts } from "@fleet/shared";
 
 export interface AppDependencies {
   scanner: {

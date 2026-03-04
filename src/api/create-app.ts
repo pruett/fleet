@@ -6,7 +6,7 @@ import {
   resolveGroupedProjectDirs,
 } from "./resolve";
 import { slugify } from "@fleet/shared";
-import type { ProjectConfig } from "../config";
+import type { ProjectConfig } from "@fleet/shared";
 
 const HASHED_ASSET_RE = /[.-][a-zA-Z0-9]{8,}\.\w+$/;
 

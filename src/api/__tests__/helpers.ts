@@ -1,7 +1,5 @@
 import type { AppDependencies } from "../types";
-import type { ControlResult } from "@fleet/shared";
-import type { ProjectSummary, SessionSummary } from "../../scanner";
-import type { EnrichedSession } from "@fleet/shared";
+import type { ControlResult, ProjectSummary, SessionSummary, EnrichedSession } from "@fleet/shared";
 import type { Transport } from "../../transport";
 
 /**

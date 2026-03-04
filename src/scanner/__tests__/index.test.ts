@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { scanProjects, scanSessions } from "../index";
-import type { ProjectSummary, SessionSummary } from "../index";
+import type { ProjectSummary, SessionSummary } from "@fleet/shared";
 
 const FIXTURES = join(import.meta.dir, "fixtures");
 const BASE_PATH = join(FIXTURES, "base-path");
