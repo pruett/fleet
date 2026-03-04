@@ -39,3 +39,10 @@ export interface SessionFileChanged {
 }
 
 export type FileChangeEvent = SessionFileChanged;
+
+export interface GlobalActivity {
+  type: "global:activity";
+  updatedAt: string;
+}
+
+export type GlobalActivityEvent = GlobalActivity;

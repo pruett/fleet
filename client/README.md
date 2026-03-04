@@ -1,73 +1,77 @@
-# React + TypeScript + Vite
+# Fleet client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## UI Interactions
+┌──────────────────────┐
+│ Fleet                │
+│ Projects             │
+│ ├─ Project A  ◄──────── GET /api/projects → GroupedProject[]
+│ │  ├─ session-1 ◄────── GET /api/projects/:slug/sessions → SessionSummary[]
+│ │  └─ session-2        (lazy-loaded on expand, paginated at 15)
+│ └─ Project B         │
+│    └─ ...            │
+│ [+ Add project] ◄────── GET /api/directories (on demand)
+│                      │   PUT /api/config (on add/remove)
+│ [⌘K Search] ◄────────── Reads React Query cache (all session queries)
+└──────────────────────┘
 
-Currently, two official plugins are available:
+Auto-refresh: WebSocket Connection A (lifecycle + file-change events)
+              + 30s polling fallback
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## React Compiler
+┌──────────────────────────────────────────┐
+│ Model: claude-opus | ID: abc | Branch: main  ◄── EnrichedSession metadata
+│ [Connecting… / Reconnecting…]            ◄── WebSocket connectionInfo
+├──────────────────────────────────────────┤
+│                                          │
+│ [User message]       ◄── ParsedMessage (kind: "user-prompt", !isMeta)
+│ [Assistant response]  ◄── ParsedMessage (kind: "assistant-block", type: "text")
+│ [Thinking block]      ◄── ParsedMessage (kind: "assistant-block", type: "thinking")
+│ [API Error banner]    ◄── ParsedMessage (kind: "system-api-error")
+│ [Agent progress]      ◄── ParsedMessage (kind: "progress-agent")
+│                                          │
+│ Data source: GET /api/sessions/:id (baseline)
+│            + WebSocket Connection B messages (live appends)
+├──────────────────────────────────────────┤
+│ [Prompt textarea]                        │
+│ [📎 Attach] [🌐 Web] [Context ◄── liveAnalytics + contextSnapshots]  [Send]
+│                                          │
+│ Send: POST /api/sessions/:id/message     │
+│ Stop: POST /api/sessions/:id/stop        │
+│ Resume: POST /api/sessions/:id/resume    │
+│ New: POST /api/sessions                  │
+└──────────────────────────────────────────┘
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Message Visibility
+| Kind | Rendered As | Condition |
+| --- | --- | --- |
+| user-prompt | User message bubble | !isMeta AND not XML-tag-only |
+| assistant-block (text) | Markdown (via Streamdown) | Always |
+| assistant-block (thinking) | Collapsible reasoning block | Always |
+| assistant-block (tool_use) | Hidden | — |
+| system-api-error | Red error banner | Always |
+| progress-agent | Subagent indicator | Always |
+| All others | Hidden | — |
 
-## Expanding the ESLint configuration
+## Websocket Connections
+- Both connect to /ws with auto-reconnect (exponential backoff: 1s base, 30s max, 0-500ms jitter).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. Connection A: Global Activity Monitor (useSessionActivity)
+Mounted once at DashboardView root. Never subscribes to a specific session — it passively receives broadcast events.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Listens for (Server → Client):
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+session:started → invalidates ["sessions"] query cache (500ms debounce)
+session:stopped → invalidates ["sessions"] query cache (500ms debounce)
+session:file-changed → invalidates ["sessions"] query cache (500ms debounce)
+Also: Polls every 30s to force-invalidate ["sessions"] cache (keeps timeAgo() timestamps fresh).
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Effect: Sidebar session lists auto-refresh when sessions start/stop/change.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. Connection B: Session Subscription (useSessionData)
+Created per-session when SessionPanel mounts. Destroyed on unmount.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Client → Server:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+{ type: "subscribe", sessionId } — on initial connect + on reconnect
+{ type: "unsubscribe" } — on cleanup
+Server → Client:

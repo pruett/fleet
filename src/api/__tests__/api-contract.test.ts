@@ -88,6 +88,9 @@ describe("API Module Contract", () => {
  * update this list — the test will fail until you do.
  */
 const EXPECTED_ROUTES: { method: string; path: string }[] = [
+  // Activity
+  { method: "GET", path: "/api/activity" },
+
   // Projects
   { method: "GET", path: "/api/projects" },
   { method: "GET", path: "/api/directories" },

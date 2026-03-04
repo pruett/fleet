@@ -25,10 +25,15 @@ const transport = createTransport({
 const projectsDirWatcher = watchProjectsDir({
   basePaths,
   onSessionActivity: (sessionId) => {
+    const updatedAt = new Date().toISOString();
     transport.broadcastFileChangeEvent({
       type: "session:file-changed",
       sessionId,
-      updatedAt: new Date().toISOString(),
+      updatedAt,
+    });
+    transport.broadcastGlobalActivity({
+      type: "global:activity",
+      updatedAt,
     });
   },
 });
@@ -39,6 +44,10 @@ const controller = createController({
     // Also broadcast started/stopped so sidebar picks them up
     if (event.type === "session:started" || event.type === "session:stopped") {
       transport.broadcastLifecycleEvent(event);
+      transport.broadcastGlobalActivity({
+        type: "global:activity",
+        updatedAt: new Date().toISOString(),
+      });
     }
   },
 });

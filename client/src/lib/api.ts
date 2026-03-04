@@ -68,6 +68,13 @@ function post<T>(path: string, body?: Record<string, unknown>): Promise<T> {
   });
 }
 
+export async function fetchActivity(): Promise<GroupedProject[]> {
+  const { projects } = await requestWithRetry<{ projects: GroupedProject[] }>(
+    "/api/activity",
+  );
+  return projects;
+}
+
 export async function fetchProjects(): Promise<GroupedProject[]> {
   const { projects } = await requestWithRetry<{ projects: GroupedProject[] }>(
     "/api/projects",

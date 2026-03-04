@@ -7,6 +7,7 @@ import type {
   LifecycleEvent,
   SessionFileChanged,
   FileChangeEvent,
+  GlobalActivityEvent,
 } from "@fleet/shared";
 
 // ============================================================
@@ -30,12 +31,13 @@ export interface Heartbeat {
   type: "heartbeat";
 }
 
-export type ServerMessage = MessageBatch | LifecycleEvent | FileChangeEvent | WsError | Heartbeat;
+export type ServerMessage = MessageBatch | LifecycleEvent | FileChangeEvent | GlobalActivityEvent | WsError | Heartbeat;
 
 // Re-export shared types used by consumers of this module
 export type {
   LifecycleEvent,
   FileChangeEvent,
+  GlobalActivityEvent,
   SessionStarted,
   SessionStopped,
   SessionError,
@@ -81,6 +83,8 @@ export interface WsClient {
   onFileChange: ((event: FileChangeEvent) => void) | null;
   /** Called when the server sends an error frame. */
   onError: ((error: WsError) => void) | null;
+  /** Called when a global activity event fires (sidebar refresh signal). */
+  onGlobalActivity: ((event: GlobalActivityEvent) => void) | null;
   /** Called when the connection status changes. */
   onConnectionChange: ((info: ConnectionInfo) => void) | null;
   /** Called after a successful reconnect (not on initial connect). */
@@ -113,6 +117,7 @@ export function createWsClient(): WsClient {
     onMessage: null,
     onLifecycleEvent: null,
     onFileChange: null,
+    onGlobalActivity: null,
     onError: null,
     onConnectionChange: null,
     onReconnect: null,
@@ -236,6 +241,9 @@ export function createWsClient(): WsClient {
           break;
         case "session:file-changed":
           client.onFileChange?.(msg as FileChangeEvent);
+          break;
+        case "global:activity":
+          client.onGlobalActivity?.(msg as GlobalActivityEvent);
           break;
         case "error":
           client.onError?.(msg);
