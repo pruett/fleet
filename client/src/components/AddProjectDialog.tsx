@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { ArrowLeft, Folder, Loader2 } from "lucide-react";
 import type { ProjectSummary, ProjectConfig } from "@fleet/shared";
+import { slugify } from "@fleet/shared";
 import {
   Dialog,
   DialogContent,
@@ -18,13 +19,6 @@ interface AddProjectDialogProps {
   loading: boolean;
   existingSlugs: Set<string>;
   onAddProject: (config: ProjectConfig) => void;
-}
-
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 /** Check if a directory name looks like a worktree variant. */

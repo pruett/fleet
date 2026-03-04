@@ -5,3 +5,4 @@ export type * from "./config.ts";
 export type * from "./enrichment.ts";
 export type * from "./transport.ts";
 export type * from "./api.ts";
+export { slugify } from "./utils.ts";

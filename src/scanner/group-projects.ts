@@ -1,5 +1,5 @@
 import type { ProjectSummary, GroupedProject, ProjectConfig } from "@fleet/shared";
-import { slugify } from "../config";
+import { slugify } from "@fleet/shared";
 
 /**
  * Group raw project directories into logical projects based on glob patterns.

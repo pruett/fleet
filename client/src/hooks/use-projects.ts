@@ -13,6 +13,7 @@ import type {
   ProjectConfig,
   FleetConfig,
 } from "@fleet/shared";
+import { slugify } from "@fleet/shared";
 
 export interface UseProjectsResult {
   projects: GroupedProject[];
@@ -23,13 +24,6 @@ export interface UseProjectsResult {
   addProject: (config: ProjectConfig) => void;
   removeProject: (slug: string) => void;
   refreshDirectories: () => Promise<void>;
-}
-
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 export function useProjects(): UseProjectsResult {
