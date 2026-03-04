@@ -9,7 +9,8 @@
 import { describe, expect, it } from "bun:test";
 import { createController } from "../controller/create-controller";
 import { createTransport } from "../transport/create-transport";
-import type { LifecycleEvent, Transport } from "../transport/types";
+import type { LifecycleEvent } from "@fleet/shared";
+import type { Transport } from "../transport/types";
 import type { SpawnFn } from "../controller/types";
 import type { Controller } from "../controller/create-controller";
 import type { Subprocess } from "bun";

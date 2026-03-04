@@ -1,4 +1,4 @@
-import type { ParsedMessage } from "./types";
+import type { ParsedMessage } from "@fleet/shared";
 import {
   RawRecordSchema,
   SystemTurnDurationSchema,

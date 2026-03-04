@@ -7,8 +7,6 @@ import type { ProjectConfig, FleetConfig } from "@fleet/shared";
 
 const DEFAULT_CONFIG: FleetConfig = { projects: [] };
 
-export { slugify } from "@fleet/shared";
-
 export function getConfigPath(): string {
   return join(homedir(), ".config", "fleet", "settings.json");
 }

@@ -1,6 +1,6 @@
 import { parseLine } from "./parse-line";
 import { enrichSession } from "./enrich-session";
-import type { EnrichedSession } from "./types";
+import type { EnrichedSession } from "@fleet/shared";
 
 /**
  * Parse a full JSONL session transcript into an enriched session.

@@ -15,9 +15,7 @@ import * as parser from "../index";
 // Compile-time layer — type imports & structural guards
 // ────────────────────────────────────────────────────────────
 
-import type { ParsedMessage, EnrichedSession } from "../index";
-
-import type { Turn, TokenTotals, PairedToolCall, ToolStat } from "../types";
+import type { ParsedMessage, EnrichedSession, Turn, TokenTotals, PairedToolCall, ToolStat } from "@fleet/shared";
 
 // Structural assertions — if a required field is removed, tsc fails.
 // The mapped type picks specific keys; a missing key is a compile error.

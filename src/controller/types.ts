@@ -1,5 +1,5 @@
 import type { Subprocess } from "bun";
-import type { LifecycleEvent } from "../transport";
+import type { LifecycleEvent } from "@fleet/shared";
 
 export type SpawnFn = (
   cmd: string[],

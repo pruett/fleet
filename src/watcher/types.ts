@@ -1,4 +1,4 @@
-import type { ParsedMessage } from "../parser";
+import type { ParsedMessage } from "@fleet/shared";
 
 // ============================================================
 // Watch Options (input to watchSession)

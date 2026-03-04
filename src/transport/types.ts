@@ -1,17 +1,5 @@
 import type { ServerWebSocket } from "bun";
 import type { WatchOptions, WatchHandle } from "../watcher";
-
-// Re-export shared lifecycle and file-change event types
-export type {
-  SessionStarted,
-  SessionStopped,
-  SessionError,
-  SessionActivity,
-  LifecycleEvent,
-  SessionFileChanged,
-  FileChangeEvent,
-} from "@fleet/shared";
-
 import type { LifecycleEvent, FileChangeEvent } from "@fleet/shared";
 
 // ============================================================

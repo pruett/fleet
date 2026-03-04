@@ -9,7 +9,7 @@ import type {
   SubagentRef,
   ContextSnapshot,
   EnrichedSession,
-} from "./types";
+} from "@fleet/shared";
 import { computeCost } from "./pricing";
 
 /**

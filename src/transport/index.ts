@@ -4,11 +4,4 @@ export type {
   ClientRegistry,
   TransportOptions,
   Transport,
-  LifecycleEvent,
-  SessionStarted,
-  SessionStopped,
-  SessionError,
-  SessionActivity,
-  FileChangeEvent,
-  SessionFileChanged,
 } from "./types";

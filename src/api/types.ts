@@ -4,12 +4,9 @@ import type {
   GroupedProject,
   WorktreeSummary,
 } from "../scanner";
-import type { EnrichedSession } from "../parser";
+import type { EnrichedSession } from "@fleet/shared";
 import type { Transport } from "../transport";
 import type { FleetConfig, ProjectConfig } from "../config";
-
-// Re-export shared API types
-export type { ControlResult, StartSessionOpts } from "@fleet/shared";
 
 import type { ControlResult, StartSessionOpts } from "@fleet/shared";
 

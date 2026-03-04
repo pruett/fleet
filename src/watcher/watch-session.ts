@@ -1,5 +1,6 @@
 import { watch, type FSWatcher } from "fs";
-import { parseLine, type ParsedMessage } from "../parser";
+import { parseLine } from "../parser";
+import type { ParsedMessage } from "@fleet/shared";
 import type { WatchOptions, WatchHandle, WatchBatch, WatchError } from "./types";
 
 /** Internal state per watcher (not exposed to consumers). */

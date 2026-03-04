@@ -1,4 +1,4 @@
-import type { ControlResult, StartSessionOpts } from "../api/types";
+import type { ControlResult, StartSessionOpts } from "@fleet/shared";
 import type { ControllerOptions, ManagedProcess } from "./types";
 
 export interface Controller {

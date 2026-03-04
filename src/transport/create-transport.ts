@@ -1,11 +1,10 @@
 import type { ServerWebSocket } from "bun";
 import type {
   ConnectedClient,
-  FileChangeEvent,
-  LifecycleEvent,
   Transport,
   TransportOptions,
 } from "./types";
+import type { FileChangeEvent, LifecycleEvent } from "@fleet/shared";
 import type { WatchHandle, WatchBatch } from "../watcher";
 
 /** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */

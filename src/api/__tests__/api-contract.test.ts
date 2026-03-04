@@ -19,7 +19,8 @@ import { createMockDeps } from "./helpers";
 // ────────────────────────────────────────────────────────────
 
 import type { ServerOptions } from "../create-server";
-import type { AppDependencies, ControlResult, StartSessionOpts } from "../types";
+import type { AppDependencies } from "../types";
+import type { ControlResult, StartSessionOpts } from "@fleet/shared";
 
 // Structural assertions — if a required field is removed, tsc fails.
 

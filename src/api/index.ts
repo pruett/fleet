@@ -6,4 +6,4 @@ export {
   resolveSessionFile,
   createResolveSessionPath,
 } from "./resolve";
-export type { AppDependencies, ControlResult, StartSessionOpts } from "./types";
+export type { AppDependencies } from "./types";

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { createTransport } from "../create-transport";
-import type { ParsedMessage } from "../../parser";
+import type { ParsedMessage } from "@fleet/shared";
 import type { WatchBatch } from "../../watcher";
-import type { LifecycleEvent } from "../types";
+import type { LifecycleEvent } from "@fleet/shared";
 import {
   createMockWebSocket,
   createBrokenMockWebSocket,
