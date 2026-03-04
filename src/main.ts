@@ -24,12 +24,7 @@ const transport = createTransport({
 
 const projectsDirWatcher = watchProjectsDir({
   basePaths,
-  onSessionActivity: () => {
-    transport.broadcastGlobalActivity({
-      type: "global:activity",
-      updatedAt: new Date().toISOString(),
-    });
-  },
+  onSessionActivity: () => {},
 });
 
 const controller = createController({
@@ -38,10 +33,6 @@ const controller = createController({
     // Also broadcast started/stopped so sidebar picks them up
     if (event.type === "session:started" || event.type === "session:stopped") {
       transport.broadcastLifecycleEvent(event);
-      transport.broadcastGlobalActivity({
-        type: "global:activity",
-        updatedAt: new Date().toISOString(),
-      });
     }
   },
 });

@@ -106,7 +106,7 @@ describe("createServer", () => {
           handleMessage: () => {},
           handleClose: () => {},
           broadcastLifecycleEvent: () => {},
-          broadcastGlobalActivity: () => {},
+
           relayLifecycleEvent: () => {},
           getClientCount: () => 0,
           getSessionSubscriberCount: () => 0,
@@ -130,7 +130,7 @@ describe("createServer", () => {
           handleMessage,
           handleClose: () => {},
           broadcastLifecycleEvent: () => {},
-          broadcastGlobalActivity: () => {},
+
           relayLifecycleEvent: () => {},
           getClientCount: () => 0,
           getSessionSubscriberCount: () => 0,
@@ -155,7 +155,7 @@ describe("createServer", () => {
           handleMessage: () => {},
           handleClose,
           broadcastLifecycleEvent: () => {},
-          broadcastGlobalActivity: () => {},
+
           relayLifecycleEvent: () => {},
           getClientCount: () => 0,
           getSessionSubscriberCount: () => 0,

@@ -5,7 +5,6 @@ import type {
   SessionError,
   SessionActivity,
   LifecycleEvent,
-  GlobalActivityEvent,
 } from "@fleet/shared";
 
 // ============================================================
@@ -29,12 +28,11 @@ export interface Heartbeat {
   type: "heartbeat";
 }
 
-export type ServerMessage = MessageBatch | LifecycleEvent | GlobalActivityEvent | WsError | Heartbeat;
+export type ServerMessage = MessageBatch | LifecycleEvent | WsError | Heartbeat;
 
 // Re-export shared types used by consumers of this module
 export type {
   LifecycleEvent,
-  GlobalActivityEvent,
   SessionStarted,
   SessionStopped,
   SessionError,
@@ -65,7 +63,6 @@ export type WsEvents = {
   message: MessageBatch;
   lifecycle: LifecycleEvent;
   error: WsError;
-  "global-activity": GlobalActivityEvent;
   "connection-change": ConnectionInfo;
   reconnect: undefined;
 };
@@ -274,9 +271,6 @@ export function createWsClient(): WsClient {
         case "session:error":
         case "session:activity":
           emit("lifecycle", msg as LifecycleEvent);
-          break;
-        case "global:activity":
-          emit("global-activity", msg as GlobalActivityEvent);
           break;
         case "error":
           emit("error", msg);

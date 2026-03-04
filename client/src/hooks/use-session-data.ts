@@ -46,7 +46,7 @@ export function getSessionMeta(session: EnrichedSession) {
   return { model, startedAt, gitBranch };
 }
 
-export type SessionStatus = "unknown" | "running" | "stopped" | "error";
+export type SessionStatus = "ready" | "working" | "error";
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -99,7 +99,7 @@ export function useSessionData({
   const [retryCount, setRetryCount] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("unknown");
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("ready");
   const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
   const [liveAnalytics, setLiveAnalytics] = useState<AnalyticsFields | null>(null);
   const baselineRef = useRef<Set<number>>(new Set());
@@ -158,6 +158,7 @@ export function useSessionData({
     if (!trimmed || sendingRef.current) return;
     sendingRef.current = true;
     setSendingMessage(true);
+    setSessionStatus("working");
     try {
       await sendMessage(sessionId, trimmed);
     } catch (err: unknown) {
@@ -189,7 +190,7 @@ export function useSessionData({
     setLoading(true);
     setError(null);
     setErrorStatus(null);
-    setSessionStatus("unknown");
+    setSessionStatus("ready");
     setLiveAnalytics(null);
 
     // --- Event handlers (stable references for cleanup) ---
@@ -201,12 +202,8 @@ export function useSessionData({
     const handleLifecycle = (event: LifecycleEvent) => {
       if (cancelled || event.sessionId !== sessionId) return;
       switch (event.type) {
-        case "session:started":
-        case "session:activity":
-          setSessionStatus("running");
-          break;
         case "session:stopped":
-          setSessionStatus("stopped");
+          setSessionStatus("ready");
           break;
         case "session:error":
           setSessionStatus("error");

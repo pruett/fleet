@@ -32,9 +32,3 @@ export type LifecycleEvent =
   | SessionError
   | SessionActivity;
 
-export interface GlobalActivity {
-  type: "global:activity";
-  updatedAt: string;
-}
-
-export type GlobalActivityEvent = GlobalActivity;

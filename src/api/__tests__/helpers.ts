@@ -20,7 +20,7 @@ export function createMockDeps(
     handleMessage: () => {},
     handleClose: () => {},
     broadcastLifecycleEvent: () => {},
-    broadcastGlobalActivity: () => {},
+
     relayLifecycleEvent: () => {},
     getClientCount: () => 0,
     getSessionSubscriberCount: () => 0,

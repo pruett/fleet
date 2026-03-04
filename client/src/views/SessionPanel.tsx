@@ -34,13 +34,28 @@ import {
   ContextCacheUsage,
   ContextTrigger,
 } from "@/components/ai-elements/context";
-import { useSessionData } from "@/hooks/use-session-data";
+import { useSessionData, type SessionStatus } from "@/hooks/use-session-data";
 import type { ConnectionInfo } from "@/lib/ws";
 import { GitBranch, GlobeIcon, PaperclipIcon } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Shared presentational components
 // ---------------------------------------------------------------------------
+
+const STATUS_DOT_COLOR: Record<SessionStatus, string> = {
+  ready: "bg-green-500",
+  working: "bg-orange-500 animate-pulse",
+  error: "bg-red-500",
+};
+
+function SessionStatusIndicator({ status }: { status: SessionStatus }) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="text-muted-foreground/50">Status:</span>
+      <span className={`inline-block h-2 w-2 rounded-full ${STATUS_DOT_COLOR[status]}`} />
+    </span>
+  );
+}
 
 function ConnectionStatusIndicator({ info }: { info: ConnectionInfo | null }) {
   if (!info || info.status === "connected" || info.status === "disconnected") {
@@ -142,6 +157,7 @@ export function SessionPanel({
     connectionInfo,
     visibleMessages,
     sessionMeta,
+    sessionStatus,
     liveAnalytics,
     handleSendMessage,
     retry,
@@ -271,7 +287,7 @@ export function SessionPanel({
           <PromptInputBody>
             <PromptInputTextarea
               placeholder="Send a message…"
-              disabled={sendingMessage}
+              disabled={sessionStatus === "working"}
             />
           </PromptInputBody>
           <PromptInputFooter>
@@ -284,6 +300,7 @@ export function SessionPanel({
               </PromptInputButton>
             </PromptInputTools>
             <div className="flex items-center gap-2">
+              <SessionStatusIndicator status={sessionStatus} />
               {liveAnalytics && session?.contextWindowSize && (
                 <SessionContextUsage
                   analytics={liveAnalytics}
@@ -291,7 +308,7 @@ export function SessionPanel({
                   modelId={sessionMeta?.model ?? null}
                 />
               )}
-              <PromptInputSubmit disabled={sendingMessage} />
+              <PromptInputSubmit disabled={sessionStatus === "working"} />
             </div>
           </PromptInputFooter>
         </PromptInput>
