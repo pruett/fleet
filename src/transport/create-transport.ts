@@ -4,7 +4,7 @@ import type {
   Transport,
   TransportOptions,
 } from "./types";
-import type { FileChangeEvent, GlobalActivityEvent, LifecycleEvent } from "@fleet/shared";
+import type { GlobalActivityEvent, LifecycleEvent } from "@fleet/shared";
 import type { WatchHandle, WatchBatch } from "../watcher";
 
 /** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */
@@ -37,10 +37,6 @@ export function createTransport(options: TransportOptions): Transport {
   }
 
   function broadcastEvent(event: LifecycleEvent): void {
-    broadcastRaw(JSON.stringify(event));
-  }
-
-  function broadcastFileChangeEvent(event: FileChangeEvent): void {
     broadcastRaw(JSON.stringify(event));
   }
 
@@ -331,7 +327,6 @@ export function createTransport(options: TransportOptions): Transport {
     handleMessage,
     handleClose,
     broadcastLifecycleEvent: broadcastEvent,
-    broadcastFileChangeEvent,
     broadcastGlobalActivity,
     relayLifecycleEvent,
     getClientCount: () => clients.size,

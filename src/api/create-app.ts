@@ -43,15 +43,6 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ error: "Not found" }, 404);
   });
 
-  app.get("/api/activity", async (c) => {
-    const [rawProjects, config] = await Promise.all([
-      deps.scanner.scanProjects(deps.basePaths),
-      deps.config.readConfig(),
-    ]);
-    const projects = deps.scanner.groupProjects(rawProjects, config.projects);
-    return c.json({ projects });
-  });
-
   app.get("/api/projects", async (c) => {
     const [rawProjects, config] = await Promise.all([
       deps.scanner.scanProjects(deps.basePaths),

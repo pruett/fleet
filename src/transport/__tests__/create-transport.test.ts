@@ -888,53 +888,6 @@ describe("createTransport — lifecycle event type coverage", () => {
 
 // ============================================================
 
-describe("createTransport — broadcastFileChangeEvent", () => {
-  it("reaches all connected clients regardless of subscription", async () => {
-    const mock = createMockTransportOptions();
-    const transport = createTransport(mock.options);
-
-    // Client 1: subscribed to a session
-    const ws1 = createMockWebSocket();
-    transport.handleOpen(ws1.ws);
-    transport.handleMessage(
-      ws1.ws,
-      JSON.stringify({ type: "subscribe", sessionId: VALID_SESSION_ID }),
-    );
-    await flushAsync();
-
-    // Client 2: connected but NOT subscribed
-    const ws2 = createMockWebSocket();
-    transport.handleOpen(ws2.ws);
-
-    transport.broadcastFileChangeEvent({
-      type: "session:file-changed",
-      sessionId: VALID_SESSION_ID,
-      updatedAt: "2026-03-03T12:00:00.000Z",
-    });
-
-    // Both clients receive the event
-    for (const mock of [ws1, ws2]) {
-      const frames = mock.sent.map((s) => JSON.parse(s));
-      const fileChangeFrames = frames.filter(
-        (f: Record<string, unknown>) => f.type === "session:file-changed",
-      );
-      expect(fileChangeFrames).toHaveLength(1);
-      expect(fileChangeFrames[0].sessionId).toBe(VALID_SESSION_ID);
-    }
-  });
-
-  it("broadcast to zero clients is a no-op (does not throw)", () => {
-    const mock = createMockTransportOptions();
-    const transport = createTransport(mock.options);
-
-    transport.broadcastFileChangeEvent({
-      type: "session:file-changed",
-      sessionId: VALID_SESSION_ID,
-      updatedAt: "2026-03-03T12:00:00.000Z",
-    });
-  });
-});
-
 describe("createTransport — relayLifecycleEvent", () => {
   it("only reaches clients subscribed to the event's sessionId", async () => {
     const mock = createMockTransportOptions();

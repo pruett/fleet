@@ -24,16 +24,10 @@ const transport = createTransport({
 
 const projectsDirWatcher = watchProjectsDir({
   basePaths,
-  onSessionActivity: (sessionId) => {
-    const updatedAt = new Date().toISOString();
-    transport.broadcastFileChangeEvent({
-      type: "session:file-changed",
-      sessionId,
-      updatedAt,
-    });
+  onSessionActivity: () => {
     transport.broadcastGlobalActivity({
       type: "global:activity",
-      updatedAt,
+      updatedAt: new Date().toISOString(),
     });
   },
 });

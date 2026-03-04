@@ -7,13 +7,13 @@ import {
   updateConfig,
 } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { slugify } from "@fleet/shared";
 import type {
   GroupedProject,
   ProjectSummary,
   ProjectConfig,
   FleetConfig,
 } from "@fleet/shared";
-import { slugify } from "@fleet/shared";
 
 export interface UseProjectsResult {
   projects: GroupedProject[];
@@ -46,24 +46,18 @@ export function useProjects(): UseProjectsResult {
   });
 
   const mutation = useMutation({
-    mutationFn: async (nextConfigs: ProjectConfig[]) => {
-      const config: FleetConfig = { projects: nextConfigs };
-      await updateConfig(config);
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.projects() });
+    mutationFn: (config: FleetConfig) => updateConfig(config),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.config() });
+      qc.invalidateQueries({ queryKey: queryKeys.projects() });
     },
   });
 
-  const configs = useMemo(
-    () => configQuery.data?.projects ?? [],
-    [configQuery.data?.projects],
-  );
+  const configs = configQuery.data?.projects ?? [];
 
   const addProject = useCallback(
-    (config: ProjectConfig) => {
-      mutation.mutate([...configs, config]);
+    (project: ProjectConfig) => {
+      mutation.mutate({ projects: [...configs, project] });
     },
     [configs, mutation],
   );
@@ -71,7 +65,7 @@ export function useProjects(): UseProjectsResult {
   const removeProject = useCallback(
     (slug: string) => {
       const next = configs.filter((c) => slugify(c.title) !== slug);
-      mutation.mutate(next);
+      mutation.mutate({ projects: next });
     },
     [configs, mutation],
   );

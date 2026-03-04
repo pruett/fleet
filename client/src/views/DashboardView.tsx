@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject } from "@fleet/shared";
 import { useProjects } from "@/hooks/use-projects";
-import { useSessionActivity } from "@/hooks/use-session-activity";
 import { useGlobalActivity } from "@/hooks/use-global-activity";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import { SessionSearch } from "@/components/SessionSearch";
@@ -219,7 +218,6 @@ function ProjectTreeItem({
 // ---------------------------------------------------------------------------
 
 export function DashboardView() {
-  useSessionActivity();
   useGlobalActivity();
 
   const {

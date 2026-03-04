@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { WatchOptions, WatchHandle } from "../watcher";
-import type { LifecycleEvent, FileChangeEvent, GlobalActivityEvent } from "@fleet/shared";
+import type { LifecycleEvent, GlobalActivityEvent } from "@fleet/shared";
 
 // ============================================================
 // Connected Client (internal tracking for each WebSocket)
@@ -54,8 +54,6 @@ export interface Transport {
   handleClose: (ws: ServerWebSocket<unknown>) => void;
   /** Send a lifecycle event to all connected clients. */
   broadcastLifecycleEvent: (event: LifecycleEvent) => void;
-  /** Send a file-change event to all connected clients. */
-  broadcastFileChangeEvent: (event: FileChangeEvent) => void;
   /** Send a global activity event to all connected clients. */
   broadcastGlobalActivity: (event: GlobalActivityEvent) => void;
   /** Send a lifecycle event only to clients subscribed to the event's sessionId. */

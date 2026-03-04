@@ -32,14 +32,6 @@ export type LifecycleEvent =
   | SessionError
   | SessionActivity;
 
-export interface SessionFileChanged {
-  type: "session:file-changed";
-  sessionId: string;
-  updatedAt: string;
-}
-
-export type FileChangeEvent = SessionFileChanged;
-
 export interface GlobalActivity {
   type: "global:activity";
   updatedAt: string;

@@ -1,18 +1,21 @@
 import { useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { createWsClient, type WsClient } from "@/lib/ws";
-import { fetchActivity } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { GroupedProject } from "@fleet/shared";
+
+/** How often (ms) to force-invalidate caches so timeAgo() stays fresh. */
+const POLL_INTERVAL_MS = 30_000;
 
 /**
- * Maintains a global WebSocket connection that listens for `global:activity`
- * events and keeps the `["activity"]` query cache populated with fresh
- * `GroupedProject[]` data.
+ * Maintains a single global WebSocket connection that listens for
+ * `global:activity` events and invalidates the relevant query caches
+ * so data-fetching hooks automatically refetch.
+ *
+ * Also runs a 30s poll to keep `timeAgo()` timestamps fresh.
  *
  * Mount once at the top of DashboardView.
  */
-export function useGlobalActivity(): GroupedProject[] | undefined {
+export function useGlobalActivity(): void {
   const queryClient = useQueryClient();
   const wsRef = useRef<WsClient | null>(null);
 
@@ -21,19 +24,19 @@ export function useGlobalActivity(): GroupedProject[] | undefined {
     wsRef.current = ws;
 
     ws.onGlobalActivity = () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.activity() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessionsAll() });
     };
+
+    const pollTimer = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessionsAll() });
+    }, POLL_INTERVAL_MS);
 
     return () => {
       ws.close();
       wsRef.current = null;
+      clearInterval(pollTimer);
     };
   }, [queryClient]);
-
-  const { data } = useQuery({
-    queryKey: queryKeys.activity(),
-    queryFn: fetchActivity,
-  });
-
-  return data;
 }

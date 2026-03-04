@@ -1,5 +1,4 @@
 export const queryKeys = {
-  activity: () => ["activity"] as const,
   projects: () => ["projects"] as const,
   config: () => ["config"] as const,
   directories: () => ["directories"] as const,
