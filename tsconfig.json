@@ -11,10 +11,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "types": ["bun"],
-    "paths": {
-      "@fleet/shared": ["./shared/index.ts"]
-    }
+    "types": ["bun"]
   },
   "include": ["src", "bin", "shared"]
 }

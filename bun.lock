@@ -5,6 +5,7 @@
     "": {
       "name": "fleet",
       "dependencies": {
+        "@fleet/shared": "workspace:*",
         "hono": "^4.7.5",
         "zod": "^4.3.6",
       },

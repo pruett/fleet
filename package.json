@@ -20,9 +20,10 @@
     "build": "bun run --filter @fleet/client build",
     "prepublishOnly": "bun run build",
     "test": "bun test",
-    "typecheck": "tsc --noEmit && bun run --filter @fleet/client typecheck"
+    "typecheck": "tsc --noEmit && bun run --filter '*' typecheck"
   },
   "dependencies": {
+    "@fleet/shared": "workspace:*",
     "hono": "^4.7.5",
     "zod": "^4.3.6"
   },
