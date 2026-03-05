@@ -9,23 +9,18 @@ export const WsContext = createContext<WsClient | null>(null);
  * Mount once near the app root (after QueryClientProvider, inside BrowserRouter).
  * All hooks that need WebSocket access call `useWsClient()`.
  *
- * The client is created inside useEffect so that React StrictMode's
- * mount → cleanup → remount cycle works correctly — the destroyed client
- * from the first mount is never served to children.
+ * The client is created via useState's lazy initializer so it's available on
+ * the first render without calling setState inside an effect.
+ * useEffect handles cleanup on unmount.
  */
 export function WsProvider({ children }: { children: ReactNode }) {
-  const [client, setClient] = useState<WsClient | null>(null);
+  const [client] = useState(() => createWsClient());
 
   useEffect(() => {
-    const ws = createWsClient();
-    setClient(ws);
     return () => {
-      ws.destroy();
-      setClient(null);
+      client.destroy();
     };
-  }, []);
-
-  if (!client) return null;
+  }, [client]);
 
   return (
     <WsContext.Provider value={client}>

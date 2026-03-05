@@ -202,7 +202,7 @@ describe("sendMessage lifecycle event contract", () => {
     expect(events[0].sessionId).toBe(SESSION_ID);
 
     // The event should have a timestamp field (varies by event type)
-    const event = events[0] as Record<string, unknown>;
+    const event = events[0] as unknown as Record<string, unknown>;
     const hasTimestamp =
       typeof event.startedAt === "string" ||
       typeof event.updatedAt === "string" ||
