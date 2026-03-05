@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WsProvider } from "@/context/ws-context";
-import { DashboardView } from "@/views/DashboardView";
+import { DashboardView } from "@/views/dashboard-view";
 import { queryClient } from "@/lib/query-client";
 
 function App() {

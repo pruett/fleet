@@ -22,7 +22,7 @@ import {
 import {
   TurnGroup,
   groupMessagesByTurn,
-} from "@/components/conversation/TurnGroup";
+} from "@/components/conversation/turn-group";
 import {
   Context,
   ContextContent,

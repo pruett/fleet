@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject } from "@fleet/shared";
 import { useProjects } from "@/hooks/use-projects";
-import { AddProjectDialog } from "@/components/AddProjectDialog";
-import { SessionSearch } from "@/components/SessionSearch";
+import { AddProjectDialog } from "@/components/add-project-dialog";
+import { SessionSearch } from "@/components/session-search";
 import {
   Sidebar,
   SidebarContent,
@@ -50,7 +50,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { SessionPanel } from "@/views/SessionPanel";
+import { SessionPanel } from "@/views/session-panel";
 
 // ---------------------------------------------------------------------------
 // ProjectTreeItem — a single collapsible project with lazy-loaded sessions
