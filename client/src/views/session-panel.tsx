@@ -34,8 +34,8 @@ import {
   ContextCacheUsage,
   ContextTrigger,
 } from "@/components/ai-elements/context";
-import { useSessionData, type SessionStatus } from "@/hooks/use-session-data";
-import type { ConnectionInfo } from "@/lib/ws";
+import { useSession, type SessionStatus } from "@/hooks/use-session";
+import type { ConnectionInfo } from "@/lib/sse";
 import { GitBranch, GlobeIcon, PaperclipIcon } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -140,13 +140,13 @@ function SessionContextUsage({
 interface SessionPanelProps {
   sessionId: string;
   projectId?: string | null;
-  onGoSession?: (sessionId: string) => void;
+  onSelectSession?: (sessionId: string) => void;
 }
 
 export function SessionPanel({
   sessionId,
   projectId,
-  onGoSession,
+  onSelectSession,
 }: SessionPanelProps) {
   const { open: sidebarOpen, isMobile } = useSidebar();
   const {
@@ -161,7 +161,7 @@ export function SessionPanel({
     liveAnalytics,
     handleSendMessage,
     retry,
-  } = useSessionData({ sessionId, projectId, onGoSession });
+  } = useSession({ sessionId, projectId, onSelectSession });
 
   const handlePromptSubmit = useCallback(
     async (message: { text: string }) => {

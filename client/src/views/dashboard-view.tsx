@@ -353,7 +353,7 @@ export function DashboardView() {
           <SessionPanel
             key={selectedSessionId}
             sessionId={selectedSessionId}
-            onGoSession={selectSession}
+            onSelectSession={selectSession}
           />
         ) : (
           <div className="flex h-full flex-col">
