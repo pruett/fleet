@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { WsProvider } from "@/context/ws-context";
 import { DashboardView } from "@/views/dashboard-view";
 import { queryClient } from "@/lib/query-client";
 
@@ -10,16 +9,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <WsProvider>
-          <TooltipProvider>
-            <Routes>
-              <Route path="/" element={<DashboardView />} />
-              <Route path="/session/:sessionId" element={<DashboardView />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-            <Toaster />
-          </TooltipProvider>
-        </WsProvider>
+        <TooltipProvider>
+          <Routes>
+            <Route path="/" element={<DashboardView />} />
+            <Route path="/session/:sessionId" element={<DashboardView />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+          <Toaster />
+        </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
