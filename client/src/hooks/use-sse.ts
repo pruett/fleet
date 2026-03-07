@@ -85,7 +85,41 @@ export function useSSE({
       });
     }
 
+    // Force reconnect when tab returns from background.
+    // Browsers throttle/kill SSE connections in background tabs,
+    // and EventSource auto-reconnect may stall. A fresh connection
+    // gets a new snapshot covering any messages missed while hidden.
+    //
+    // Even if readyState is OPEN, the connection may be stale (server
+    // closed silently, or the keepalive wasn't received). The server
+    // sends keepalive comments every 30s, so if OPEN but hidden for
+    // longer than that, force a reconnect to get a fresh snapshot.
+    let hiddenAt: number | null = null;
+    const STALE_THRESHOLD_MS = 45_000;
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+
+      // Tab became visible
+      const wasHiddenFor = hiddenAt !== null ? Date.now() - hiddenAt : 0;
+      hiddenAt = null;
+
+      if (es.readyState !== EventSource.OPEN) {
+        console.debug("[sse] tab visible — connection not open, forcing reconnect");
+        setRetryCount((c) => c + 1);
+      } else if (wasHiddenFor > STALE_THRESHOLD_MS) {
+        console.debug("[sse] tab visible — hidden for %ds, forcing reconnect for fresh snapshot", Math.round(wasHiddenFor / 1000));
+        setRetryCount((c) => c + 1);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       es.close();
       eventSourceRef.current = null;
     };
