@@ -1,6 +1,6 @@
 import type { AppDependencies } from "../types";
 import type { ControlResult, ProjectSummary, SessionSummary, EnrichedSession } from "@fleet/shared";
-import type { Transport } from "../../transport";
+import type { Realtime } from "../../realtime";
 
 /**
  * Creates a mock AppDependencies with sensible defaults.
@@ -15,13 +15,10 @@ export function createMockDeps(
     sessionId: "mock-session-id",
   };
 
-  const mockTransport: Transport = {
-    handleOpen: () => {},
-    handleMessage: () => {},
-    handleClose: () => {},
-    broadcastLifecycleEvent: () => {},
-
-    relayLifecycleEvent: () => {},
+  const mockRealtime: Realtime = {
+    handleSessionStream: async (_sessionId: string) => new Response("mock stream"),
+    handleGlobalStream: () => new Response("mock global stream"),
+    pushEvent: () => {},
     getClientCount: () => 0,
     getSessionSubscriberCount: () => 0,
     shutdown: () => {},
@@ -47,7 +44,7 @@ export function createMockDeps(
       readConfig: async () => ({ projects: [] }),
       writeConfig: async () => {},
     },
-    transport: mockTransport,
+    realtime: mockRealtime,
     basePaths: ["/mock/base/path"],
     staticDir: null,
     ...overrides,
