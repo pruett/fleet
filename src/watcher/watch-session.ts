@@ -208,8 +208,10 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
   }
 
   // Register fs.watch listener for file changes
+  console.debug(`[watcher] starting fs.watch on ${filePath}, byteOffset=${startOffset}`);
   const fsWatcher = watch(filePath, (eventType) => {
     if (eventType !== "change") return;
+    console.debug(`[watcher] fs.watch "change" event for ${sessionId}`);
     safeProcessChanges();
   });
 
@@ -227,11 +229,13 @@ export async function watchSession(options: WatchOptions): Promise<WatchHandle> 
   registry.set(sessionId, state);
 
   // Recurring fallback poll: fs.watch on macOS can silently miss events.
-  // Check every 2s if unread data exists and trigger processing.
-  const FALLBACK_POLL_MS = 2_000;
+  // Poll at 500ms for near-real-time updates even when fs.watch is broken.
+  const FALLBACK_POLL_MS = 500;
   state.fallbackPollTimer = setInterval(() => {
     if (handle.stopped || state.processing) return;
-    if (Bun.file(filePath).size > handle.byteOffset) {
+    const currentSize = Bun.file(filePath).size;
+    if (currentSize > handle.byteOffset) {
+      console.debug(`[watcher] fallback poll detected ${currentSize - handle.byteOffset} new bytes for ${sessionId}`);
       safeProcessChanges();
     }
   }, FALLBACK_POLL_MS);

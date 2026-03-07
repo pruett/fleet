@@ -19,11 +19,20 @@ export default defineConfig({
     port: clientPort,
     strictPort: true,
     proxy: {
-      "/api": `http://localhost:${serverPort}`,
-      "/ws": {
-        target: `ws://localhost:${serverPort}`,
-        ws: true,
+      "/api/sse": {
+        target: `http://localhost:${serverPort}`,
+        // SSE requires the proxy to stream chunks without buffering.
+        // selfHandleResponse tells http-proxy not to pipe automatically —
+        // we pipe manually so each chunk flushes immediately.
+        selfHandleResponse: true,
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes, _req, res) => {
+            res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
+            proxyRes.pipe(res);
+          });
+        },
       },
+      "/api": `http://localhost:${serverPort}`,
     },
   },
 })

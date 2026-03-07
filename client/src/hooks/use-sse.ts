@@ -56,14 +56,17 @@ export function useSSE({
     eventSourceRef.current = es;
 
     es.onopen = () => {
+      console.debug("[sse] connected to", url);
       setStatus("connected");
       onOpenRef.current?.();
     };
 
     es.onerror = () => {
       if (es.readyState === EventSource.CONNECTING) {
+        console.debug("[sse] reconnecting…");
         setStatus("reconnecting");
       } else {
+        console.debug("[sse] disconnected");
         setStatus("disconnected");
       }
       onErrorRef.current?.();
@@ -74,6 +77,7 @@ export function useSSE({
       es.addEventListener(type, (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
+          console.debug(`[sse] ← ${type}`, data);
           onEventRef.current(data as ServerMessage);
         } catch {
           console.warn("[sse] Failed to parse event data:", event.data);

@@ -3,10 +3,10 @@
  *
  * Architecture under test:
  *   CLI writes JSONL → File Watcher (fs.watch + tail) → Parser (parseLine)
- *   → Transport (relayBatch) → WebSocket Client
+ *   → Realtime (pushEvent) → SSE Client
  *
- * These tests wire the REAL watcher and REAL transport together with:
- *   - Mock WebSockets (no network layer)
+ * These tests wire the REAL watcher and REAL realtime service together with:
+ *   - SSE Response streams (no network layer)
  *   - Temp JSONL files (real filesystem)
  *   - Real parser (parseLine via the watcher)
  *
@@ -15,7 +15,7 @@
  */
 
 import { describe, test, expect, afterEach } from "bun:test";
-import { createTransport } from "../transport/create-transport";
+import { createRealtime } from "../realtime/create-realtime";
 import {
   watchSession,
   stopWatching,
@@ -24,17 +24,19 @@ import {
 } from "../watcher/watch-session";
 import { createTempJsonl, appendLines } from "../watcher/__tests__/helpers";
 import {
-  createMockWebSocket,
+  collectSseEvents,
   flushAsync,
   waitMs,
-} from "../transport/__tests__/helpers";
+} from "../realtime/__tests__/helpers";
 import {
   makeUserPrompt,
   makeAssistantRecord,
   makeTextBlock,
   toLine,
 } from "../parser/__tests__/helpers";
-import type { Transport } from "../transport/types";
+import { parseFullSession } from "../parser";
+import type { Realtime } from "../realtime/types";
+import type { SseEvent } from "../realtime/__tests__/helpers";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -43,49 +45,33 @@ import type { Transport } from "../transport/types";
 /** How long to wait for the watcher's debounce timer (default 100ms) to flush. */
 const DEBOUNCE_WAIT = 300;
 
-/** Create a transport wired to the real watcher with a path lookup map. */
-function createRealTransport(pathMap: Map<string, string>): Transport {
-  return createTransport({
+/** Create a realtime service wired to the real watcher with a path lookup map. */
+function createRealRealtimeService(pathMap: Map<string, string>): Realtime {
+  return createRealtime({
     watchSession,
     stopWatching,
     resolveSessionPath: async (id) => pathMap.get(id) ?? null,
+    parseSession: parseFullSession,
   });
 }
 
-/** Connect a mock WS client to the transport. */
-function connectClient(transport: Transport) {
-  const mock = createMockWebSocket();
-  transport.handleOpen(mock.ws);
-  return mock;
-}
-
-/** Send a subscribe message and wait for the async handler to complete. */
-async function subscribe(
-  transport: Transport,
-  mock: ReturnType<typeof createMockWebSocket>,
-  sessionId: string,
-  byteOffset?: number,
-): Promise<void> {
-  const msg: Record<string, unknown> = { type: "subscribe", sessionId };
-  if (byteOffset !== undefined) msg.byteOffset = byteOffset;
-  transport.handleMessage(mock.ws, JSON.stringify(msg));
-  // handleSubscribe is fire-and-forget (.catch) — flush microtasks so the
-  // watcher is fully started before we proceed.
+/** Connect an SSE client to the realtime service for a given session. */
+async function connectClient(realtime: Realtime, sessionId: string) {
+  const response = await realtime.handleSessionStream(sessionId);
   await flushAsync();
   await flushAsync();
+  return response;
 }
 
-/** Extract "messages" frames from a mock WS's sent buffer. */
-function getMessageFrames(sent: string[]) {
-  return sent
-    .map((s) => JSON.parse(s))
-    .filter((f: Record<string, unknown>) => f.type === "messages");
+/** Extract "messages" events from SSE events. */
+function getMessageEvents(events: SseEvent[]) {
+  return events.filter((e) => e.type === "messages");
 }
 
-/** Collect all ParsedMessage objects delivered across all message frames. */
-function getDeliveredMessages(sent: string[]) {
-  return getMessageFrames(sent).flatMap(
-    (f: Record<string, unknown>) => f.messages as unknown[],
+/** Collect all ParsedMessage objects delivered across all message events. */
+function getDeliveredMessages(events: SseEvent[]) {
+  return getMessageEvents(events).flatMap(
+    (e) => (e.data as Record<string, unknown>).messages as unknown[],
   );
 }
 
@@ -94,35 +80,30 @@ function getDeliveredMessages(sent: string[]) {
 // ---------------------------------------------------------------------------
 
 describe("Realtime Pipeline Integration", () => {
-  let transport: Transport;
+  let realtime: Realtime;
   const cleanups: (() => Promise<void>)[] = [];
 
   afterEach(async () => {
-    // 1. Shut down transport (stops watchers it tracks, closes WS connections)
-    transport?.shutdown();
-    // 2. Defensive: stop any lingering watchers in the global registry
+    realtime?.shutdown();
     stopAll();
-    // 3. Clean up temp files
     for (const fn of cleanups) await fn();
     cleanups.length = 0;
   });
 
   // =========================================================================
-  // Test 1: Happy path — file append → watcher → transport → mock WS client
+  // Test 1: Happy path — file append → watcher → realtime → SSE client
   // =========================================================================
 
-  test("file append after subscribe is delivered to WS client", async () => {
+  test("file append after subscribe is delivered to SSE client", async () => {
     const temp = await createTempJsonl();
     cleanups.push(temp.cleanup);
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    transport = createRealTransport(pathMap);
+    realtime = createRealRealtimeService(pathMap);
 
-    const client = connectClient(transport);
-    await subscribe(transport, client, sessionId);
+    const response = await connectClient(realtime, sessionId);
 
-    // Write messages AFTER subscribe (watcher is tailing)
     const line1 = toLine(
       makeUserPrompt("hello world") as Record<string, unknown>,
     );
@@ -132,8 +113,8 @@ describe("Realtime Pipeline Integration", () => {
     await appendLines(temp.path, [line1, line2]);
     await waitMs(DEBOUNCE_WAIT);
 
-    // Client received both messages with correct types and content
-    const delivered = getDeliveredMessages(client.sent);
+    const events = await collectSseEvents(response, 50);
+    const delivered = getDeliveredMessages(events);
     expect(delivered).toHaveLength(2);
 
     const kinds = delivered.map((m: any) => m.kind);
@@ -159,15 +140,11 @@ describe("Realtime Pipeline Integration", () => {
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    transport = createRealTransport(pathMap);
+    realtime = createRealRealtimeService(pathMap);
 
-    // Two clients subscribe to the same session
-    const client1 = connectClient(transport);
-    const client2 = connectClient(transport);
-    await subscribe(transport, client1, sessionId);
-    await subscribe(transport, client2, sessionId);
+    const response1 = await connectClient(realtime, sessionId);
+    const response2 = await connectClient(realtime, sessionId);
 
-    // Only one watcher in the registry
     expect(_registry.size).toBe(1);
 
     const line = toLine(
@@ -176,9 +153,10 @@ describe("Realtime Pipeline Integration", () => {
     await appendLines(temp.path, [line]);
     await waitMs(DEBOUNCE_WAIT);
 
-    // Both clients received the message
-    const delivered1 = getDeliveredMessages(client1.sent);
-    const delivered2 = getDeliveredMessages(client2.sent);
+    const events1 = await collectSseEvents(response1, 50);
+    const events2 = await collectSseEvents(response2, 50);
+    const delivered1 = getDeliveredMessages(events1);
+    const delivered2 = getDeliveredMessages(events2);
     expect(delivered1).toHaveLength(1);
     expect(delivered2).toHaveLength(1);
     expect((delivered1[0] as any).text).toBe("broadcast me");
@@ -186,113 +164,82 @@ describe("Realtime Pipeline Integration", () => {
   });
 
   // =========================================================================
-  // Test 3: Snapshot-subscription gap — messages during the window
-  //
-  // Scenario: client fetches a REST snapshot (T1), CLI writes messages,
-  // then client subscribes via WebSocket (T2). The watcher must deliver
-  // ALL messages written after the snapshot — including those written
-  // before the subscribe call.
+  // Test 3: Snapshot — pre-existing content arrives in snapshot event
   // =========================================================================
 
-  test("messages written between REST snapshot and subscribe are delivered", async () => {
+  test("pre-existing content is delivered via snapshot event", async () => {
     const temp = await createTempJsonl();
     cleanups.push(temp.cleanup);
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
 
-    // T1: REST fetch — file is empty, snapshot returns 0 messages at byte 0
-    const snapshotByteOffset = Bun.file(temp.path).size;
-    expect(snapshotByteOffset).toBe(0);
-
-    // Gap window: CLI writes 2 messages between REST fetch and subscribe
-    const gapLine1 = toLine(
-      makeUserPrompt("gap message 1") as Record<string, unknown>,
+    const line1 = toLine(
+      makeUserPrompt("existing message") as Record<string, unknown>,
     );
-    const gapLine2 = toLine(
+    const line2 = toLine(
       makeAssistantRecord(
-        makeTextBlock("gap response 1"),
+        makeTextBlock("existing response"),
       ) as Record<string, unknown>,
     );
-    await appendLines(temp.path, [gapLine1, gapLine2]);
+    await appendLines(temp.path, [line1, line2]);
 
-    // T2: Client subscribes with byteOffset from snapshot — watcher should tail
-    // from snapshotByteOffset (0), not from the current file size.
-    transport = createRealTransport(pathMap);
-    const client = connectClient(transport);
-    await subscribe(transport, client, sessionId, snapshotByteOffset);
+    realtime = createRealRealtimeService(pathMap);
+    const response = await connectClient(realtime, sessionId);
 
-    // Post-subscribe: another message arrives
+    const events = await collectSseEvents(response, 50);
+    const snapshots = events.filter((e) => e.type === "snapshot");
+    expect(snapshots).toHaveLength(1);
+
+    const session = (snapshots[0].data as any).session;
+    expect(session.messages).toHaveLength(2);
+    const kinds = session.messages.map((m: any) => m.kind);
+    expect(kinds).toContain("user-prompt");
+    expect(kinds).toContain("assistant-block");
+  });
+
+  // =========================================================================
+  // Test 4: Snapshot + live delta — no messages lost
+  // =========================================================================
+
+  test("snapshot includes existing content and watcher delivers new content", async () => {
+    const temp = await createTempJsonl();
+    cleanups.push(temp.cleanup);
+
+    const sessionId = crypto.randomUUID();
+    const pathMap = new Map([[sessionId, temp.path]]);
+
+    const PRE_COUNT = 5;
+    const preLines = Array.from({ length: PRE_COUNT }, (_, i) =>
+      toLine(
+        makeUserPrompt(`pre-msg-${i}`) as Record<string, unknown>,
+      ),
+    );
+    await appendLines(temp.path, preLines);
+
+    realtime = createRealRealtimeService(pathMap);
+    const response = await connectClient(realtime, sessionId);
+
     const postLine = toLine(
-      makeUserPrompt("post-subscribe message") as Record<string, unknown>,
+      makeUserPrompt("post-subscribe") as Record<string, unknown>,
     );
     await appendLines(temp.path, [postLine]);
     await waitMs(DEBOUNCE_WAIT);
 
-    // All 3 messages should be delivered: 2 gap + 1 post-subscribe
-    const delivered = getDeliveredMessages(client.sent);
-    const userTexts = delivered
-      .filter((m: any) => m.kind === "user-prompt")
-      .map((m: any) => m.text);
-    const assistantTexts = delivered
-      .filter((m: any) => m.kind === "assistant-block")
-      .map((m: any) => m.contentBlock.text);
+    const events = await collectSseEvents(response, 50);
 
-    expect(userTexts).toContain("gap message 1");
-    expect(assistantTexts).toContain("gap response 1");
-    expect(userTexts).toContain("post-subscribe message");
-    expect(delivered).toHaveLength(3);
-  });
+    // Snapshot should contain pre-existing messages
+    const snapshots = events.filter((e) => e.type === "snapshot");
+    expect(snapshots).toHaveLength(1);
+    const session = (snapshots[0].data as any).session;
+    expect(session.messages).toHaveLength(PRE_COUNT);
 
-  // =========================================================================
-  // Test 4: Gap scales — no messages lost regardless of write volume
-  //
-  // Even when many messages are written during the latency window between
-  // REST snapshot and subscribe, every single one must be delivered.
-  // =========================================================================
-
-  test("all messages written during latency window are delivered regardless of volume", async () => {
-    const temp = await createTempJsonl();
-    cleanups.push(temp.cleanup);
-
-    const sessionId = crypto.randomUUID();
-    const pathMap = new Map([[sessionId, temp.path]]);
-
-    // REST fetch at T1: empty file
-    expect(Bun.file(temp.path).size).toBe(0);
-
-    // Write 10 messages during the gap window
-    const GAP_COUNT = 10;
-    const gapLines = Array.from({ length: GAP_COUNT }, (_, i) =>
-      toLine(
-        makeUserPrompt(`gap-msg-${i}`) as Record<string, unknown>,
-      ),
-    );
-    await appendLines(temp.path, gapLines);
-
-    // Subscribe after gap writes, starting from byte 0 (REST snapshot was empty)
-    transport = createRealTransport(pathMap);
-    const client = connectClient(transport);
-    await subscribe(transport, client, sessionId, 0);
-
-    // Write a sentinel after subscribe to prove the watcher is running
-    const sentinel = toLine(
-      makeUserPrompt("sentinel-after-subscribe") as Record<string, unknown>,
-    );
-    await appendLines(temp.path, [sentinel]);
-    await waitMs(DEBOUNCE_WAIT);
-
-    // Every message must be delivered: all 10 gap messages + the sentinel
-    const delivered = getDeliveredMessages(client.sent);
+    // Delta should contain the new message
+    const delivered = getDeliveredMessages(events);
     const texts = delivered
       .filter((m: any) => m.kind === "user-prompt")
       .map((m: any) => m.text);
-
-    for (let i = 0; i < GAP_COUNT; i++) {
-      expect(texts).toContain(`gap-msg-${i}`);
-    }
-    expect(texts).toContain("sentinel-after-subscribe");
-    expect(delivered).toHaveLength(GAP_COUNT + 1);
+    expect(texts).toContain("post-subscribe");
   });
 
   // =========================================================================
@@ -305,27 +252,26 @@ describe("Realtime Pipeline Integration", () => {
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    transport = createRealTransport(pathMap);
+    realtime = createRealRealtimeService(pathMap);
 
-    const client = connectClient(transport);
-    await subscribe(transport, client, sessionId);
+    const response = await connectClient(realtime, sessionId);
 
     expect(_registry.has(sessionId)).toBe(true);
 
-    transport.handleClose(client.ws);
+    await response.body!.cancel();
+    await flushAsync();
 
     expect(_registry.has(sessionId)).toBe(false);
   });
 
   // =========================================================================
-  // Test 6: Pre-existing content isolation
+  // Test 6: Pre-existing content in snapshot, new content in messages
   // =========================================================================
 
-  test("watcher does not deliver content that existed before subscribe", async () => {
+  test("pre-existing content arrives in snapshot, new content in messages delta", async () => {
     const temp = await createTempJsonl();
     cleanups.push(temp.cleanup);
 
-    // Write content BEFORE the watcher starts
     const preExisting = toLine(
       makeUserPrompt("I existed before the watcher") as Record<string, unknown>,
     );
@@ -333,51 +279,52 @@ describe("Realtime Pipeline Integration", () => {
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    transport = createRealTransport(pathMap);
+    realtime = createRealRealtimeService(pathMap);
 
-    const client = connectClient(transport);
-    await subscribe(transport, client, sessionId);
+    const response = await connectClient(realtime, sessionId);
 
-    // Write new content after subscribe
     const newLine = toLine(
       makeUserPrompt("I am new") as Record<string, unknown>,
     );
     await appendLines(temp.path, [newLine]);
     await waitMs(DEBOUNCE_WAIT);
 
-    // Only the new message should be delivered
-    const delivered = getDeliveredMessages(client.sent);
-    const texts = delivered
+    const events = await collectSseEvents(response, 50);
+
+    // Pre-existing content is in the snapshot
+    const snapshots = events.filter((e) => e.type === "snapshot");
+    const snapshotTexts = (snapshots[0].data as any).session.messages
       .filter((m: any) => m.kind === "user-prompt")
       .map((m: any) => m.text);
-    expect(texts).toContain("I am new");
-    expect(texts).not.toContain("I existed before the watcher");
+    expect(snapshotTexts).toContain("I existed before the watcher");
+
+    // New content arrives via messages delta (not in snapshot)
+    const delivered = getDeliveredMessages(events);
+    const deltaTexts = delivered
+      .filter((m: any) => m.kind === "user-prompt")
+      .map((m: any) => m.text);
+    expect(deltaTexts).toContain("I am new");
+    expect(deltaTexts).not.toContain("I existed before the watcher");
   });
 
   // =========================================================================
-  // Test 7: Transport shutdown stops real watchers
+  // Test 7: Realtime shutdown stops real watchers
   // =========================================================================
 
-  test("transport shutdown stops real watchers and clears registry", async () => {
+  test("realtime shutdown stops real watchers and clears registry", async () => {
     const temp = await createTempJsonl();
     cleanups.push(temp.cleanup);
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    transport = createRealTransport(pathMap);
+    realtime = createRealRealtimeService(pathMap);
 
-    const client = connectClient(transport);
-    await subscribe(transport, client, sessionId);
+    await connectClient(realtime, sessionId);
 
     expect(_registry.has(sessionId)).toBe(true);
 
-    transport.shutdown();
+    realtime.shutdown();
 
     expect(_registry.has(sessionId)).toBe(false);
-
-    expect(client.closed).toEqual({
-      code: 1001,
-      reason: "Server shutting down",
-    });
   });
 });

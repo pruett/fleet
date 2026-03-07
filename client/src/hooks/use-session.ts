@@ -116,6 +116,7 @@ export function useSession({
   const handleSseEvent = useCallback((event: ServerMessage) => {
     switch (event.type) {
       case "snapshot": {
+        console.debug("[session] snapshot received —", event.session.messages.length, "messages");
         queryClient.setQueryData(queryKeys.session(sessionIdRef.current), event.session);
         setLiveMessages([]);
         setLiveAnalytics(extractAnalytics(event.session));
@@ -123,9 +124,11 @@ export function useSession({
         break;
       }
       case "messages": {
+        console.debug("[session] messages batch —", event.messages.length, "messages, lineIndexes:", event.messages.map((m) => m.lineIndex));
         setLiveMessages((prev) => {
           const existing = new Set(prev.map((m) => m.lineIndex));
           const novel = event.messages.filter((m) => !existing.has(m.lineIndex));
+          console.debug("[session] dedup: %d existing, %d novel, %d total", existing.size, novel.length, prev.length + novel.length);
           return novel.length > 0 ? [...prev, ...novel] : prev;
         });
 
@@ -262,7 +265,9 @@ export function useSession({
 
   const visibleMessages = useMemo(() => {
     const allMessages = session ? [...session.messages, ...liveMessages] : [];
-    return allMessages.filter(isVisibleMessage);
+    const visible = allMessages.filter(isVisibleMessage);
+    console.debug("[session] visibleMessages: %d snapshot + %d live = %d total, %d visible", session?.messages.length ?? 0, liveMessages.length, allMessages.length, visible.length);
+    return visible;
   }, [session, liveMessages]);
 
   const sessionMeta = useMemo(
