@@ -57,24 +57,24 @@ function SessionStatusIndicator({ status }: { status: SessionStatus }) {
   );
 }
 
-function ConnectionStatusIndicator({ info }: { info: ConnectionInfo | null }) {
-  if (!info || info.status === "connected" || info.status === "disconnected") {
-    return null;
-  }
+const CONNECTION_STATUS_CONFIG: Record<
+  ConnectionInfo["status"],
+  { color: string; dotClass: string; label: string }
+> = {
+  connected: { color: "text-green-500", dotClass: "bg-green-500", label: "Connected" },
+  connecting: { color: "text-yellow-500", dotClass: "bg-yellow-500 animate-pulse", label: "Connecting…" },
+  reconnecting: { color: "text-red-500", dotClass: "bg-red-500 animate-pulse", label: "Reconnecting" },
+  disconnected: { color: "text-muted-foreground", dotClass: "bg-muted-foreground", label: "Disconnected" },
+};
 
-  if (info.status === "connecting") {
-    return (
-      <span className="flex items-center gap-1.5 text-xs text-yellow-500">
-        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-yellow-500" />
-        Connecting…
-      </span>
-    );
-  }
+function ConnectionStatusIndicator({ info }: { info: ConnectionInfo | null }) {
+  const status = info?.status ?? "disconnected";
+  const { color, dotClass, label } = CONNECTION_STATUS_CONFIG[status];
 
   return (
-    <span className="flex items-center gap-1.5 text-xs text-red-500">
-      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
-      Reconnecting… ({info.attempt})
+    <span className={`flex items-center gap-1.5 text-xs ${color}`}>
+      <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} />
+      {label}{status === "reconnecting" && info ? ` (${info.attempt})` : ""}
     </span>
   );
 }

@@ -14,13 +14,12 @@
 │ [⌘K Search] ◄────────── Reads React Query cache (all session queries)
 └──────────────────────┘
 
-Auto-refresh: WebSocket Connection A (lifecycle + file-change events)
-              + 30s polling fallback
+Auto-refresh: 30s polling
 
 
 ┌──────────────────────────────────────────┐
 │ Model: claude-opus | ID: abc | Branch: main  ◄── EnrichedSession metadata
-│ [Connecting… / Reconnecting…]            ◄── WebSocket connectionInfo
+│ [Connecting… / Reconnecting…]            ◄── SSE connectionInfo
 ├──────────────────────────────────────────┤
 │                                          │
 │ [User message]       ◄── ParsedMessage (kind: "user-prompt", !isMeta)
@@ -30,7 +29,7 @@ Auto-refresh: WebSocket Connection A (lifecycle + file-change events)
 │ [Agent progress]      ◄── ParsedMessage (kind: "progress-agent")
 │                                          │
 │ Data source: GET /api/sessions/:id (baseline)
-│            + WebSocket Connection B messages (live appends)
+│            + SSE stream messages (live appends)
 ├──────────────────────────────────────────┤
 │ [Prompt textarea]                        │
 │ [📎 Attach] [🌐 Web] [Context ◄── liveAnalytics + contextSnapshots]  [Send]
@@ -52,26 +51,23 @@ Auto-refresh: WebSocket Connection A (lifecycle + file-change events)
 | progress-agent | Subagent indicator | Always |
 | All others | Hidden | — |
 
-## Websocket Connections
-- Both connect to /ws with auto-reconnect (exponential backoff: 1s base, 30s max, 0-500ms jitter).
+## SSE Connection
 
-1. Connection A: Global Activity Monitor (useSessionActivity)
-Mounted once at DashboardView root. Never subscribes to a specific session — it passively receives broadcast events.
+Per-session SSE stream via `GET /api/sse/sessions/:sessionId` (useSessionData → useSSE).
 
-Listens for (Server → Client):
+- Uses the native `EventSource` API with built-in reconnection.
+- Subscription is implicit in the URL — connecting to a session URL subscribes to that session.
+- Disconnection triggers automatic cleanup on the server.
+- No client→server messages needed (all mutations go through REST).
 
-session:started → invalidates ["sessions"] query cache (500ms debounce)
-session:stopped → invalidates ["sessions"] query cache (500ms debounce)
-session:file-changed → invalidates ["sessions"] query cache (500ms debounce)
-Also: Polls every 30s to force-invalidate ["sessions"] cache (keeps timeAgo() timestamps fresh).
-
-Effect: Sidebar session lists auto-refresh when sessions start/stop/change.
-
-2. Connection B: Session Subscription (useSessionData)
 Created per-session when SessionPanel mounts. Destroyed on unmount.
 
-Client → Server:
+Server → Client (named SSE events):
 
-{ type: "subscribe", sessionId } — on initial connect + on reconnect
-{ type: "unsubscribe" } — on cleanup
-Server → Client:
+- `messages` — batch of new ParsedMessage objects with byteRange
+- `session:started` — session process started
+- `session:stopped` — session process stopped
+- `session:error` — session process error
+- `session:activity` — session file activity
+
+Server also sends `: keepalive` comments every 30s to prevent connection timeout.

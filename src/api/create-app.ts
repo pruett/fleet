@@ -210,6 +210,15 @@ export function createApp(deps: AppDependencies): Hono {
     return c.json({ worktrees });
   });
 
+  app.get("/api/sse/events", (c) => {
+    return deps.realtime.handleGlobalStream();
+  });
+
+  app.get("/api/sse/sessions/:sessionId", async (c) => {
+    const sessionId = c.req.param("sessionId");
+    return deps.realtime.handleSessionStream(sessionId);
+  });
+
   // Static file serving (only when staticDir is configured)
   if (deps.staticDir) {
     const staticDir = resolve(deps.staticDir);

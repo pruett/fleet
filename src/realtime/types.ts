@@ -38,6 +38,8 @@ export interface RealtimeOptions {
 export interface Realtime {
   /** Create an SSE stream for a session. Sends a snapshot event followed by live deltas. */
   handleSessionStream: (sessionId: string) => Promise<Response>;
+  /** Create a global SSE stream that receives only broadcast events (lifecycle). */
+  handleGlobalStream: () => Response;
   /** Push an event — relays to session subscribers and broadcasts started/stopped to all clients. */
   pushEvent: (event: PushableEvent) => void;
   /** Number of currently connected clients. */

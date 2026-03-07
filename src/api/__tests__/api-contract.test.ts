@@ -30,7 +30,7 @@ type _AssertAppDependencies = Pick<
   | "parser"
   | "controller"
   | "config"
-  | "transport"
+  | "realtime"
   | "basePaths"
   | "staticDir"
 >;
@@ -42,7 +42,7 @@ type _AssertStartSessionOpts = Pick<
   "projectDir" | "prompt" | "cwd"
 >;
 
-type _AssertServerOptions = Pick<ServerOptions, "fetch" | "websocket">;
+type _AssertServerOptions = Pick<ServerOptions, "fetch">;
 
 // Prevent "unused" warnings while keeping the compile-time checks alive.
 type _UseAll =
@@ -101,6 +101,10 @@ const EXPECTED_ROUTES: { method: string; path: string }[] = [
   { method: "POST", path: "/api/sessions/:sessionId/resume" },
   { method: "POST", path: "/api/sessions/:sessionId/message" },
 
+  // SSE
+  { method: "GET", path: "/api/sse/events" },
+  { method: "GET", path: "/api/sse/sessions/:sessionId" },
+
   // Config
   { method: "GET", path: "/api/config" },
   { method: "PUT", path: "/api/config" },
@@ -142,20 +146,14 @@ describe("API Route Inventory", () => {
 });
 
 // ────────────────────────────────────────────────────────────
-// WebSocket endpoint
+// SSE endpoint
 // ────────────────────────────────────────────────────────────
 
-describe("WebSocket Endpoint", () => {
-  it("upgrade path is /ws", async () => {
-    // The WebSocket path is defined in create-server.ts.
-    // We verify by making a non-upgrade HTTP request to /ws
-    // and confirming the server layer handles it (returns 400,
-    // not 404), proving the path is recognized.
+describe("SSE Endpoint", () => {
+  it("server has fetch but no websocket property", async () => {
     const { createServer } = await import("../create-server");
     const server = createServer(createMockDeps());
     expect(typeof server.fetch).toBe("function");
-    expect(typeof server.websocket.open).toBe("function");
-    expect(typeof server.websocket.message).toBe("function");
-    expect(typeof server.websocket.close).toBe("function");
+    expect(server).not.toHaveProperty("websocket");
   });
 });

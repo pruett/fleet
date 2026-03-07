@@ -6,6 +6,13 @@ import type {
 import type { PushableEvent } from "@fleet/shared";
 import type { WatchHandle } from "../watcher";
 
+/** A lightweight client that only receives broadcast events (no session subscription). */
+interface GlobalClient {
+  clientId: string;
+  controller: ReadableStreamDefaultController<Uint8Array>;
+  connectedAt: string;
+}
+
 /** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */
 const UUID_V4_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -35,6 +42,7 @@ const BROADCAST_TYPES = new Set<string>([
 export function createRealtime(options: RealtimeOptions): Realtime {
   // --- Internal state ---
   const clients = new Map<string, SseClient>();
+  const globalClients = new Map<string, GlobalClient>();
   const sessions = new Map<string, Set<string>>();
   const watchers = new Map<string, WatchHandle>();
 
@@ -62,6 +70,17 @@ export function createRealtime(options: RealtimeOptions): Realtime {
     for (const client of clients.values()) {
       writeToClient(client, payload);
     }
+    for (const client of globalClients.values()) {
+      writeToGlobal(client, payload);
+    }
+  }
+
+  function writeToGlobal(client: GlobalClient, data: string): void {
+    try {
+      client.controller.enqueue(ENCODER.encode(data));
+    } catch {
+      // Broken pipe / closed stream — skip
+    }
   }
 
   // --- Heartbeat (lazy — only runs while clients are connected) ---
@@ -75,6 +94,9 @@ export function createRealtime(options: RealtimeOptions): Realtime {
     heartbeatTimer = setInterval(() => {
       for (const client of clients.values()) {
         writeToClient(client, keepalive);
+      }
+      for (const client of globalClients.values()) {
+        writeToGlobal(client, keepalive);
       }
     }, HEARTBEAT_INTERVAL_MS);
   }
@@ -97,11 +119,15 @@ export function createRealtime(options: RealtimeOptions): Realtime {
 
     // Broadcast started/stopped to ALL clients (for sidebar cache invalidation)
     if (BROADCAST_TYPES.has(event.type)) {
-      // Avoid double-delivery: only send to clients NOT subscribed to this session
+      // Avoid double-delivery: only send to session clients NOT subscribed to this session
       const subscriberIds = sessions.get(event.sessionId);
       for (const client of clients.values()) {
         if (subscriberIds?.has(client.clientId)) continue;
         writeToClient(client, payload);
+      }
+      // Always send to global clients (they have no session subscription)
+      for (const client of globalClients.values()) {
+        writeToGlobal(client, payload);
       }
     }
   }
@@ -260,7 +286,36 @@ export function createRealtime(options: RealtimeOptions): Realtime {
         // Client disconnected
         unsubscribeClient(clientId);
         clients.delete(clientId);
-        if (clients.size === 0) stopHeartbeat();
+        if (clients.size === 0 && globalClients.size === 0) stopHeartbeat();
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  }
+
+  // --- Global SSE Stream (broadcast-only, no session subscription) ---
+
+  function handleGlobalStream(): Response {
+    const clientId = crypto.randomUUID();
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        globalClients.set(clientId, {
+          clientId,
+          controller,
+          connectedAt: new Date().toISOString(),
+        });
+        startHeartbeat();
+      },
+      cancel() {
+        globalClients.delete(clientId);
+        if (clients.size === 0 && globalClients.size === 0) stopHeartbeat();
       },
     });
 
@@ -275,21 +330,19 @@ export function createRealtime(options: RealtimeOptions): Realtime {
 
   return {
     handleSessionStream,
+    handleGlobalStream,
     pushEvent,
-    getClientCount: () => clients.size,
+    getClientCount: () => clients.size + globalClients.size,
     getSessionSubscriberCount: (sessionId: string) =>
       sessions.get(sessionId)?.size ?? 0,
     shutdown: () => {
-      // 1. Stop heartbeat
       stopHeartbeat();
 
-      // 2. Stop all watchers
       for (const handle of watchers.values()) {
         options.stopWatching(handle);
       }
       watchers.clear();
 
-      // 3. Close all SSE streams
       for (const client of clients.values()) {
         try {
           client.controller.close();
@@ -297,9 +350,16 @@ export function createRealtime(options: RealtimeOptions): Realtime {
           // Already closed — skip
         }
       }
+      for (const client of globalClients.values()) {
+        try {
+          client.controller.close();
+        } catch {
+          // Already closed — skip
+        }
+      }
 
-      // 4. Clear all internal state
       clients.clear();
+      globalClients.clear();
       sessions.clear();
     },
   };

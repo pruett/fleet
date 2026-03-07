@@ -626,3 +626,146 @@ describe("SSE data flow — end-to-end through HTTP", () => {
     expect(messagesIndex).toBeGreaterThan(snapshotIndex);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Global SSE stream tests
+// ---------------------------------------------------------------------------
+
+describe("Global SSE stream — /api/sse/events", () => {
+  let harness: TestHarness;
+  const cleanups: (() => Promise<void>)[] = [];
+
+  afterEach(async () => {
+    harness?.realtime.shutdown();
+    stopAll();
+    for (const fn of cleanups) await fn();
+    cleanups.length = 0;
+  });
+
+  test("returns SSE response with correct headers", async () => {
+    harness = createTestHarness(new Map());
+
+    const res = await harness.request("/api/sse/events");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    expect(res.headers.get("connection")).toBe("keep-alive");
+  });
+
+  test("global client receives session:started broadcast", async () => {
+    const temp = await createTempJsonl();
+    cleanups.push(temp.cleanup);
+
+    const sessionId = crypto.randomUUID();
+    harness = createTestHarness(new Map([[sessionId, temp.path]]));
+
+    // Connect a global client (no session subscription)
+    const globalRes = await harness.request("/api/sse/events");
+    await flush();
+
+    // Push a lifecycle event
+    harness.realtime.pushEvent({
+      type: "session:started",
+      sessionId,
+      projectId: "proj-001",
+      cwd: "/test",
+      startedAt: new Date().toISOString(),
+    });
+
+    const frames = await readSseFrames(globalRes, 100);
+    const started = frames.filter((f) => f.event === "session:started");
+    expect(started).toHaveLength(1);
+    expect((started[0].data as Record<string, unknown>).sessionId).toBe(sessionId);
+  });
+
+  test("global client receives session:stopped broadcast", async () => {
+    harness = createTestHarness(new Map());
+
+    const globalRes = await harness.request("/api/sse/events");
+    await flush();
+
+    const sessionId = crypto.randomUUID();
+    harness.realtime.pushEvent({
+      type: "session:stopped",
+      sessionId,
+      reason: "completed",
+      stoppedAt: new Date().toISOString(),
+    });
+
+    const frames = await readSseFrames(globalRes, 100);
+    const stopped = frames.filter((f) => f.event === "session:stopped");
+    expect(stopped).toHaveLength(1);
+    expect((stopped[0].data as Record<string, unknown>).reason).toBe("completed");
+  });
+
+  test("global client does NOT receive session messages", async () => {
+    const temp = await createTempJsonl();
+    cleanups.push(temp.cleanup);
+
+    const sessionId = crypto.randomUUID();
+    harness = createTestHarness(new Map([[sessionId, temp.path]]));
+
+    // Connect a global client AND a session client
+    const globalRes = await harness.request("/api/sse/events");
+    const sessionRes = await harness.request(`/api/sse/sessions/${sessionId}`);
+    await flush();
+    await flush();
+
+    // Append a message (triggers watcher → messages event)
+    await appendLines(temp.path, [
+      toLine(makeUserPrompt("only for session client") as Record<string, unknown>),
+    ]);
+    await wait(300);
+
+    const globalFrames = await readSseFrames(globalRes, 100);
+    const sessionFrames = await readSseFrames(sessionRes, 100);
+
+    // Session client gets messages
+    expect(sessionFrames.some((f) => f.event === "messages")).toBe(true);
+
+    // Global client does NOT get messages or snapshots
+    expect(globalFrames.some((f) => f.event === "messages")).toBe(false);
+    expect(globalFrames.some((f) => f.event === "snapshot")).toBe(false);
+  });
+
+  test("global client is counted and cleaned up on disconnect", async () => {
+    harness = createTestHarness(new Map());
+
+    const res = await harness.request("/api/sse/events");
+    await flush();
+
+    expect(harness.realtime.getClientCount()).toBe(1);
+
+    await res.body!.cancel();
+    await flush();
+
+    expect(harness.realtime.getClientCount()).toBe(0);
+  });
+
+  test("both global and session clients receive broadcast simultaneously", async () => {
+    const temp = await createTempJsonl();
+    cleanups.push(temp.cleanup);
+
+    const sessionId = crypto.randomUUID();
+    harness = createTestHarness(new Map([[sessionId, temp.path]]));
+
+    const globalRes = await harness.request("/api/sse/events");
+    const sessionRes = await harness.request(`/api/sse/sessions/${sessionId}`);
+    await flush();
+
+    harness.realtime.pushEvent({
+      type: "session:started",
+      sessionId,
+      projectId: "proj-001",
+      cwd: "/test",
+      startedAt: new Date().toISOString(),
+    });
+
+    const globalFrames = await readSseFrames(globalRes, 100);
+    const sessionFrames = await readSseFrames(sessionRes, 100);
+
+    expect(globalFrames.some((f) => f.event === "session:started")).toBe(true);
+    expect(sessionFrames.some((f) => f.event === "session:started")).toBe(true);
+  });
+});
