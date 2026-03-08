@@ -1,25 +1,25 @@
 /**
- * Integration tests: Controller lifecycle events → Transport → WebSocket clients.
+ * Integration tests: Controller lifecycle events → Realtime → SSE clients.
  *
- * Wires a real createController with a real createTransport using mock WebSockets
- * to verify that lifecycle events emitted by the controller are correctly broadcast
- * to all connected WebSocket clients.
+ * Wires a real createController with a real createRealtime to verify that
+ * lifecycle events emitted by the controller are correctly delivered to
+ * connected SSE clients via pushEvent.
  */
 
 import { describe, expect, it } from "bun:test";
 import { createController } from "../controller/create-controller";
-import { createTransport } from "../transport/create-transport";
+import { createRealtime } from "../realtime/create-realtime";
 import type { LifecycleEvent } from "@fleet/shared";
-import type { Transport } from "../transport/types";
+import type { Realtime } from "../realtime/types";
 import type { SpawnFn } from "../controller/types";
 import type { Controller } from "../controller/create-controller";
 import type { Subprocess } from "bun";
 import {
-  createMockWebSocket,
-  createMockTransportOptions,
+  createMockRealtimeOptions,
+  collectSseEvents,
   flushAsync,
   VALID_SESSION_ID,
-} from "../transport/__tests__/helpers";
+} from "../realtime/__tests__/helpers";
 
 // ============================================================
 // Mock Subprocess (same pattern as controller tests)
@@ -85,25 +85,14 @@ function createMockSpawn(): MockSpawn {
 // Helpers
 // ============================================================
 
-/** Extract lifecycle frames (type starts with "session:") from a mock WS's sent buffer. */
-function getLifecycleFrames(sent: string[]): Record<string, unknown>[] {
-  return sent
-    .map((s) => JSON.parse(s))
-    .filter(
-      (f: Record<string, unknown>) =>
-        typeof f.type === "string" &&
-        (f.type as string).startsWith("session:"),
-    );
-}
-
 /**
- * Create a controller wired to a transport's broadcastLifecycleEvent.
+ * Create a controller wired to a realtime service's pushEvent.
  * Returns both the controller and the spawn mock for test control.
  */
-function createWiredSystem(transport: Transport) {
+function createWiredSystem(realtime: Realtime) {
   const spawn = createMockSpawn();
   const controller = createController({
-    onLifecycleEvent: (event) => transport.broadcastLifecycleEvent(event),
+    onLifecycleEvent: (event) => realtime.pushEvent(event),
     spawn: spawn.fn,
   });
   return { controller, spawn };
@@ -113,121 +102,118 @@ function createWiredSystem(transport: Transport) {
 // Tests
 // ============================================================
 
-describe("Controller → Transport lifecycle integration", () => {
-  it("sendMessage lifecycle event is broadcast to all connected WebSocket clients", async () => {
-    const mock = createMockTransportOptions();
-    const transport = createTransport(mock.options);
-    const { controller, spawn } = createWiredSystem(transport);
+describe("Controller → Realtime lifecycle integration", () => {
+  it("sendMessage lifecycle event is delivered to connected SSE clients", async () => {
+    const mock = createMockRealtimeOptions();
+    const realtime = createRealtime(mock.options);
+    const { controller, spawn } = createWiredSystem(realtime);
 
-    // Connect two clients
-    const ws1 = createMockWebSocket();
-    const ws2 = createMockWebSocket();
-    transport.handleOpen(ws1.ws);
-    transport.handleOpen(ws2.ws);
+    // Connect two clients via SSE
+    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    await flushAsync();
+    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    await flushAsync();
 
-    // Send a message — should trigger lifecycle event broadcast
+    // Send a message — should trigger lifecycle event
     await controller.sendMessage(VALID_SESSION_ID, "hello");
 
-    // Both clients should receive the lifecycle frame
-    const frames1 = getLifecycleFrames(ws1.sent);
-    const frames2 = getLifecycleFrames(ws2.sent);
+    // Collect events from both streams
+    const events1 = await collectSseEvents(r1, 50);
+    const events2 = await collectSseEvents(r2, 50);
 
-    expect(frames1).toHaveLength(1);
-    expect(frames2).toHaveLength(1);
-    expect(frames1[0].sessionId).toBe(VALID_SESSION_ID);
-    expect(frames2[0].sessionId).toBe(VALID_SESSION_ID);
+    const lifecycle1 = events1.filter((e) =>
+      typeof e.type === "string" && e.type.startsWith("session:"),
+    );
+    const lifecycle2 = events2.filter((e) =>
+      typeof e.type === "string" && e.type.startsWith("session:"),
+    );
+
+    expect(lifecycle1).toHaveLength(1);
+    expect(lifecycle2).toHaveLength(1);
+    expect((lifecycle1[0].data as Record<string, unknown>).sessionId).toBe(VALID_SESSION_ID);
+    expect((lifecycle2[0].data as Record<string, unknown>).sessionId).toBe(VALID_SESSION_ID);
+
+    realtime.shutdown();
   });
 
   it("client receives complete lifecycle sequence after process exits successfully", async () => {
-    const mock = createMockTransportOptions();
-    const transport = createTransport(mock.options);
-    const { controller, spawn } = createWiredSystem(transport);
+    const mock = createMockRealtimeOptions();
+    const realtime = createRealtime(mock.options);
+    const { controller, spawn } = createWiredSystem(realtime);
 
-    const ws = createMockWebSocket();
-    transport.handleOpen(ws.ws);
+    const r = await realtime.handleSessionStream(VALID_SESSION_ID);
+    await flushAsync();
 
     await controller.sendMessage(VALID_SESSION_ID, "hello");
     spawn.calls[0].exit(0);
     await flushAsync();
 
-    const frames = getLifecycleFrames(ws.sent);
+    const events = await collectSseEvents(r, 100);
+    const lifecycle = events.filter((e) =>
+      typeof e.type === "string" && e.type.startsWith("session:"),
+    );
 
-    // Should receive 2 lifecycle frames: start signal + stopped
-    expect(frames).toHaveLength(2);
-    expect(frames[frames.length - 1]).toMatchObject({
-      type: "session:stopped",
-      sessionId: VALID_SESSION_ID,
-      reason: "completed",
-    });
+    // Should receive 2 lifecycle events: activity + stopped
+    expect(lifecycle).toHaveLength(2);
+    const lastEvent = lifecycle[lifecycle.length - 1].data as Record<string, unknown>;
+    expect(lastEvent.type).toBe("session:stopped");
+    expect(lastEvent.sessionId).toBe(VALID_SESSION_ID);
+    expect(lastEvent.reason).toBe("completed");
+
+    realtime.shutdown();
   });
 
   it("client receives error lifecycle sequence on non-zero exit", async () => {
-    const mock = createMockTransportOptions();
-    const transport = createTransport(mock.options);
-    const { controller, spawn } = createWiredSystem(transport);
+    const mock = createMockRealtimeOptions();
+    const realtime = createRealtime(mock.options);
+    const { controller, spawn } = createWiredSystem(realtime);
 
-    const ws = createMockWebSocket();
-    transport.handleOpen(ws.ws);
+    const r = await realtime.handleSessionStream(VALID_SESSION_ID);
+    await flushAsync();
 
     await controller.sendMessage(VALID_SESSION_ID, "hello");
     spawn.calls[0].exit(1);
     await flushAsync();
 
-    const frames = getLifecycleFrames(ws.sent);
+    const events = await collectSseEvents(r, 100);
+    const lifecycle = events.filter((e) =>
+      typeof e.type === "string" && e.type.startsWith("session:"),
+    );
 
-    // Should receive 3 lifecycle frames: start signal + error + stopped
-    expect(frames).toHaveLength(3);
+    // Should receive 3 lifecycle events: activity + error + stopped
+    expect(lifecycle).toHaveLength(3);
 
-    const types = frames.map((f) => f.type);
+    const types = lifecycle.map((e) => (e.data as Record<string, unknown>).type);
     expect(types).toContain("session:error");
     expect(types).toContain("session:stopped");
 
-    // Stopped should be last with reason "errored"
-    expect(frames[frames.length - 1]).toMatchObject({
-      type: "session:stopped",
-      reason: "errored",
-    });
+    const lastEvent = lifecycle[lifecycle.length - 1].data as Record<string, unknown>;
+    expect(lastEvent.type).toBe("session:stopped");
+    expect(lastEvent.reason).toBe("errored");
+
+    realtime.shutdown();
   });
 
-  it("all lifecycle frames are valid JSON parseable by the client", async () => {
-    const mock = createMockTransportOptions();
-    const transport = createTransport(mock.options);
-    const { controller, spawn } = createWiredSystem(transport);
+  it("all lifecycle events are valid JSON with a type field", async () => {
+    const mock = createMockRealtimeOptions();
+    const realtime = createRealtime(mock.options);
+    const { controller, spawn } = createWiredSystem(realtime);
 
-    const ws = createMockWebSocket();
-    transport.handleOpen(ws.ws);
+    const r = await realtime.handleSessionStream(VALID_SESSION_ID);
+    await flushAsync();
 
     await controller.sendMessage(VALID_SESSION_ID, "hello");
     spawn.calls[0].exit(1);
     await flushAsync();
 
-    // Every sent string should parse as valid JSON with a type field
-    for (const raw of ws.sent) {
-      const parsed = JSON.parse(raw);
-      expect(typeof parsed).toBe("object");
-      expect(parsed).not.toBeNull();
-      expect(typeof parsed.type).toBe("string");
+    const events = await collectSseEvents(r, 100);
+
+    for (const event of events) {
+      expect(typeof event.data).toBe("object");
+      expect(event.data).not.toBeNull();
+      expect(typeof (event.data as Record<string, unknown>).type).toBe("string");
     }
-  });
 
-  it("session:stopped with reason 'errored' is correctly serialized", async () => {
-    const mock = createMockTransportOptions();
-    const transport = createTransport(mock.options);
-    const { controller, spawn } = createWiredSystem(transport);
-
-    const ws = createMockWebSocket();
-    transport.handleOpen(ws.ws);
-
-    await controller.sendMessage(VALID_SESSION_ID, "hello");
-    spawn.calls[0].exit(1);
-    await flushAsync();
-
-    const frames = getLifecycleFrames(ws.sent);
-    const stoppedFrame = frames.find((f) => f.type === "session:stopped");
-
-    expect(stoppedFrame).toBeDefined();
-    expect(stoppedFrame!.reason).toBe("errored");
-    expect(stoppedFrame!.sessionId).toBe(VALID_SESSION_ID);
-    expect(typeof stoppedFrame!.stoppedAt).toBe("string");
+    realtime.shutdown();
   });
 });

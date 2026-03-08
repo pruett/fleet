@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/time";
 import type { GroupedProject } from "@fleet/shared";
 import { useProjects } from "@/hooks/use-projects";
+import { useGlobalSSE } from "@/hooks/use-global-sse";
 import { AddProjectDialog } from "@/components/add-project-dialog";
 import { SessionSearch } from "@/components/session-search";
 import {
@@ -219,6 +220,9 @@ function ProjectTreeItem({
 export function DashboardView() {
   const queryClient = useQueryClient();
 
+  // Subscribe to global SSE broadcast events for real-time sidebar updates
+  useGlobalSSE();
+
   const refreshAll = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.projects() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.config() });
@@ -353,7 +357,7 @@ export function DashboardView() {
           <SessionPanel
             key={selectedSessionId}
             sessionId={selectedSessionId}
-            onGoSession={selectSession}
+            onSelectSession={selectSession}
           />
         ) : (
           <div className="flex h-full flex-col">

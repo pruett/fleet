@@ -5,4 +5,6 @@ export type * from "./config.ts";
 export type * from "./enrichment.ts";
 export type * from "./transport.ts";
 export type * from "./api.ts";
+export type { SnapshotEvent, MessageBatch, SseError, ServerMessage, ServerEventType, PushableEvent } from "./sse.ts";
+export { SERVER_EVENT_TYPES } from "./sse.ts";
 export { slugify } from "./utils.ts";

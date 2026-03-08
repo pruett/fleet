@@ -53,7 +53,10 @@ export function useProjects(): UseProjectsResult {
     },
   });
 
-  const configs = configQuery.data?.projects ?? [];
+  const configs = useMemo(
+    () => configQuery.data?.projects ?? [],
+    [configQuery.data?.projects],
+  );
 
   const addProject = useCallback(
     (project: ProjectConfig) => {

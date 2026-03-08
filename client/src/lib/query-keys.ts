@@ -8,4 +8,5 @@ export const queryKeys = {
       ? (["sessions", slug, limit] as const)
       : (["sessions", slug] as const),
   sessionsPrefix: (slug: string) => ["sessions", slug] as const,
+  session: (sessionId: string) => ["session", sessionId] as const,
 };
