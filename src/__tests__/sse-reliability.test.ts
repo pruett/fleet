@@ -156,7 +156,7 @@ function createInstrumentedHarness(pathMap: Map<string, string>): InstrumentedHa
   return {
     app,
     realtime,
-    request: (path, init) => app.request(`http://localhost${path}`, init),
+    request: (path, init) => Promise.resolve(app.request(`http://localhost${path}`, init)),
     watcherBatches,
   };
 }

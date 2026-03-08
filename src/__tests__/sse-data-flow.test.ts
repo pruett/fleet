@@ -152,7 +152,7 @@ function createTestHarness(pathMap: Map<string, string>): TestHarness {
     app,
     realtime,
     request: (path, init) =>
-      app.request(`http://localhost${path}`, init),
+      Promise.resolve(app.request(`http://localhost${path}`, init)),
   };
 }
 
