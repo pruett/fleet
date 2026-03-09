@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { Folder } from "lucide-react";
 import {
   CommandDialog,
   CommandInput,
@@ -12,6 +13,7 @@ import {
 import { timeAgo } from "@/lib/time";
 import { truncate } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
+import { useRecentSessions } from "@/hooks/use-recent-sessions";
 import type { SessionSummary, GroupedProject } from "@fleet/shared";
 
 interface SessionSearchProps {
@@ -32,6 +34,7 @@ export function SessionSearch({
 }: SessionSearchProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { sessions: recentSessions } = useRecentSessions(25);
 
   const grouped = useMemo(() => {
     // Build slug → title map from projects
@@ -40,18 +43,23 @@ export function SessionSearch({
       slugToTitle.set(p.slug, p.title);
     }
 
-    // Read all cached session queries (keys starting with ["sessions"])
+    const seen = new Set<string>();
+    const items: GroupedSession[] = [];
+
+    // Pull from recent sessions (always populated via dedicated query)
+    for (const s of recentSessions) {
+      if (seen.has(s.sessionId)) continue;
+      seen.add(s.sessionId);
+      items.push({ projectTitle: s.projectTitle, session: s });
+    }
+
+    // Also pull from per-project session cache (populated on dashboard view)
     const cached = queryClient.getQueriesData<SessionSummary[]>({
       queryKey: queryKeys.sessionsAll(),
     });
 
-    // Deduplicate sessions (a project may have both limited and unlimited cache entries)
-    const seen = new Set<string>();
-    const items: GroupedSession[] = [];
-
     for (const [key, data] of cached) {
       if (!data || !Array.isArray(data)) continue;
-      // key shape: ["sessions", slug] or ["sessions", slug, limit]
       const slug = key[1] as string;
       const title = slugToTitle.get(slug) ?? slug;
 
@@ -72,7 +80,7 @@ export function SessionSearch({
 
     return groups;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient is stable; open triggers re-read of cache
-  }, [projects, open]);
+  }, [projects, recentSessions, open]);
 
   const handleSelect = (sessionId: string) => {
     onOpenChange(false);
@@ -89,7 +97,28 @@ export function SessionSearch({
     >
       <CommandInput placeholder="Search sessions by prompt, ID, model, branch…" />
       <CommandList>
-        <CommandEmpty>No sessions found.</CommandEmpty>
+        <CommandEmpty>No results found.</CommandEmpty>
+        {projects.length > 0 && (
+          <CommandGroup heading="Projects">
+            {projects.map((p) => (
+              <CommandItem
+                key={p.slug}
+                value={`project ${p.title} ${p.projectIds.join(" ")}`}
+                onSelect={() => {
+                  onOpenChange(false);
+                }}
+              >
+                <Folder className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                <span className="flex flex-col gap-0.5 overflow-hidden">
+                  <span className="truncate text-sm">{p.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {p.sessionCount} session{p.sessionCount !== 1 ? "s" : ""}
+                  </span>
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
         {[...grouped.entries()].map(([title, sessions]) => (
           <CommandGroup key={title} heading={title}>
             {sessions.map((s) => (

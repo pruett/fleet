@@ -53,6 +53,13 @@ export interface SessionSummary {
   cost: number;
 }
 
+export interface RecentSessionSummary extends SessionSummary {
+  /** Slug of the project this session belongs to */
+  projectSlug: string;
+  /** Display title of the project this session belongs to */
+  projectTitle: string;
+}
+
 export interface WorktreeSummary {
   /** Directory name, e.g. "feat-dark-mode" */
   name: string;
