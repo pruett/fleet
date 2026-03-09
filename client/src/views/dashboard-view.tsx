@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Plus,
   X,
-  ChevronsDown,
   RefreshCw,
   Search,
   Ship,
@@ -71,13 +70,12 @@ function ProjectTreeItem({
   onRemove,
 }: ProjectTreeItemProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [showAll, setShowAll] = useState(false);
-  const limit = showAll ? undefined : SESSION_PAGE_SIZE;
+  const [open, setOpen] = useState(true);
+  const [visibleLimit, setVisibleLimit] = useState(SESSION_PAGE_SIZE);
 
   const sessionsQuery = useQuery({
-    queryKey: queryKeys.sessions(project.slug, limit),
-    queryFn: () => fetchSessions(project.slug, limit),
+    queryKey: queryKeys.sessions(project.slug, visibleLimit),
+    queryFn: () => fetchSessions(project.slug, visibleLimit),
     enabled: open,
   });
 
@@ -86,7 +84,7 @@ function ProjectTreeItem({
     sessionsQuery.isFetching && !sessionsQuery.isLoading;
 
   const sessions = sessionsQuery.data;
-  const truncated = !showAll && sessions?.length === SESSION_PAGE_SIZE;
+  const hasMore = sessions?.length === visibleLimit;
 
   const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -95,7 +93,8 @@ function ProjectTreeItem({
     });
   };
 
-  const handleShowAll = () => setShowAll(true);
+  const handleShowMore = () =>
+    setVisibleLimit((prev) => prev + SESSION_PAGE_SIZE);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -182,19 +181,19 @@ function ProjectTreeItem({
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}
-                    {truncated && (
+                    {hasMore && (
                       <SidebarMenuSubItem>
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={handleShowAll}
-                          disabled={showAll && sessionsQuery.isFetching}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs text-muted-foreground"
+                          onClick={handleShowMore}
+                          disabled={sessionsQuery.isFetching}
                         >
-                          <ChevronsDown className="size-3" />
-                          {showAll && sessionsQuery.isFetching
+                          {sessionsQuery.isFetching
                             ? "Loading\u2026"
-                            : "Show all sessions"}
-                        </button>
+                            : "Show more"}
+                        </Button>
                       </SidebarMenuSubItem>
                     )}
                   </>
