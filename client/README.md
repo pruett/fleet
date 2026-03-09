@@ -71,3 +71,26 @@ Server → Client (named SSE events):
 - `session:activity` — session file activity
 
 Server also sends `: keepalive` comments every 30s to prevent connection timeout.
+
+## Message Types Reference
+
+All `ParsedMessage` types consumed by the client, including hidden internal types.
+
+| Kind | Content Fields | Visible? | Notes |
+|---|---|---|---|
+| `user-prompt` | `text`, `isMeta`, `gitBranch`, `sessionId`, `timestamp` | **Visible** | Hidden if `isMeta: true` or text is XML-tag-only (slash commands) |
+| `assistant-block` (TextBlock) | `messageId`, `model`, `text`, `usage`, `isSynthetic` | **Visible** | Rendered as `MessageResponse` bubble |
+| `assistant-block` (ThinkingBlock) | `messageId`, `model`, `thinking`, `signature`, `usage`, `isSynthetic` | **Visible** | Rendered as `Reasoning` component |
+| `assistant-block` (ToolUseBlock) | `messageId`, `model`, `id`, `name`, `input`, `usage`, `isSynthetic` | **Hidden** | Returns `null` in render — not displayed |
+| `system-api-error` | `error`, `retryInMs`, `retryAttempt`, `maxRetries` | **Visible** | Red error banner with retry info |
+| `progress-agent` | `agentId`, `prompt`, `parentToolUseID` | **Visible** | Subagent progress indicator |
+| `progress-bash` | `output`, `elapsedTimeSeconds` | **Hidden** | In `HIDDEN_KINDS` set |
+| `user-tool-result` | `results`, `toolUseResult` | **Hidden** | Returns `null` in render switch |
+| `system-turn-duration` | `parentUuid`, `durationMs` | **Hidden** | Returns `null` in adapter |
+| `file-history-snapshot` | `messageId`, `snapshot`, `isSnapshotUpdate` | **Hidden** | In `HIDDEN_KINDS` set |
+| `queue-operation` | `operation`, `content` | **Hidden** | In `HIDDEN_KINDS` set |
+| `system-local-command` | `content` | **Hidden** | In `HIDDEN_KINDS` set |
+| `progress-hook` | `hookEvent`, `hookName`, `command` | **Hidden** | In `HIDDEN_KINDS` set |
+| `malformed` | `raw`, `error` | **Hidden** | Explicit check in `isVisibleMessage()` |
+
+14 rows — 4 visible, 10 hidden. Visibility controlled by `HIDDEN_KINDS` set in `message-adapter.tsx` plus additional logic in `isVisibleMessage()`. Messages are grouped into turns starting at each `user-prompt`.

@@ -151,11 +151,6 @@ function ProjectTreeItem({
             {/* Sessions section */}
             {!loading && sessions !== undefined && (
               <>
-                <SidebarMenuSubItem>
-                  <span className="px-2 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    sessions
-                  </span>
-                </SidebarMenuSubItem>
                 {sessions.length === 0 ? (
                   <SidebarMenuSubItem>
                     <span className="px-2 py-1 text-xs text-muted-foreground">
