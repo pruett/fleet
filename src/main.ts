@@ -1,10 +1,10 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createServer, createResolveSessionPath } from "./api";
-import { createRealtime } from "./realtime";
+import { createSse } from "./sse";
 import { scanProjects, scanSessions, groupProjects, scanWorktrees } from "./scanner";
 import { parseFullSession } from "./parser";
-import { watchSession, stopWatching } from "./watcher";
+import { watchSession, stopWatching, watchProjectsDir } from "./watcher";
 import { readConfig, writeConfig } from "./config";
 import { createController } from "./controller";
 
@@ -16,7 +16,7 @@ const basePaths = process.env.FLEET_BASE_PATHS
 
 const staticDir = process.env.FLEET_STATIC_DIR ?? null;
 
-const realtime = createRealtime({
+const sse = createSse({
   watchSession,
   stopWatching,
   resolveSessionPath: createResolveSessionPath(basePaths),
@@ -24,7 +24,23 @@ const realtime = createRealtime({
 });
 
 const controller = createController({
-  onLifecycleEvent: (event) => realtime.pushEvent(event),
+  onLifecycleEvent: (event) => sse.pushEvent(event),
+});
+
+const projectsDirWatcher = watchProjectsDir({
+  basePaths,
+  onNewSession: (sessionId) =>
+    sse.pushEvent({
+      type: "session:started",
+      sessionId,
+      startedAt: new Date().toISOString(),
+    }),
+  onSessionActivity: (sessionId) =>
+    sse.pushEvent({
+      type: "session:activity",
+      sessionId,
+      updatedAt: new Date().toISOString(),
+    }),
 });
 
 const serverOptions = createServer({
@@ -32,7 +48,7 @@ const serverOptions = createServer({
   parser: { parseFullSession },
   controller,
   config: { readConfig, writeConfig },
-  realtime,
+  sse,
   basePaths,
   staticDir,
 });
@@ -49,8 +65,9 @@ console.log(`Fleet server listening on http://localhost:${server.port}`);
 
 function shutdown() {
   console.log("\nShutting down...");
+  projectsDirWatcher.stop();
   controller.shutdown();
-  realtime.shutdown();
+  sse.shutdown();
   server.stop();
   process.exit(0);
 }

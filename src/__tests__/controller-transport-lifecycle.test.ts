@@ -1,25 +1,25 @@
 /**
- * Integration tests: Controller lifecycle events → Realtime → SSE clients.
+ * Integration tests: Controller lifecycle events → SSE → SSE clients.
  *
- * Wires a real createController with a real createRealtime to verify that
+ * Wires a real createController with a real createSse to verify that
  * lifecycle events emitted by the controller are correctly delivered to
  * connected SSE clients via pushEvent.
  */
 
 import { describe, expect, it } from "bun:test";
 import { createController } from "../controller/create-controller";
-import { createRealtime } from "../realtime/create-realtime";
+import { createSse } from "../sse/create-sse";
 import type { LifecycleEvent } from "@fleet/shared";
-import type { Realtime } from "../realtime/types";
+import type { Sse } from "../sse/types";
 import type { SpawnFn } from "../controller/types";
 import type { Controller } from "../controller/create-controller";
 import type { Subprocess } from "bun";
 import {
-  createMockRealtimeOptions,
+  createMockSseOptions,
   collectSseEvents,
   flushAsync,
   VALID_SESSION_ID,
-} from "../realtime/__tests__/helpers";
+} from "../sse/__tests__/helpers";
 
 // ============================================================
 // Mock Subprocess (same pattern as controller tests)
@@ -86,13 +86,13 @@ function createMockSpawn(): MockSpawn {
 // ============================================================
 
 /**
- * Create a controller wired to a realtime service's pushEvent.
+ * Create a controller wired to an SSE service's pushEvent.
  * Returns both the controller and the spawn mock for test control.
  */
-function createWiredSystem(realtime: Realtime) {
+function createWiredSystem(sse: Sse) {
   const spawn = createMockSpawn();
   const controller = createController({
-    onLifecycleEvent: (event) => realtime.pushEvent(event),
+    onLifecycleEvent: (event) => sse.pushEvent(event),
     spawn: spawn.fn,
   });
   return { controller, spawn };
@@ -102,16 +102,16 @@ function createWiredSystem(realtime: Realtime) {
 // Tests
 // ============================================================
 
-describe("Controller → Realtime lifecycle integration", () => {
+describe("Controller → SSE lifecycle integration", () => {
   it("sendMessage lifecycle event is delivered to connected SSE clients", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
-    const { controller, spawn } = createWiredSystem(realtime);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
+    const { controller, spawn } = createWiredSystem(sse);
 
     // Connect two clients via SSE
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     // Send a message — should trigger lifecycle event
@@ -133,15 +133,15 @@ describe("Controller → Realtime lifecycle integration", () => {
     expect((lifecycle1[0].data as Record<string, unknown>).sessionId).toBe(VALID_SESSION_ID);
     expect((lifecycle2[0].data as Record<string, unknown>).sessionId).toBe(VALID_SESSION_ID);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("client receives complete lifecycle sequence after process exits successfully", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
-    const { controller, spawn } = createWiredSystem(realtime);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
+    const { controller, spawn } = createWiredSystem(sse);
 
-    const r = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     await controller.sendMessage(VALID_SESSION_ID, "hello");
@@ -160,15 +160,15 @@ describe("Controller → Realtime lifecycle integration", () => {
     expect(lastEvent.sessionId).toBe(VALID_SESSION_ID);
     expect(lastEvent.reason).toBe("completed");
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("client receives error lifecycle sequence on non-zero exit", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
-    const { controller, spawn } = createWiredSystem(realtime);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
+    const { controller, spawn } = createWiredSystem(sse);
 
-    const r = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     await controller.sendMessage(VALID_SESSION_ID, "hello");
@@ -191,15 +191,15 @@ describe("Controller → Realtime lifecycle integration", () => {
     expect(lastEvent.type).toBe("session:stopped");
     expect(lastEvent.reason).toBe("errored");
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("all lifecycle events are valid JSON with a type field", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
-    const { controller, spawn } = createWiredSystem(realtime);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
+    const { controller, spawn } = createWiredSystem(sse);
 
-    const r = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     await controller.sendMessage(VALID_SESSION_ID, "hello");
@@ -214,6 +214,6 @@ describe("Controller → Realtime lifecycle integration", () => {
       expect(typeof (event.data as Record<string, unknown>).type).toBe("string");
     }
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 });

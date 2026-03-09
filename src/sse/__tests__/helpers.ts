@@ -1,29 +1,29 @@
 /**
- * Test helpers for realtime tests.
- * Provides mock RealtimeOptions and SSE stream utilities.
+ * Test helpers for SSE tests.
+ * Provides mock SseOptions and SSE stream utilities.
  */
 
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { RealtimeOptions } from "../types";
+import type { SseOptions } from "../types";
 import type { WatchOptions, WatchHandle, WatchBatch } from "../../watcher";
 import type { EnrichedSession } from "@fleet/shared";
 
 // ============================================================
-// Mock RealtimeOptions
+// Mock SseOptions
 // ============================================================
 
 export interface CapturedWatch {
   /** The options passed to watchSession. */
   options: WatchOptions;
-  /** The handle returned to the realtime service. */
+  /** The handle returned to the SSE service. */
   handle: WatchHandle;
 }
 
-export interface MockRealtimeOptions {
-  /** The RealtimeOptions object to pass to createRealtime. */
-  options: RealtimeOptions;
+export interface MockSseOptions {
+  /** The SseOptions object to pass to createSse. */
+  options: SseOptions;
   /** All watchSession calls captured in order. */
   watches: CapturedWatch[];
   /** sessionIds for which stopWatching was called. */
@@ -33,15 +33,15 @@ export interface MockRealtimeOptions {
 }
 
 /**
- * Create mock RealtimeOptions that capture watchSession/stopWatching calls
+ * Create mock SseOptions that capture watchSession/stopWatching calls
  * and allow manual triggering of watcher callbacks.
  */
-export function createMockRealtimeOptions(): MockRealtimeOptions {
+export function createMockSseOptions(): MockSseOptions {
   const watches: CapturedWatch[] = [];
   const stopped: string[] = [];
 
   // Create a temp directory with empty session files so Bun.file().text() works
-  const tmpDir = mkdtempSync(join(tmpdir(), "realtime-test-"));
+  const tmpDir = mkdtempSync(join(tmpdir(), "sse-test-"));
   const sessionFiles = new Map<string, string>();
 
   let resolveFn: (id: string) => Promise<string | null> = async (id) => {
@@ -54,7 +54,7 @@ export function createMockRealtimeOptions(): MockRealtimeOptions {
     return sessionFiles.get(id)!;
   };
 
-  const options: RealtimeOptions = {
+  const options: SseOptions = {
     watchSession(watchOpts: WatchOptions): WatchHandle {
       const handle: WatchHandle = {
         sessionId: watchOpts.sessionId,

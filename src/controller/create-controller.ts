@@ -40,9 +40,9 @@ export function createController(options: ControllerOptions): Controller {
 
     try {
       options.onLifecycleEvent({
-        type: "session:activity",
+        type: "session:message-sent",
         sessionId,
-        updatedAt: managed.startedAt,
+        sentAt: managed.startedAt,
       });
     } catch {
       // Callback errors must not prevent sendMessage from succeeding

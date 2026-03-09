@@ -13,7 +13,7 @@
 
 import { describe, test, expect, afterEach } from "bun:test";
 import { createApp } from "../api/create-app";
-import { createRealtime } from "../realtime";
+import { createSse } from "../sse";
 import { watchSession, stopWatching, stopAll } from "../watcher/watch-session";
 import { parseFullSession } from "../parser";
 import { createTempJsonl, appendLines } from "../watcher/__tests__/helpers";
@@ -23,7 +23,7 @@ import {
   makeTextBlock,
   toLine,
 } from "../parser/__tests__/helpers";
-import type { Realtime } from "../realtime";
+import type { Sse } from "../sse";
 import type { AppDependencies } from "../api/types";
 
 // ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ function flush(): Promise<void> {
 
 interface InstrumentedHarness {
   app: ReturnType<typeof createApp>;
-  realtime: Realtime;
+  sse: Sse;
   request: (path: string, init?: RequestInit) => Promise<Response>;
   /** Messages seen by the watcher's onMessages callback (= what realtime receives). */
   watcherBatches: Array<{ sessionId: string; count: number; lineIndexes: number[] }>;
@@ -121,7 +121,7 @@ function createInstrumentedHarness(pathMap: Map<string, string>): InstrumentedHa
     });
   };
 
-  const realtime = createRealtime({
+  const sse = createSse({
     watchSession: instrumentedWatchSession,
     stopWatching,
     resolveSessionPath: async (id) => pathMap.get(id) ?? null,
@@ -146,7 +146,7 @@ function createInstrumentedHarness(pathMap: Map<string, string>): InstrumentedHa
       readConfig: async () => ({ projects: [] }),
       writeConfig: async () => {},
     },
-    realtime,
+    sse,
     basePaths: [],
     staticDir: null,
   };
@@ -155,7 +155,7 @@ function createInstrumentedHarness(pathMap: Map<string, string>): InstrumentedHa
 
   return {
     app,
-    realtime,
+    sse,
     request: (path, init) => Promise.resolve(app.request(`http://localhost${path}`, init)),
     watcherBatches,
   };
@@ -170,7 +170,7 @@ describe("SSE reliability — stress tests", () => {
   const cleanups: (() => Promise<void>)[] = [];
 
   afterEach(async () => {
-    harness?.realtime.shutdown();
+    harness?.sse.shutdown();
     stopAll();
     for (const fn of cleanups) await fn();
     cleanups.length = 0;

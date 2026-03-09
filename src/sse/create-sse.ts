@@ -1,8 +1,9 @@
 import type {
   SseClient,
-  Realtime,
-  RealtimeOptions,
+  Sse,
+  SseOptions,
 } from "./types";
+import { BROADCAST_TYPES } from "@fleet/shared";
 import type { PushableEvent } from "@fleet/shared";
 import type { WatchHandle } from "../watcher";
 
@@ -29,28 +30,25 @@ function sseComment(text: string): string {
 
 const ENCODER = new TextEncoder();
 
-/** Lifecycle event types that should be broadcast to ALL connected clients. */
-const BROADCAST_TYPES = new Set<string>([
-  "session:started",
-  "session:stopped",
-]);
+const ACTIVITY_THROTTLE_MS = 5_000;
 
 /**
  * Create a real-time SSE service that relays session watcher
  * batches and lifecycle events to subscribed clients.
  */
-export function createRealtime(options: RealtimeOptions): Realtime {
+export function createSse(options: SseOptions): Sse {
   // --- Internal state ---
   const clients = new Map<string, SseClient>();
   const globalClients = new Map<string, GlobalClient>();
   const sessions = new Map<string, Set<string>>();
   const watchers = new Map<string, WatchHandle>();
+  const lastActivityBroadcast = new Map<string, number>();
 
   // --- SSE write helpers ---
 
-  function writeToClient(client: SseClient, data: string): void {
+  function writeTo(target: { controller: ReadableStreamDefaultController<Uint8Array> }, data: string): void {
     try {
-      client.controller.enqueue(ENCODER.encode(data));
+      target.controller.enqueue(ENCODER.encode(data));
     } catch {
       // Broken pipe / closed stream — skip
     }
@@ -62,24 +60,7 @@ export function createRealtime(options: RealtimeOptions): Realtime {
     for (const clientId of subscriberIds) {
       const client = clients.get(clientId);
       if (!client) continue;
-      writeToClient(client, payload);
-    }
-  }
-
-  function sendToAll(payload: string): void {
-    for (const client of clients.values()) {
-      writeToClient(client, payload);
-    }
-    for (const client of globalClients.values()) {
-      writeToGlobal(client, payload);
-    }
-  }
-
-  function writeToGlobal(client: GlobalClient, data: string): void {
-    try {
-      client.controller.enqueue(ENCODER.encode(data));
-    } catch {
-      // Broken pipe / closed stream — skip
+      writeTo(client, payload);
     }
   }
 
@@ -93,10 +74,10 @@ export function createRealtime(options: RealtimeOptions): Realtime {
     const keepalive = sseComment("keepalive");
     heartbeatTimer = setInterval(() => {
       for (const client of clients.values()) {
-        writeToClient(client, keepalive);
+        writeTo(client, keepalive);
       }
       for (const client of globalClients.values()) {
-        writeToGlobal(client, keepalive);
+        writeTo(client, keepalive);
       }
     }, HEARTBEAT_INTERVAL_MS);
   }
@@ -110,24 +91,50 @@ export function createRealtime(options: RealtimeOptions): Realtime {
   // --- Push event to subscribers (and optionally broadcast) ---
 
   function pushEvent(event: PushableEvent): void {
-    const subscriberCount = sessions.get(event.sessionId)?.size ?? 0;
-    console.debug(`[realtime] pushEvent type=${event.type} session=${event.sessionId} subscribers=${subscriberCount}`);
     const payload = sseEvent(event.type, event);
 
     // Always relay to clients subscribed to this session
     sendToSession(event.sessionId, payload);
 
-    // Broadcast started/stopped to ALL clients (for sidebar cache invalidation)
+    // Broadcast started/stopped/activity to ALL clients (for sidebar cache invalidation)
     if (BROADCAST_TYPES.has(event.type)) {
       // Avoid double-delivery: only send to session clients NOT subscribed to this session
       const subscriberIds = sessions.get(event.sessionId);
       for (const client of clients.values()) {
         if (subscriberIds?.has(client.clientId)) continue;
-        writeToClient(client, payload);
+        writeTo(client, payload);
       }
       // Always send to global clients (they have no session subscription)
       for (const client of globalClients.values()) {
-        writeToGlobal(client, payload);
+        writeTo(client, payload);
+      }
+    }
+
+    // Clean up throttle state when a session stops
+    if (event.type === "session:stopped") {
+      lastActivityBroadcast.delete(event.sessionId);
+    }
+
+    // Throttled activity broadcast: when messages arrive, synthesize session:activity
+    if (event.type === "messages") {
+      const now = Date.now();
+      const last = lastActivityBroadcast.get(event.sessionId) ?? 0;
+      if (now - last >= ACTIVITY_THROTTLE_MS) {
+        lastActivityBroadcast.set(event.sessionId, now);
+        const activityEvent = {
+          type: "session:activity" as const,
+          sessionId: event.sessionId,
+          updatedAt: new Date().toISOString(),
+        };
+        const activityPayload = sseEvent(activityEvent.type, activityEvent);
+        const subscriberIds = sessions.get(event.sessionId);
+        for (const client of clients.values()) {
+          if (subscriberIds?.has(client.clientId)) continue;
+          writeTo(client, activityPayload);
+        }
+        for (const client of globalClients.values()) {
+          writeTo(client, activityPayload);
+        }
       }
     }
   }
@@ -188,8 +195,6 @@ export function createRealtime(options: RealtimeOptions): Realtime {
     const content = await file.text();
     const byteOffset = Buffer.byteLength(content, "utf-8");
     const session = options.parseSession(content);
-    console.debug(`[realtime] session ${sessionId}: file=${filePath}, byteOffset=${byteOffset}, messages=${session.messages.length}`);
-
     // 4. Create SSE stream — send snapshot first, then stream deltas
     const clientId = crypto.randomUUID();
 
@@ -230,7 +235,6 @@ export function createRealtime(options: RealtimeOptions): Realtime {
               filePath,
               byteOffset,
               onMessages: (batch) => {
-                console.debug(`[realtime] watcher batch for ${sessionId}: ${batch.messages.length} messages, byteRange=${batch.byteRange.start}-${batch.byteRange.end}`);
                 pushEvent({
                   type: "messages",
                   sessionId: batch.sessionId,
@@ -240,7 +244,7 @@ export function createRealtime(options: RealtimeOptions): Realtime {
               },
               onError: (err) => {
                 console.error(
-                  `[realtime] watcher error for session ${sessionId}:`,
+                  `[sse] watcher error for session ${sessionId}:`,
                   err.message,
                 );
               },
@@ -250,18 +254,16 @@ export function createRealtime(options: RealtimeOptions): Realtime {
             if (watchHandle instanceof Promise) {
               watchHandle.then(
                 (handle) => {
-                  console.debug(`[realtime] watcher registered for ${sessionId}, byteOffset=${handle.byteOffset}, lineIndex=${handle.lineIndex}`);
                   watchers.set(sessionId, handle);
                 },
                 (err) => {
                   console.error(
-                    `[realtime] failed to start watcher for session ${sessionId}:`,
+                    `[sse] failed to start watcher for session ${sessionId}:`,
                     err,
                   );
                 },
               );
             } else {
-              console.debug(`[realtime] watcher registered (sync) for ${sessionId}, byteOffset=${watchHandle.byteOffset}`);
               watchers.set(sessionId, watchHandle);
             }
           } catch {
@@ -361,6 +363,7 @@ export function createRealtime(options: RealtimeOptions): Realtime {
       clients.clear();
       globalClients.clear();
       sessions.clear();
+      lastActivityBroadcast.clear();
     },
   };
 }

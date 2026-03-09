@@ -1,4 +1,4 @@
-import { existsSync, watch, type FSWatcher } from "fs";
+import { existsSync, readdirSync, watch, type FSWatcher } from "fs";
 import { basename } from "path";
 
 /** UUID v4 format: 8-4-4-4-12 hex, version nibble = 4, variant bits = 8/9/a/b. */
@@ -13,6 +13,8 @@ export interface ProjectsDirWatcher {
   stop(): void;
   /** @internal — exposed for testing only. Simulates a file change event. */
   _handleFileChange: (filename: string | null) => void;
+  /** @internal — exposed for testing only. The set of known session IDs. */
+  _knownSessions: ReadonlySet<string>;
 }
 
 /**
@@ -21,27 +23,56 @@ export interface ProjectsDirWatcher {
 export interface WatchProjectsDirOptions {
   /** List of base paths to watch for session files. */
   basePaths: string[];
-  /** Callback invoked when a session file changes (debounced per-sessionId). */
+  /** Callback invoked when a previously unseen session file appears. */
+  onNewSession: (sessionId: string) => void;
+  /** Callback invoked when a known session file changes (debounced per-sessionId). */
   onSessionActivity: (sessionId: string) => void;
   /** Debounce delay in milliseconds (default: 1000). */
   debounceMs?: number;
 }
 
 /**
- * Watch all base paths for session file changes and emit session:activity events.
+ * Scan base paths for existing .jsonl session files and return their session IDs.
+ * Uses a synchronous recursive readdir so the known set is populated before
+ * any fs.watch events can fire.
+ */
+function seedKnownSessions(basePaths: string[]): Set<string> {
+  const known = new Set<string>();
+
+  for (const basePath of basePaths) {
+    if (!existsSync(basePath)) continue;
+
+    try {
+      const entries = readdirSync(basePath, { recursive: true });
+      for (const entry of entries) {
+        const file = basename(String(entry));
+        if (!file.endsWith(".jsonl")) continue;
+        const sessionId = file.slice(0, -6);
+        if (UUID_V4_RE.test(sessionId)) {
+          known.add(sessionId);
+        }
+      }
+    } catch {
+      // If readdir fails, we'll just start with an empty set for this path
+    }
+  }
+
+  return known;
+}
+
+/**
+ * Watch all base paths for session file changes.
  *
- * This function starts a global directory watcher that monitors all base paths
- * for changes to .jsonl files. When a session file changes, it debounces per-sessionId
- * and calls onSessionActivity with the sessionId.
- *
- * @param options Configuration for the watcher
- * @returns A handle with a stop() method to clean up resources
+ * On startup, scans existing .jsonl files to seed a known-sessions set.
+ * When a file change fires for a sessionId not in the set, calls onNewSession.
+ * For already-known sessions, debounces and calls onSessionActivity.
  */
 export function watchProjectsDir(
   options: WatchProjectsDirOptions,
 ): ProjectsDirWatcher {
-  const { basePaths, onSessionActivity, debounceMs = 1000 } = options;
+  const { basePaths, onNewSession, onSessionActivity, debounceMs = 1000 } = options;
 
+  const knownSessions = seedKnownSessions(basePaths);
   const watchers: FSWatcher[] = [];
   const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -63,6 +94,13 @@ export function watchProjectsDir(
 
     // Skip if stem does not match UUID v4 format
     if (!UUID_V4_RE.test(sessionId)) return;
+
+    // New session: fire immediately (no debounce) and add to known set
+    if (!knownSessions.has(sessionId)) {
+      knownSessions.add(sessionId);
+      onNewSession(sessionId);
+      return;
+    }
 
     // Debounce per-sessionId: clear existing timer and set a new one
     const existing = debounceTimers.get(sessionId);
@@ -111,6 +149,8 @@ export function watchProjectsDir(
   return {
     /** @internal — exposed for testing only. */
     _handleFileChange: handleFileChange,
+    /** @internal — exposed for testing only. */
+    _knownSessions: knownSessions,
     stop(): void {
       // Clear all pending timers
       for (const timer of debounceTimers.values()) {

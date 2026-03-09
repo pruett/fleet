@@ -1,17 +1,15 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { ServerMessage } from "@/lib/sse";
+import type { SessionSummary } from "@fleet/shared";
 import { useSSE } from "@/hooks/use-sse";
 
-/**
- * Connects to the global SSE stream (`/api/sse/events`) to receive
- * broadcast lifecycle events (session:started, session:stopped).
- * Invalidates the sessions query cache so the sidebar stays fresh
- * without polling.
- */
+const INVALIDATION_DEBOUNCE_MS = 500;
+
 export function useGlobalSSE() {
   const queryClient = useQueryClient();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const onEvent = useCallback(
     (event: ServerMessage) => {
@@ -19,9 +17,26 @@ export function useGlobalSSE() {
         event.type === "session:started" ||
         event.type === "session:stopped"
       ) {
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.sessionsAll(),
-        });
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.sessionsAll(),
+          });
+        }, INVALIDATION_DEBOUNCE_MS);
+      }
+
+      if (event.type === "session:activity") {
+        queryClient.setQueriesData<SessionSummary[]>(
+          { queryKey: queryKeys.sessionsAll() },
+          (old) => {
+            if (!old) return old;
+            return old.map((s) =>
+              s.sessionId === event.sessionId
+                ? { ...s, lastActiveAt: event.updatedAt }
+                : s,
+            );
+          },
+        );
       }
     },
     [queryClient],

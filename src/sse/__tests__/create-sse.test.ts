@@ -1,22 +1,22 @@
 import { describe, expect, it } from "bun:test";
-import { createRealtime } from "../create-realtime";
+import { createSse } from "../create-sse";
 import type { ParsedMessage } from "@fleet/shared";
 import type { WatchBatch } from "../../watcher";
 import type { LifecycleEvent } from "@fleet/shared";
 import {
-  createMockRealtimeOptions,
+  createMockSseOptions,
   collectSseEvents,
   flushAsync,
   VALID_SESSION_ID,
   VALID_SESSION_ID_2,
 } from "./helpers";
 
-describe("createRealtime — SSE stream basics", () => {
+describe("createSse — SSE stream basics", () => {
   it("returns 400 for invalid sessionId format", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const response = await realtime.handleSessionStream("not-a-uuid");
+    const response = await sse.handleSessionStream("not-a-uuid");
 
     expect(response.status).toBe(400);
     const body = await response.json();
@@ -24,11 +24,11 @@ describe("createRealtime — SSE stream basics", () => {
   });
 
   it("returns 404 when resolveSessionPath returns null", async () => {
-    const mock = createMockRealtimeOptions();
+    const mock = createMockSseOptions();
     mock.resolveSessionPath(async () => null);
-    const realtime = createRealtime(mock.options);
+    const sse = createSse(mock.options);
 
-    const response = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const response = await sse.handleSessionStream(VALID_SESSION_ID);
 
     expect(response.status).toBe(404);
     const body = await response.json();
@@ -36,40 +36,40 @@ describe("createRealtime — SSE stream basics", () => {
   });
 
   it("returns SSE stream response with correct headers", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const response = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const response = await sse.handleSessionStream(VALID_SESSION_ID);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/event-stream");
     expect(response.headers.get("Cache-Control")).toBe("no-cache");
     expect(response.headers.get("Connection")).toBe("keep-alive");
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("registers client and starts watcher on first subscriber", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const response = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const response = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     expect(response.status).toBe(200);
-    expect(realtime.getClientCount()).toBe(1);
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+    expect(sse.getClientCount()).toBe(1);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
     expect(mock.watches).toHaveLength(1);
     expect(mock.watches[0].options.sessionId).toBe(VALID_SESSION_ID);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("delivers messages event to subscriber after watcher callback fires", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const response = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const response = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     const messages: ParsedMessage[] = [
@@ -118,56 +118,56 @@ describe("createRealtime — SSE stream basics", () => {
     expect((frame.messages as unknown[]).length).toBe(2);
     expect(frame.byteRange).toEqual({ start: 0, end: 256 });
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("does not start a second watcher when two clients subscribe to the same session", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    await realtime.handleSessionStream(VALID_SESSION_ID);
+    await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    await realtime.handleSessionStream(VALID_SESSION_ID);
+    await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 });
 
-describe("createRealtime — client count tracking", () => {
+describe("createSse — client count tracking", () => {
   it("tracks client count correctly across connect/disconnect", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    expect(realtime.getClientCount()).toBe(0);
+    expect(sse.getClientCount()).toBe(0);
 
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    expect(realtime.getClientCount()).toBe(1);
+    expect(sse.getClientCount()).toBe(1);
 
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID_2);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID_2);
     await flushAsync();
-    expect(realtime.getClientCount()).toBe(2);
+    expect(sse.getClientCount()).toBe(2);
 
     await r1.body!.cancel();
     await flushAsync();
-    expect(realtime.getClientCount()).toBe(1);
+    expect(sse.getClientCount()).toBe(1);
 
     await r2.body!.cancel();
     await flushAsync();
-    expect(realtime.getClientCount()).toBe(0);
+    expect(sse.getClientCount()).toBe(0);
   });
 });
 
-describe("createRealtime — disconnect cleanup", () => {
+describe("createSse — disconnect cleanup", () => {
   it("stops watcher when last subscriber disconnects", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const response = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const response = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
@@ -176,19 +176,19 @@ describe("createRealtime — disconnect cleanup", () => {
     await response.body!.cancel();
     await flushAsync();
 
-    expect(realtime.getClientCount()).toBe(0);
+    expect(sse.getClientCount()).toBe(0);
     expect(mock.stopped).toHaveLength(1);
     expect(mock.stopped[0]).toBe(VALID_SESSION_ID);
     expect(mock.watches[0].handle.stopped).toBe(true);
   });
 
   it("does not stop watcher when other subscribers remain", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     expect(mock.watches).toHaveLength(1);
@@ -196,43 +196,41 @@ describe("createRealtime — disconnect cleanup", () => {
     await r1.body!.cancel();
     await flushAsync();
 
-    expect(realtime.getClientCount()).toBe(1);
+    expect(sse.getClientCount()).toBe(1);
     expect(mock.stopped).toHaveLength(0);
     expect(mock.watches[0].handle.stopped).toBe(false);
 
     await r2.body!.cancel();
     await flushAsync();
 
-    expect(realtime.getClientCount()).toBe(0);
+    expect(sse.getClientCount()).toBe(0);
     expect(mock.stopped).toHaveLength(1);
     expect(mock.stopped[0]).toBe(VALID_SESSION_ID);
   });
 });
 
-describe("createRealtime — pushEvent", () => {
+describe("createSse — pushEvent", () => {
   it("pushEvent delivers session:started to all connected clients (broadcast)", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
     // Client 1: subscribed to session 1
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     // Client 2: subscribed to session 2
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID_2);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID_2);
     await flushAsync();
 
-    expect(realtime.getClientCount()).toBe(2);
+    expect(sse.getClientCount()).toBe(2);
 
     const event: LifecycleEvent = {
       type: "session:started",
       sessionId: VALID_SESSION_ID,
-      projectId: "proj-001",
-      cwd: "/mock/project",
       startedAt: "2026-02-23T12:00:00.000Z",
     };
 
-    realtime.pushEvent(event);
+    sse.pushEvent(event);
 
     const events1 = await collectSseEvents(r1, 50);
     const events2 = await collectSseEvents(r2, 50);
@@ -244,16 +242,16 @@ describe("createRealtime — pushEvent", () => {
     expect(lifecycle2).toHaveLength(1);
     expect(lifecycle1[0].data).toEqual(event);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("pushEvent delivers session:stopped to all connected clients (broadcast)", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID_2);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID_2);
     await flushAsync();
 
     const event: LifecycleEvent = {
@@ -263,7 +261,7 @@ describe("createRealtime — pushEvent", () => {
       stoppedAt: "2026-02-23T12:02:00.000Z",
     };
 
-    realtime.pushEvent(event);
+    sse.pushEvent(event);
 
     const events1 = await collectSseEvents(r1, 50);
     const events2 = await collectSseEvents(r2, 50);
@@ -271,19 +269,19 @@ describe("createRealtime — pushEvent", () => {
     expect(events1.filter((e) => e.type === "session:stopped")).toHaveLength(1);
     expect(events2.filter((e) => e.type === "session:stopped")).toHaveLength(1);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
-  it("pushEvent delivers session:activity only to session subscribers (no broadcast)", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+  it("pushEvent broadcasts session:activity to all connected clients", async () => {
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
     // Client 1: subscribed to VALID_SESSION_ID
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     // Client 2: subscribed to VALID_SESSION_ID_2
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID_2);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID_2);
     await flushAsync();
 
     const event: LifecycleEvent = {
@@ -292,7 +290,7 @@ describe("createRealtime — pushEvent", () => {
       updatedAt: "2026-03-03T12:00:00.000Z",
     };
 
-    realtime.pushEvent(event);
+    sse.pushEvent(event);
 
     const events1 = await collectSseEvents(r1, 50);
     const events2 = await collectSseEvents(r2, 50);
@@ -302,18 +300,19 @@ describe("createRealtime — pushEvent", () => {
 
     expect(activity1).toHaveLength(1);
     expect(activity1[0].data).toEqual(event);
-    expect(activity2).toHaveLength(0);
+    expect(activity2).toHaveLength(1);
+    expect(activity2[0].data).toEqual(event);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("pushEvent delivers session:error only to session subscribers (no broadcast)", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID_2);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID_2);
     await flushAsync();
 
     const event: LifecycleEvent = {
@@ -323,7 +322,7 @@ describe("createRealtime — pushEvent", () => {
       occurredAt: "2026-02-23T12:01:00.000Z",
     };
 
-    realtime.pushEvent(event);
+    sse.pushEvent(event);
 
     const events1 = await collectSseEvents(r1, 50);
     const events2 = await collectSseEvents(r2, 50);
@@ -331,12 +330,12 @@ describe("createRealtime — pushEvent", () => {
     expect(events1.filter((e) => e.type === "session:error")).toHaveLength(1);
     expect(events2.filter((e) => e.type === "session:error")).toHaveLength(0);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 
   it("pushEvent to zero clients is a no-op (does not throw)", () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
     const event: LifecycleEvent = {
       type: "session:stopped",
@@ -345,26 +344,24 @@ describe("createRealtime — pushEvent", () => {
       stoppedAt: "2026-02-23T12:05:00.000Z",
     };
 
-    realtime.pushEvent(event);
+    sse.pushEvent(event);
   });
 
   it("pushEvent does not double-deliver broadcast events to session subscribers", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
     // Client subscribed to the same session the event targets
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
 
     const event: LifecycleEvent = {
       type: "session:started",
       sessionId: VALID_SESSION_ID,
-      projectId: "proj-001",
-      cwd: "/mock/project",
       startedAt: "2026-02-23T12:00:00.000Z",
     };
 
-    realtime.pushEvent(event);
+    sse.pushEvent(event);
 
     const events = await collectSseEvents(r1, 50);
     const started = events.filter((e) => e.type === "session:started");
@@ -372,79 +369,79 @@ describe("createRealtime — pushEvent", () => {
     // Should receive exactly once, not twice (relay + broadcast)
     expect(started).toHaveLength(1);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 });
 
-describe("createRealtime — subscriber count", () => {
+describe("createSse — subscriber count", () => {
   it("getSessionSubscriberCount returns 0 for unknown session", () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
   });
 
   it("getSessionSubscriberCount tracks subscribers accurately", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
 
-    const r1 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r1 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
 
-    const r2 = await realtime.handleSessionStream(VALID_SESSION_ID);
+    const r2 = await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
 
-    const r3 = await realtime.handleSessionStream(VALID_SESSION_ID_2);
+    const r3 = await sse.handleSessionStream(VALID_SESSION_ID_2);
     await flushAsync();
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID_2)).toBe(1);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(2);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID_2)).toBe(1);
 
     await r1.body!.cancel();
     await flushAsync();
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(1);
 
     await r2.body!.cancel();
     await flushAsync();
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID)).toBe(0);
 
-    expect(realtime.getSessionSubscriberCount(VALID_SESSION_ID_2)).toBe(1);
+    expect(sse.getSessionSubscriberCount(VALID_SESSION_ID_2)).toBe(1);
 
-    realtime.shutdown();
+    sse.shutdown();
   });
 });
 
-describe("createRealtime — shutdown", () => {
+describe("createSse — shutdown", () => {
   it("shutdown stops all watchers and clears state", async () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    await realtime.handleSessionStream(VALID_SESSION_ID);
+    await sse.handleSessionStream(VALID_SESSION_ID);
     await flushAsync();
-    await realtime.handleSessionStream(VALID_SESSION_ID_2);
+    await sse.handleSessionStream(VALID_SESSION_ID_2);
     await flushAsync();
 
-    expect(realtime.getClientCount()).toBe(2);
+    expect(sse.getClientCount()).toBe(2);
     expect(mock.watches).toHaveLength(2);
     expect(mock.stopped).toHaveLength(0);
 
-    realtime.shutdown();
+    sse.shutdown();
 
     expect(mock.stopped).toHaveLength(2);
     expect(mock.watches[0].handle.stopped).toBe(true);
     expect(mock.watches[1].handle.stopped).toBe(true);
-    expect(realtime.getClientCount()).toBe(0);
+    expect(sse.getClientCount()).toBe(0);
   });
 
   it("shutdown with no clients or watchers is a no-op", () => {
-    const mock = createMockRealtimeOptions();
-    const realtime = createRealtime(mock.options);
+    const mock = createMockSseOptions();
+    const sse = createSse(mock.options);
 
-    realtime.shutdown();
+    sse.shutdown();
 
-    expect(realtime.getClientCount()).toBe(0);
+    expect(sse.getClientCount()).toBe(0);
     expect(mock.stopped).toHaveLength(0);
   });
 });

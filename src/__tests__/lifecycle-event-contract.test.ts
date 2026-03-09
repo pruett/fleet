@@ -3,7 +3,7 @@
  * matches what the client expects to handle.
  *
  * These tests expose the type mismatch between:
- *   - Server (controller): emits "session:activity"
+ *   - Server (controller): emits "session:message-sent"
  *   - Client: handles "session:started", "session:stopped", "session:error"
  *
  * And the reason field drift:
@@ -81,7 +81,7 @@ function flushAsync(): Promise<void> {
  */
 const CLIENT_KNOWN_TYPES = new Set([
   "session:started",
-  "session:activity",
+  "session:message-sent",
   "session:stopped",
   "session:error",
 ]);
@@ -115,7 +115,7 @@ describe("Lifecycle event contract: server ↔ client", () => {
     const emittedTypes = new Set(events.map((e) => e.type));
 
     // Every type the server emits should be one the client handles
-    // FAILS: controller emits "session:activity" which is not in CLIENT_KNOWN_TYPES
+    // FAILS: controller emits "session:message-sent" which is not in CLIENT_KNOWN_TYPES
     for (const type of emittedTypes) {
       expect(CLIENT_KNOWN_TYPES.has(type)).toBe(true);
     }
