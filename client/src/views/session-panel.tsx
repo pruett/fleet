@@ -69,12 +69,15 @@ const CONNECTION_STATUS_CONFIG: Record<
 
 function ConnectionStatusIndicator({ info }: { info: ConnectionInfo | null }) {
   const status = info?.status ?? "disconnected";
+  // Only show indicator for transient states, not when fully connected
+  if (status === "connected" || status === "disconnected") return null;
+
   const { color, dotClass, label } = CONNECTION_STATUS_CONFIG[status];
 
   return (
     <span className={`flex items-center gap-1.5 text-xs ${color}`}>
       <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} />
-      {label}{status === "reconnecting" && info ? ` (${info.attempt})` : ""}
+      {label}
     </span>
   );
 }
@@ -153,7 +156,6 @@ export function SessionPanel({
     session,
     loading,
     error,
-    errorStatus,
     connectionInfo,
     visibleMessages,
     sessionMeta,
@@ -189,19 +191,6 @@ export function SessionPanel({
   // -- Error states ---------------------------------------------------------
 
   if (error) {
-    if (errorStatus === 404) {
-      return (
-        <div className="flex h-full items-center justify-center">
-          <Alert className="max-w-md">
-            <AlertTitle>Session not found</AlertTitle>
-            <AlertDescription>
-              <p>The session could not be found. It may have been deleted or the ID is invalid.</p>
-            </AlertDescription>
-          </Alert>
-        </div>
-      );
-    }
-
     return (
       <div className="flex h-full items-center justify-center">
         <Alert variant="destructive" className="max-w-md">

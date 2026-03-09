@@ -6,7 +6,7 @@ import type {
 
 /**
  * Analytics fields extracted from EnrichedSession that can be
- * incrementally updated from live WebSocket message batches.
+ * incrementally updated from live SSE message batches.
  */
 export type AnalyticsFields = Pick<
   EnrichedSession,

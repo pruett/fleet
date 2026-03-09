@@ -30,7 +30,7 @@ type _AssertAppDependencies = Pick<
   | "parser"
   | "controller"
   | "config"
-  | "realtime"
+  | "sse"
   | "basePaths"
   | "staticDir"
 >;

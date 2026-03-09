@@ -58,7 +58,6 @@ export interface UseSessionResult {
   session: EnrichedSession | null;
   loading: boolean;
   error: string | null;
-  errorStatus: number | null;
   sessionStatus: SessionStatus;
   connectionInfo: ConnectionInfo | null;
 
@@ -76,11 +75,6 @@ export interface UseSessionResult {
 
   // Input state
   actionLoading: string | null;
-}
-
-/** A promise that never resolves — used as a placeholder queryFn when SSE populates the cache. */
-function pending(): Promise<never> {
-  return new Promise(() => {});
 }
 
 export function useSession({
@@ -105,10 +99,12 @@ export function useSession({
   sessionIdRef.current = sessionId;
 
   // --- TanStack Query for session data ------------------------------------
+  // SSE snapshot populates the cache via setQueryData; queryFn is disabled.
 
-  const { data: session, isLoading, error: queryError } = useQuery<EnrichedSession>({
+  const { data: session } = useQuery<EnrichedSession>({
     queryKey,
-    queryFn: pending,
+    queryFn: () => { throw new Error("unreachable"); },
+    enabled: false,
   });
 
   // --- SSE event dispatch → feeds query cache -----------------------------
@@ -116,7 +112,6 @@ export function useSession({
   const handleSseEvent = useCallback((event: ServerMessage) => {
     switch (event.type) {
       case "snapshot": {
-        console.debug("[session] snapshot received —", event.session.messages.length, "messages");
         queryClient.setQueryData(queryKeys.session(sessionIdRef.current), event.session);
         setLiveMessages([]);
         setLiveAnalytics(extractAnalytics(event.session));
@@ -124,11 +119,18 @@ export function useSession({
         break;
       }
       case "messages": {
-        console.debug("[session] messages batch —", event.messages.length, "messages, lineIndexes:", event.messages.map((m) => m.lineIndex));
         setLiveMessages((prev) => {
           const existing = new Set(prev.map((m) => m.lineIndex));
-          const novel = event.messages.filter((m) => !existing.has(m.lineIndex));
-          console.debug("[session] dedup: %d existing, %d novel, %d total", existing.size, novel.length, prev.length + novel.length);
+          // Also check against snapshot to avoid duplicates during snapshot/watcher overlap
+          const snapshot = queryClient.getQueryData<EnrichedSession>(
+            queryKeys.session(sessionIdRef.current),
+          );
+          const snapshotIndexes = snapshot
+            ? new Set(snapshot.messages.map((m) => m.lineIndex))
+            : new Set<number>();
+          const novel = event.messages.filter(
+            (m) => !existing.has(m.lineIndex) && !snapshotIndexes.has(m.lineIndex),
+          );
           return novel.length > 0 ? [...prev, ...novel] : prev;
         });
 
@@ -143,8 +145,7 @@ export function useSession({
       }
       case "session:started":
       case "session:stopped":
-      case "session:error":
-      case "session:activity": {
+      case "session:error": {
         if (event.sessionId !== sessionIdRef.current) return;
         switch (event.type) {
           case "session:started":
@@ -160,7 +161,6 @@ export function useSession({
         break;
       }
       case "error": {
-        console.warn("[sse] Server error:", event.code, event.message);
         toast.error(`Server error: ${event.message}`);
         break;
       }
@@ -258,28 +258,41 @@ export function useSession({
     queryClient.removeQueries({ queryKey });
     setLiveMessages([]);
     setLiveAnalytics(null);
+    incrementalCtxRef.current = null;
     sseRetry();
   }
 
   // -- Computed values ----------------------------------------------------
 
-  const visibleMessages = useMemo(() => {
-    const allMessages = session ? [...session.messages, ...liveMessages] : [];
-    const visible = allMessages.filter(isVisibleMessage);
-    console.debug("[session] visibleMessages: %d snapshot + %d live = %d total, %d visible", session?.messages.length ?? 0, liveMessages.length, allMessages.length, visible.length);
-    return visible;
-  }, [session, liveMessages]);
+  const visibleSnapshot = useMemo(
+    () => (session ? session.messages.filter(isVisibleMessage) : []),
+    [session],
+  );
+  const visibleLive = useMemo(
+    () => liveMessages.filter(isVisibleMessage),
+    [liveMessages],
+  );
+  const visibleMessages = useMemo(
+    () => [...visibleSnapshot, ...visibleLive],
+    [visibleSnapshot, visibleLive],
+  );
 
   const sessionMeta = useMemo(
     () => (session ? getSessionMeta(session) : null),
     [session],
   );
 
+  // Derive loading: waiting for snapshot (no session yet) while SSE is active
+  const loading = !session && sseStatus !== "disconnected";
+  // Derive error: SSE disconnected before we ever got a snapshot
+  const error = !session && sseStatus === "disconnected"
+    ? "Connection lost before session data was received"
+    : null;
+
   return {
     session: session ?? null,
-    loading: isLoading,
-    error: queryError ? queryError.message : null,
-    errorStatus: null,
+    loading,
+    error,
     sessionStatus,
     connectionInfo,
     visibleMessages,

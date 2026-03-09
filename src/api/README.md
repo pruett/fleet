@@ -1,13 +1,13 @@
 # API Module
 
-HTTP/WebSocket API layer for the Fleet controller.
+HTTP API layer for the Fleet controller.
 
 ## Public Interface
 
 ### Functions
 
 - **`createApp(deps: AppDependencies)`** — Creates a Hono application with all REST endpoints and middleware.
-- **`createServer(app, transport): ServerOptions`** — Creates a Bun-compatible server config with HTTP and WebSocket routing.
+- **`createServer(app): ServerOptions`** — Creates a Bun-compatible server config with HTTP routing.
 - **`resolveProjectDir(projectId, basePaths): Promise<string | null>`** — Resolves a project ID to its directory path.
 - **`resolveSessionFile(sessionId, projectDir): Promise<string | null>`** — Resolves a session ID to its `.jsonl` file path.
 - **`createResolveSessionPath(basePaths): (sessionId) => Promise<string | null>`** — Returns a pre-configured session path resolver.
@@ -15,7 +15,7 @@ HTTP/WebSocket API layer for the Fleet controller.
 ### Types
 
 - **`AppDependencies`** — All dependencies required to create the app (scanner, parser, controller, config, transport, basePaths, staticDir).
-- **`ServerOptions`** — Bun server config with `fetch` and `websocket` handlers.
+- **`ServerOptions`** — Bun server config with `fetch` handler.
 
 ## Routes
 

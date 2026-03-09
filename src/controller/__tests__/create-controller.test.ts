@@ -121,7 +121,7 @@ describe("createController — sendMessage", () => {
     ]);
   });
 
-  it("broadcasts session:activity on spawn", async () => {
+  it("broadcasts session:message-sent on spawn", async () => {
     const spawn = createMockSpawn();
     const events: LifecycleEvent[] = [];
     const controller = createController({
@@ -131,9 +131,9 @@ describe("createController — sendMessage", () => {
 
     await controller.sendMessage(SESSION_ID, "test");
 
-    const activityEvents = events.filter((e) => e.type === "session:activity");
-    expect(activityEvents).toHaveLength(1);
-    expect(activityEvents[0].sessionId).toBe(SESSION_ID);
+    const sentEvents = events.filter((e) => e.type === "session:message-sent");
+    expect(sentEvents).toHaveLength(1);
+    expect(sentEvents[0].sessionId).toBe(SESSION_ID);
   });
 
   it("rejects when session is busy (process already running)", async () => {

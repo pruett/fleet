@@ -17,10 +17,10 @@ export interface SseClient {
 }
 
 // ============================================================
-// Realtime Options (dependency injection for createRealtime)
+// SSE Options (dependency injection for createSse)
 // ============================================================
 
-export interface RealtimeOptions {
+export interface SseOptions {
   /** Start tailing a session transcript file. From the File Watcher module. */
   watchSession: (options: WatchOptions) => WatchHandle | Promise<WatchHandle>;
   /** Stop a single watcher. From the File Watcher module. */
@@ -32,10 +32,10 @@ export interface RealtimeOptions {
 }
 
 // ============================================================
-// Realtime (public interface returned by createRealtime)
+// Sse (public interface returned by createSse)
 // ============================================================
 
-export interface Realtime {
+export interface Sse {
   /** Create an SSE stream for a session. Sends a snapshot event followed by live deltas. */
   handleSessionStream: (sessionId: string) => Promise<Response>;
   /** Create a global SSE stream that receives only broadcast events (lifecycle). */

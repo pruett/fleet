@@ -9,7 +9,7 @@ import type {
   ControlResult,
   StartSessionOpts,
 } from "@fleet/shared";
-import type { Realtime } from "../realtime";
+import type { Sse } from "../sse";
 
 export interface AppDependencies {
   scanner: {
@@ -37,7 +37,7 @@ export interface AppDependencies {
     readConfig: () => Promise<FleetConfig>;
     writeConfig: (config: FleetConfig) => Promise<void>;
   };
-  realtime: Realtime;
+  sse: Sse;
   basePaths: string[];
   staticDir: string | null;
 }

@@ -6,7 +6,7 @@
  * event types to transition session status (e.g. "unknown" → "running").
  *
  * Expected client-handled types: session:started, session:stopped, session:error
- * Defect A: controller emits session:activity instead of session:started
+ * Defect A: controller emits session:message-sent instead of session:started
  */
 
 import { describe, expect, it } from "bun:test";
@@ -101,7 +101,7 @@ const SESSION_ID_2 = "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e";
 /** The set of lifecycle event types that the client UI handles. */
 const CLIENT_HANDLED_TYPES = new Set([
   "session:started",
-  "session:activity",
+  "session:message-sent",
   "session:stopped",
   "session:error",
 ]);
@@ -128,7 +128,7 @@ describe("sendMessage lifecycle event contract", () => {
     // The first event after sendMessage should be one the client handles
     // to transition status from "unknown" to "running".
     // Client handles: session:started, session:stopped, session:error
-    // Defect A: controller emits session:activity which client ignores
+    // Defect A: controller emits session:message-sent which client ignores
     expect(events).toHaveLength(1);
     expect(CLIENT_HANDLED_TYPES.has(events[0].type)).toBe(true);
   });
@@ -205,6 +205,7 @@ describe("sendMessage lifecycle event contract", () => {
     const event = events[0] as unknown as Record<string, unknown>;
     const hasTimestamp =
       typeof event.startedAt === "string" ||
+      typeof event.sentAt === "string" ||
       typeof event.updatedAt === "string" ||
       typeof event.occurredAt === "string" ||
       typeof event.stoppedAt === "string";

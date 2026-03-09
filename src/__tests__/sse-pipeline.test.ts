@@ -1,11 +1,11 @@
 /**
- * Integration tests for the realtime pipeline.
+ * Integration tests for the SSE pipeline.
  *
  * Architecture under test:
  *   CLI writes JSONL → File Watcher (fs.watch + tail) → Parser (parseLine)
- *   → Realtime (pushEvent) → SSE Client
+ *   → SSE (pushEvent) → SSE Client
  *
- * These tests wire the REAL watcher and REAL realtime service together with:
+ * These tests wire the REAL watcher and REAL SSE service together with:
  *   - SSE Response streams (no network layer)
  *   - Temp JSONL files (real filesystem)
  *   - Real parser (parseLine via the watcher)
@@ -15,7 +15,7 @@
  */
 
 import { describe, test, expect, afterEach } from "bun:test";
-import { createRealtime } from "../realtime/create-realtime";
+import { createSse } from "../sse/create-sse";
 import {
   watchSession,
   stopWatching,
@@ -27,7 +27,7 @@ import {
   collectSseEvents,
   flushAsync,
   waitMs,
-} from "../realtime/__tests__/helpers";
+} from "../sse/__tests__/helpers";
 import {
   makeUserPrompt,
   makeAssistantRecord,
@@ -35,8 +35,8 @@ import {
   toLine,
 } from "../parser/__tests__/helpers";
 import { parseFullSession } from "../parser";
-import type { Realtime } from "../realtime/types";
-import type { SseEvent } from "../realtime/__tests__/helpers";
+import type { Sse } from "../sse/types";
+import type { SseEvent } from "../sse/__tests__/helpers";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,9 +45,9 @@ import type { SseEvent } from "../realtime/__tests__/helpers";
 /** How long to wait for the watcher's debounce timer (default 100ms) to flush. */
 const DEBOUNCE_WAIT = 300;
 
-/** Create a realtime service wired to the real watcher with a path lookup map. */
-function createRealRealtimeService(pathMap: Map<string, string>): Realtime {
-  return createRealtime({
+/** Create an SSE service wired to the real watcher with a path lookup map. */
+function createRealSseService(pathMap: Map<string, string>): Sse {
+  return createSse({
     watchSession,
     stopWatching,
     resolveSessionPath: async (id) => pathMap.get(id) ?? null,
@@ -55,9 +55,9 @@ function createRealRealtimeService(pathMap: Map<string, string>): Realtime {
   });
 }
 
-/** Connect an SSE client to the realtime service for a given session. */
-async function connectClient(realtime: Realtime, sessionId: string) {
-  const response = await realtime.handleSessionStream(sessionId);
+/** Connect an SSE client to the SSE service for a given session. */
+async function connectClient(sse: Sse, sessionId: string) {
+  const response = await sse.handleSessionStream(sessionId);
   await flushAsync();
   await flushAsync();
   return response;
@@ -79,19 +79,19 @@ function getDeliveredMessages(events: SseEvent[]) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("Realtime Pipeline Integration", () => {
-  let realtime: Realtime;
+describe("SSE Pipeline Integration", () => {
+  let sse: Sse;
   const cleanups: (() => Promise<void>)[] = [];
 
   afterEach(async () => {
-    realtime?.shutdown();
+    sse?.shutdown();
     stopAll();
     for (const fn of cleanups) await fn();
     cleanups.length = 0;
   });
 
   // =========================================================================
-  // Test 1: Happy path — file append → watcher → realtime → SSE client
+  // Test 1: Happy path — file append → watcher → sse → SSE client
   // =========================================================================
 
   test("file append after subscribe is delivered to SSE client", async () => {
@@ -100,9 +100,9 @@ describe("Realtime Pipeline Integration", () => {
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    realtime = createRealRealtimeService(pathMap);
+    sse = createRealSseService(pathMap);
 
-    const response = await connectClient(realtime, sessionId);
+    const response = await connectClient(sse, sessionId);
 
     const line1 = toLine(
       makeUserPrompt("hello world") as Record<string, unknown>,
@@ -140,10 +140,10 @@ describe("Realtime Pipeline Integration", () => {
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    realtime = createRealRealtimeService(pathMap);
+    sse = createRealSseService(pathMap);
 
-    const response1 = await connectClient(realtime, sessionId);
-    const response2 = await connectClient(realtime, sessionId);
+    const response1 = await connectClient(sse, sessionId);
+    const response2 = await connectClient(sse, sessionId);
 
     expect(_registry.size).toBe(1);
 
@@ -184,8 +184,8 @@ describe("Realtime Pipeline Integration", () => {
     );
     await appendLines(temp.path, [line1, line2]);
 
-    realtime = createRealRealtimeService(pathMap);
-    const response = await connectClient(realtime, sessionId);
+    sse = createRealSseService(pathMap);
+    const response = await connectClient(sse, sessionId);
 
     const events = await collectSseEvents(response, 50);
     const snapshots = events.filter((e) => e.type === "snapshot");
@@ -217,8 +217,8 @@ describe("Realtime Pipeline Integration", () => {
     );
     await appendLines(temp.path, preLines);
 
-    realtime = createRealRealtimeService(pathMap);
-    const response = await connectClient(realtime, sessionId);
+    sse = createRealSseService(pathMap);
+    const response = await connectClient(sse, sessionId);
 
     const postLine = toLine(
       makeUserPrompt("post-subscribe") as Record<string, unknown>,
@@ -252,9 +252,9 @@ describe("Realtime Pipeline Integration", () => {
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    realtime = createRealRealtimeService(pathMap);
+    sse = createRealSseService(pathMap);
 
-    const response = await connectClient(realtime, sessionId);
+    const response = await connectClient(sse, sessionId);
 
     expect(_registry.has(sessionId)).toBe(true);
 
@@ -279,9 +279,9 @@ describe("Realtime Pipeline Integration", () => {
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    realtime = createRealRealtimeService(pathMap);
+    sse = createRealSseService(pathMap);
 
-    const response = await connectClient(realtime, sessionId);
+    const response = await connectClient(sse, sessionId);
 
     const newLine = toLine(
       makeUserPrompt("I am new") as Record<string, unknown>,
@@ -311,19 +311,19 @@ describe("Realtime Pipeline Integration", () => {
   // Test 7: Realtime shutdown stops real watchers
   // =========================================================================
 
-  test("realtime shutdown stops real watchers and clears registry", async () => {
+  test("sse shutdown stops real watchers and clears registry", async () => {
     const temp = await createTempJsonl();
     cleanups.push(temp.cleanup);
 
     const sessionId = crypto.randomUUID();
     const pathMap = new Map([[sessionId, temp.path]]);
-    realtime = createRealRealtimeService(pathMap);
+    sse = createRealSseService(pathMap);
 
-    await connectClient(realtime, sessionId);
+    await connectClient(sse, sessionId);
 
     expect(_registry.has(sessionId)).toBe(true);
 
-    realtime.shutdown();
+    sse.shutdown();
 
     expect(_registry.has(sessionId)).toBe(false);
   });

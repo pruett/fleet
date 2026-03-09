@@ -56,17 +56,14 @@ export function useSSE({
     eventSourceRef.current = es;
 
     es.onopen = () => {
-      console.debug("[sse] connected to", url);
       setStatus("connected");
       onOpenRef.current?.();
     };
 
     es.onerror = () => {
       if (es.readyState === EventSource.CONNECTING) {
-        console.debug("[sse] reconnecting…");
         setStatus("reconnecting");
       } else {
-        console.debug("[sse] disconnected");
         setStatus("disconnected");
       }
       onErrorRef.current?.();
@@ -77,7 +74,6 @@ export function useSSE({
       es.addEventListener(type, (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
-          console.debug(`[sse] ← ${type}`, data);
           onEventRef.current(data as ServerMessage);
         } catch {
           console.warn("[sse] Failed to parse event data:", event.data);
@@ -108,10 +104,8 @@ export function useSSE({
       hiddenAt = null;
 
       if (es.readyState !== EventSource.OPEN) {
-        console.debug("[sse] tab visible — connection not open, forcing reconnect");
         setRetryCount((c) => c + 1);
       } else if (wasHiddenFor > STALE_THRESHOLD_MS) {
-        console.debug("[sse] tab visible — hidden for %ds, forcing reconnect for fresh snapshot", Math.round(wasHiddenFor / 1000));
         setRetryCount((c) => c + 1);
       }
     }

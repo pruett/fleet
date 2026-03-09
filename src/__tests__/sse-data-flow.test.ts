@@ -2,7 +2,7 @@
  * End-to-end SSE data-flow test.
  *
  * Simulates a user landing on a session page:
- *   Browser → GET /api/sse/sessions/:id → Hono → createRealtime → ReadableStream
+ *   Browser → GET /api/sse/sessions/:id → Hono → createSse → ReadableStream
  *     → snapshot event (initial session state)
  *     → messages events (live deltas from file watcher)
  *     → lifecycle events (session:started, session:stopped, etc.)
@@ -15,7 +15,7 @@
 
 import { describe, test, expect, afterEach } from "bun:test";
 import { createApp } from "../api/create-app";
-import { createRealtime } from "../realtime";
+import { createSse } from "../sse";
 import { watchSession, stopWatching, stopAll } from "../watcher/watch-session";
 import { parseFullSession } from "../parser";
 import { createTempJsonl, appendLines } from "../watcher/__tests__/helpers";
@@ -25,7 +25,7 @@ import {
   makeTextBlock,
   toLine,
 } from "../parser/__tests__/helpers";
-import type { Realtime } from "../realtime";
+import type { Sse } from "../sse";
 import type { LifecycleEvent } from "@fleet/shared";
 import type { AppDependencies } from "../api/types";
 
@@ -106,7 +106,7 @@ const DEBOUNCE_WAIT = 300;
 
 interface TestHarness {
   app: ReturnType<typeof createApp>;
-  realtime: Realtime;
+  sse: Sse;
   /** Make a request through the Hono app. */
   request: (path: string, init?: RequestInit) => Promise<Response>;
 }
@@ -116,7 +116,7 @@ interface TestHarness {
  * with a path map that resolves sessionIds to temp file paths.
  */
 function createTestHarness(pathMap: Map<string, string>): TestHarness {
-  const realtime = createRealtime({
+  const sse = createSse({
     watchSession,
     stopWatching,
     resolveSessionPath: async (id) => pathMap.get(id) ?? null,
@@ -141,7 +141,7 @@ function createTestHarness(pathMap: Map<string, string>): TestHarness {
       readConfig: async () => ({ projects: [] }),
       writeConfig: async () => {},
     },
-    realtime,
+    sse,
     basePaths: [],
     staticDir: null,
   };
@@ -150,7 +150,7 @@ function createTestHarness(pathMap: Map<string, string>): TestHarness {
 
   return {
     app,
-    realtime,
+    sse,
     request: (path, init) =>
       Promise.resolve(app.request(`http://localhost${path}`, init)),
   };
@@ -165,7 +165,7 @@ describe("SSE data flow — end-to-end through HTTP", () => {
   const cleanups: (() => Promise<void>)[] = [];
 
   afterEach(async () => {
-    harness?.realtime.shutdown();
+    harness?.sse.shutdown();
     stopAll();
     for (const fn of cleanups) await fn();
     cleanups.length = 0;
@@ -340,11 +340,9 @@ describe("SSE data flow — end-to-end through HTTP", () => {
     const event: LifecycleEvent = {
       type: "session:started",
       sessionId,
-      projectId: "proj-001",
-      cwd: "/test/project",
       startedAt: new Date().toISOString(),
     };
-    harness.realtime.pushEvent(event);
+    harness.sse.pushEvent(event);
 
     const stoppedEvent: LifecycleEvent = {
       type: "session:stopped",
@@ -352,7 +350,7 @@ describe("SSE data flow — end-to-end through HTTP", () => {
       reason: "completed",
       stoppedAt: new Date().toISOString(),
     };
-    harness.realtime.pushEvent(stoppedEvent);
+    harness.sse.pushEvent(stoppedEvent);
 
     const frames = await readSseFrames(res, 100);
 
@@ -400,11 +398,9 @@ describe("SSE data flow — end-to-end through HTTP", () => {
     await flush();
 
     // Push started event for session 1
-    harness.realtime.pushEvent({
+    harness.sse.pushEvent({
       type: "session:started",
       sessionId: sessionId1,
-      projectId: "proj-001",
-      cwd: "/test",
       startedAt: new Date().toISOString(),
     });
 
@@ -512,15 +508,15 @@ describe("SSE data flow — end-to-end through HTTP", () => {
     await flush();
     await flush();
 
-    expect(harness.realtime.getClientCount()).toBe(1);
-    expect(harness.realtime.getSessionSubscriberCount(sessionId)).toBe(1);
+    expect(harness.sse.getClientCount()).toBe(1);
+    expect(harness.sse.getSessionSubscriberCount(sessionId)).toBe(1);
 
     // Cancel the stream (simulates browser navigating away)
     await res.body!.cancel();
     await flush();
 
-    expect(harness.realtime.getClientCount()).toBe(0);
-    expect(harness.realtime.getSessionSubscriberCount(sessionId)).toBe(0);
+    expect(harness.sse.getClientCount()).toBe(0);
+    expect(harness.sse.getSessionSubscriberCount(sessionId)).toBe(0);
   });
 
   // =========================================================================
@@ -550,11 +546,9 @@ describe("SSE data flow — end-to-end through HTTP", () => {
     await flush();
 
     // --- Step 2: Session starts working (lifecycle event) ---
-    harness.realtime.pushEvent({
+    harness.sse.pushEvent({
       type: "session:started",
       sessionId,
-      projectId: "proj-001",
-      cwd: "/test",
       startedAt: new Date().toISOString(),
     });
 
@@ -569,7 +563,7 @@ describe("SSE data flow — end-to-end through HTTP", () => {
     await wait(DEBOUNCE_WAIT);
 
     // --- Step 4: Session completes (lifecycle event) ---
-    harness.realtime.pushEvent({
+    harness.sse.pushEvent({
       type: "session:stopped",
       sessionId,
       reason: "completed",
@@ -636,7 +630,7 @@ describe("Global SSE stream — /api/sse/events", () => {
   const cleanups: (() => Promise<void>)[] = [];
 
   afterEach(async () => {
-    harness?.realtime.shutdown();
+    harness?.sse.shutdown();
     stopAll();
     for (const fn of cleanups) await fn();
     cleanups.length = 0;
@@ -665,11 +659,9 @@ describe("Global SSE stream — /api/sse/events", () => {
     await flush();
 
     // Push a lifecycle event
-    harness.realtime.pushEvent({
+    harness.sse.pushEvent({
       type: "session:started",
       sessionId,
-      projectId: "proj-001",
-      cwd: "/test",
       startedAt: new Date().toISOString(),
     });
 
@@ -686,7 +678,7 @@ describe("Global SSE stream — /api/sse/events", () => {
     await flush();
 
     const sessionId = crypto.randomUUID();
-    harness.realtime.pushEvent({
+    harness.sse.pushEvent({
       type: "session:stopped",
       sessionId,
       reason: "completed",
@@ -735,12 +727,12 @@ describe("Global SSE stream — /api/sse/events", () => {
     const res = await harness.request("/api/sse/events");
     await flush();
 
-    expect(harness.realtime.getClientCount()).toBe(1);
+    expect(harness.sse.getClientCount()).toBe(1);
 
     await res.body!.cancel();
     await flush();
 
-    expect(harness.realtime.getClientCount()).toBe(0);
+    expect(harness.sse.getClientCount()).toBe(0);
   });
 
   test("both global and session clients receive broadcast simultaneously", async () => {
@@ -754,11 +746,9 @@ describe("Global SSE stream — /api/sse/events", () => {
     const sessionRes = await harness.request(`/api/sse/sessions/${sessionId}`);
     await flush();
 
-    harness.realtime.pushEvent({
+    harness.sse.pushEvent({
       type: "session:started",
       sessionId,
-      projectId: "proj-001",
-      cwd: "/test",
       startedAt: new Date().toISOString(),
     });
 

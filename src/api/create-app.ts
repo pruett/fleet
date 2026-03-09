@@ -211,12 +211,12 @@ export function createApp(deps: AppDependencies): Hono {
   });
 
   app.get("/api/sse/events", (c) => {
-    return deps.realtime.handleGlobalStream();
+    return deps.sse.handleGlobalStream();
   });
 
   app.get("/api/sse/sessions/:sessionId", async (c) => {
     const sessionId = c.req.param("sessionId");
-    return deps.realtime.handleSessionStream(sessionId);
+    return deps.sse.handleSessionStream(sessionId);
   });
 
   // Static file serving (only when staticDir is configured)

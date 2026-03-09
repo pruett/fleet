@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from "bun:test";
-import { mkdtemp, rm } from "fs/promises";
+import { mkdtemp, rm, mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { watchProjectsDir, type ProjectsDirWatcher } from "../watch-projects-dir";
@@ -13,6 +13,13 @@ function waitMs(ms: number): Promise<void> {
 const VALID_UUID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
 const VALID_UUID_2 = "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e";
 
+/** Create an empty .jsonl file so seedKnownSessions picks it up. */
+async function seedFile(dir: string, sessionId: string, subdir?: string): Promise<void> {
+  const target = subdir ? join(dir, subdir) : dir;
+  await mkdir(target, { recursive: true });
+  await writeFile(join(target, `${sessionId}.jsonl`), "");
+}
+
 describe("watchProjectsDir", () => {
   let tmpDir: string | null = null;
   let watcher: ProjectsDirWatcher | null = null;
@@ -24,50 +31,115 @@ describe("watchProjectsDir", () => {
     tmpDir = null;
   });
 
-  it("fires onSessionActivity for a valid UUID .jsonl filename", async () => {
+  it("fires onNewSession for a previously unseen session", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
 
-    const received: string[] = [];
+    const newSessions: string[] = [];
+    const activitySessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: (id) => activitySessions.push(id),
       debounceMs: 50,
     });
 
-    // Simulate a file change event via the internal handler
     watcher._handleFileChange(`${VALID_UUID}.jsonl`);
 
-    // Wait for debounce to fire
+    // onNewSession fires immediately (no debounce)
+    expect(newSessions).toEqual([VALID_UUID]);
+    expect(activitySessions).toHaveLength(0);
+  });
+
+  it("fires onSessionActivity for a known session", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
+    await seedFile(tmpDir, VALID_UUID);
+
+    const newSessions: string[] = [];
+    const activitySessions: string[] = [];
+    watcher = watchProjectsDir({
+      basePaths: [tmpDir],
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: (id) => activitySessions.push(id),
+      debounceMs: 50,
+    });
+
+    watcher._handleFileChange(`${VALID_UUID}.jsonl`);
+
     await waitMs(100);
 
-    expect(received).toEqual([VALID_UUID]);
+    expect(newSessions).toHaveLength(0);
+    expect(activitySessions).toEqual([VALID_UUID]);
+  });
+
+  it("seeds known sessions from existing files in subdirectories", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
+    await seedFile(tmpDir, VALID_UUID, "project-a");
+    await seedFile(tmpDir, VALID_UUID_2, "project-b");
+
+    const newSessions: string[] = [];
+    watcher = watchProjectsDir({
+      basePaths: [tmpDir],
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: () => {},
+      debounceMs: 50,
+    });
+
+    expect(watcher._knownSessions.has(VALID_UUID)).toBe(true);
+    expect(watcher._knownSessions.has(VALID_UUID_2)).toBe(true);
+
+    // Both are known, so changes fire activity not new
+    watcher._handleFileChange(`project-a/${VALID_UUID}.jsonl`);
+    watcher._handleFileChange(`project-b/${VALID_UUID_2}.jsonl`);
+
+    expect(newSessions).toHaveLength(0);
+  });
+
+  it("transitions from new to activity on subsequent changes", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
+
+    const newSessions: string[] = [];
+    const activitySessions: string[] = [];
+    watcher = watchProjectsDir({
+      basePaths: [tmpDir],
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: (id) => activitySessions.push(id),
+      debounceMs: 50,
+    });
+
+    // First change: new
+    watcher._handleFileChange(`${VALID_UUID}.jsonl`);
+    expect(newSessions).toEqual([VALID_UUID]);
+
+    // Second change: activity
+    watcher._handleFileChange(`${VALID_UUID}.jsonl`);
+    await waitMs(100);
+    expect(activitySessions).toEqual([VALID_UUID]);
   });
 
   it("handles relative paths with subdirectories", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
 
-    const received: string[] = [];
+    const newSessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: () => {},
       debounceMs: 50,
     });
 
-    // fs.watch with recursive:true gives relative paths like "project-a/session.jsonl"
     watcher._handleFileChange(`project-a/${VALID_UUID}.jsonl`);
-
-    await waitMs(100);
-
-    expect(received).toEqual([VALID_UUID]);
+    expect(newSessions).toEqual([VALID_UUID]);
   });
 
   it("ignores non-.jsonl files", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
 
-    const received: string[] = [];
+    const newSessions: string[] = [];
+    const activitySessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: (id) => activitySessions.push(id),
       debounceMs: 50,
     });
 
@@ -77,16 +149,19 @@ describe("watchProjectsDir", () => {
 
     await waitMs(100);
 
-    expect(received).toHaveLength(0);
+    expect(newSessions).toHaveLength(0);
+    expect(activitySessions).toHaveLength(0);
   });
 
   it("ignores .jsonl files whose stem is not a UUID v4", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
 
-    const received: string[] = [];
+    const newSessions: string[] = [];
+    const activitySessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: (id) => activitySessions.push(id),
       debounceMs: 50,
     });
 
@@ -96,16 +171,18 @@ describe("watchProjectsDir", () => {
 
     await waitMs(100);
 
-    expect(received).toHaveLength(0);
+    expect(newSessions).toHaveLength(0);
+    expect(activitySessions).toHaveLength(0);
   });
 
   it("ignores null filenames", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
 
-    const received: string[] = [];
+    const newSessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: (id) => newSessions.push(id),
+      onSessionActivity: () => {},
       debounceMs: 50,
     });
 
@@ -113,16 +190,18 @@ describe("watchProjectsDir", () => {
 
     await waitMs(100);
 
-    expect(received).toHaveLength(0);
+    expect(newSessions).toHaveLength(0);
   });
 
-  it("debounces rapid events for the same session into one callback", async () => {
+  it("debounces rapid activity events for the same session into one callback", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
+    await seedFile(tmpDir, VALID_UUID);
 
-    const received: string[] = [];
+    const activitySessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: () => {},
+      onSessionActivity: (id) => activitySessions.push(id),
       debounceMs: 100,
     });
 
@@ -131,20 +210,21 @@ describe("watchProjectsDir", () => {
       watcher._handleFileChange(`${VALID_UUID}.jsonl`);
     }
 
-    // Wait for debounce to settle
     await waitMs(200);
 
-    // Coalesced into exactly one callback
-    expect(received).toEqual([VALID_UUID]);
+    expect(activitySessions).toEqual([VALID_UUID]);
   });
 
   it("debounces independently per sessionId", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
+    await seedFile(tmpDir, VALID_UUID);
+    await seedFile(tmpDir, VALID_UUID_2);
 
-    const received: string[] = [];
+    const activitySessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: () => {},
+      onSessionActivity: (id) => activitySessions.push(id),
       debounceMs: 50,
     });
 
@@ -153,73 +233,67 @@ describe("watchProjectsDir", () => {
 
     await waitMs(100);
 
-    expect(received).toContain(VALID_UUID);
-    expect(received).toContain(VALID_UUID_2);
-    expect(received).toHaveLength(2);
+    expect(activitySessions).toContain(VALID_UUID);
+    expect(activitySessions).toContain(VALID_UUID_2);
+    expect(activitySessions).toHaveLength(2);
   });
 
   it("skips non-existent base paths without crashing", () => {
-    const received: string[] = [];
-
-    // Should not throw even with a non-existent path
     watcher = watchProjectsDir({
       basePaths: ["/this/path/does/not/exist"],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: () => {},
+      onSessionActivity: () => {},
       debounceMs: 50,
     });
 
-    expect(received).toHaveLength(0);
+    expect(watcher._knownSessions.size).toBe(0);
   });
 
   it("stop() cancels pending timers and prevents future callbacks", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
+    await seedFile(tmpDir, VALID_UUID);
 
-    const received: string[] = [];
+    const activitySessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: () => {},
+      onSessionActivity: (id) => activitySessions.push(id),
       debounceMs: 200,
     });
 
-    // Fire an event to start the debounce timer
     watcher._handleFileChange(`${VALID_UUID}.jsonl`);
 
-    // Stop before the debounce fires
     await waitMs(50);
     watcher.stop();
     watcher = null;
 
-    // Wait past the debounce window
     await waitMs(300);
 
-    // The callback should never have fired
-    expect(received).toHaveLength(0);
+    expect(activitySessions).toHaveLength(0);
   });
 
   it("debounce resets when events arrive within the window", async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "fleet-wpd-test-"));
+    await seedFile(tmpDir, VALID_UUID);
 
-    const received: string[] = [];
+    const activitySessions: string[] = [];
     watcher = watchProjectsDir({
       basePaths: [tmpDir],
-      onSessionActivity: (id) => received.push(id),
+      onNewSession: () => {},
+      onSessionActivity: (id) => activitySessions.push(id),
       debounceMs: 100,
     });
 
-    // First event
     watcher._handleFileChange(`${VALID_UUID}.jsonl`);
 
-    // Wait 70ms (within the 100ms debounce window), then fire again
     await waitMs(70);
-    expect(received).toHaveLength(0); // not yet fired
+    expect(activitySessions).toHaveLength(0);
     watcher._handleFileChange(`${VALID_UUID}.jsonl`);
 
-    // Wait another 70ms — still within the reset window
     await waitMs(70);
-    expect(received).toHaveLength(0); // still not fired (timer was reset)
+    expect(activitySessions).toHaveLength(0);
 
-    // Wait for the debounce to fully settle
     await waitMs(100);
-    expect(received).toEqual([VALID_UUID]);
+    expect(activitySessions).toEqual([VALID_UUID]);
   });
 });

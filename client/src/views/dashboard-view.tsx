@@ -63,7 +63,7 @@ interface ProjectTreeItemProps {
   onRemove: (slug: string) => void;
 }
 
-const SESSION_PAGE_SIZE = 15;
+const SESSION_PAGE_SIZE = 5;
 
 function ProjectTreeItem({
   project,
@@ -168,7 +168,7 @@ function ProjectTreeItem({
                           <Link
                             to={`/session/${encodeURIComponent(session.sessionId)}`}
                           >
-                            <span className="flex flex-col gap-0.5">
+                            <span className="flex flex-col gap-0.5 min-w-0">
                               <span className="truncate text-[10px] font-mono text-muted-foreground/70">
                                 {session.sessionId}
                               </span>
