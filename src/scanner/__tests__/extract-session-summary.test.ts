@@ -120,6 +120,36 @@ describe("extractSessionSummary — header extraction edge cases", () => {
     expect(summary.firstPrompt!.length).toBe(200);
   });
 
+  it("skips slash-command records and extracts the real firstPrompt that follows", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "slash-command-before-prompt.jsonl"),
+      "test-slash-command",
+    );
+
+    expect(summary.firstPrompt).toBe(
+      "Study the client directory and tell me where the modal lives",
+    );
+    expect(summary.cwd).toBe("/home/user");
+    expect(summary.gitBranch).toBe("main");
+    expect(summary.model).toBe("claude-sonnet-4-20250514");
+    expect(summary.inputTokens).toBe(200);
+    expect(summary.outputTokens).toBe(50);
+  });
+
+  it("skips interrupted tool-use records and extracts the real firstPrompt", async () => {
+    const summary = await extractSessionSummary(
+      join(FIXTURES, "interrupted-tool-use-before-prompt.jsonl"),
+      "test-interrupted",
+    );
+
+    expect(summary.firstPrompt).toBe("Implement the following plan");
+    expect(summary.cwd).toBe("/home/user");
+    expect(summary.gitBranch).toBe("main");
+    expect(summary.model).toBe("claude-sonnet-4-20250514");
+    expect(summary.inputTokens).toBe(300);
+    expect(summary.outputTokens).toBe(75);
+  });
+
   it("extracts firstPrompt from array-content (multi-modal) user messages", async () => {
     const summary = await extractSessionSummary(
       join(FIXTURES, "array-content-message.jsonl"),

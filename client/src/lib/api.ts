@@ -2,6 +2,7 @@ import type {
   ProjectSummary,
   GroupedProject,
   SessionSummary,
+  RecentSessionSummary,
   EnrichedSession,
   FleetConfig,
 } from "@fleet/shared";
@@ -90,6 +91,16 @@ export async function fetchSessions(
   const { sessions } = await requestWithRetry<{ sessions: SessionSummary[] }>(
     `/api/projects/${encodeURIComponent(slug)}/sessions${params}`,
   );
+  return sessions;
+}
+
+export async function fetchRecentSessions(
+  limit?: number,
+): Promise<RecentSessionSummary[]> {
+  const params = limit ? `?limit=${limit}` : "";
+  const { sessions } = await requestWithRetry<{
+    sessions: RecentSessionSummary[];
+  }>(`/api/sessions/recent${params}`);
   return sessions;
 }
 

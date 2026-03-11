@@ -6,7 +6,7 @@ import {
   resolveGroupedProjectDirs,
 } from "./resolve";
 import { slugify } from "@fleet/shared";
-import type { ProjectConfig } from "@fleet/shared";
+import type { ProjectConfig, RecentSessionSummary } from "@fleet/shared";
 
 const HASHED_ASSET_RE = /[.-][a-zA-Z0-9]{8,}\.\w+$/;
 
@@ -92,6 +92,48 @@ export function createApp(deps: AppDependencies): Hono {
     const config = { projects: body.projects as ProjectConfig[] };
     await deps.config.writeConfig(config);
     return c.json(config);
+  });
+
+  app.get("/api/sessions/recent", async (c) => {
+    const limitParam = c.req.query("limit");
+    const limit = limitParam ? parseInt(limitParam, 10) : 20;
+    const fleetConfig = await deps.config.readConfig();
+
+    const projectDirPairs = await Promise.all(
+      fleetConfig.projects.map(async (project) => ({
+        project,
+        dirs: await resolveGroupedProjectDirs(
+          deps.basePaths,
+          project.projectIds,
+        ),
+      })),
+    );
+
+    const allSessions: RecentSessionSummary[] = (
+      await Promise.all(
+        projectDirPairs.flatMap(({ project, dirs }) =>
+          dirs.map(async (dir) => {
+            const sessions = await deps.scanner.scanSessions(dir);
+            const projectSlug = slugify(project.title);
+            return sessions.map((s) => ({
+              ...s,
+              projectSlug,
+              projectTitle: project.title,
+            }));
+          }),
+        ),
+      )
+    ).flat();
+
+    allSessions.sort((a, b) => {
+      if (a.lastActiveAt === null && b.lastActiveAt === null) return 0;
+      if (a.lastActiveAt === null) return 1;
+      if (b.lastActiveAt === null) return -1;
+      return b.lastActiveAt.localeCompare(a.lastActiveAt);
+    });
+
+    const sessions = limit > 0 ? allSessions.slice(0, limit) : allSessions;
+    return c.json({ sessions });
   });
 
   app.post("/api/sessions", async (c) => {

@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DashboardView } from "@/views/dashboard-view";
+import { HomeView } from "@/views/home-view";
+import { ProjectView } from "@/views/project-view";
+import { SessionDetailView } from "@/views/session-detail-view";
 import { queryClient } from "@/lib/query-client";
 
 function App() {
@@ -11,8 +13,15 @@ function App() {
       <BrowserRouter>
         <TooltipProvider>
           <Routes>
-            <Route path="/" element={<DashboardView />} />
-            <Route path="/session/:sessionId" element={<DashboardView />} />
+            <Route path="/" element={<HomeView />} />
+            <Route
+              path="/projects/:projectId"
+              element={<ProjectView />}
+            />
+            <Route
+              path="/projects/:projectId/sessions/:sessionId"
+              element={<SessionDetailView />}
+            />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
           <Toaster />
