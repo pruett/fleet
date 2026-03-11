@@ -125,7 +125,7 @@ export function SessionSearch({
         )}
         {sortedSessions.length > 0 && (
           <CommandGroup heading="Recent Sessions">
-            {sortedSessions.map(({ projectTitle, session: s }) => (
+            {sortedSessions.map(({ projectSlug, projectTitle, session: s }) => (
               <CommandItem
                 key={s.sessionId}
                 value={[s.firstPrompt ?? "", s.sessionId, projectTitle].join(

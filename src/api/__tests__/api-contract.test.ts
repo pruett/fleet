@@ -95,6 +95,7 @@ const EXPECTED_ROUTES: { method: string; path: string }[] = [
   { method: "GET", path: "/api/projects/:slug/worktrees" },
 
   // Sessions
+  { method: "GET", path: "/api/sessions/recent" },
   { method: "POST", path: "/api/sessions" },
   { method: "GET", path: "/api/sessions/:sessionId" },
   { method: "POST", path: "/api/sessions/:sessionId/stop" },

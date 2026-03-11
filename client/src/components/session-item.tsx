@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { Terminal, GitBranch, ArrowUpRight } from "lucide-react";
-import type { SessionSummary } from "@shared/scanner";
+import type { SessionSummary } from "@fleet/shared";
 import { timeAgo } from "@/lib/time";
 import { truncate } from "@/lib/utils";
 
