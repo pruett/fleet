@@ -9,6 +9,7 @@ import {
   CommandGroup,
   CommandItem,
   CommandEmpty,
+  CommandSeparator,
 } from "@/components/ui/command";
 import { timeAgo } from "@/lib/time";
 import { truncate } from "@/lib/utils";
@@ -22,7 +23,8 @@ interface SessionSearchProps {
   projects: GroupedProject[];
 }
 
-interface GroupedSession {
+interface FlatSession {
+  projectSlug: string;
   projectTitle: string;
   session: SessionSummary;
 }
@@ -36,7 +38,7 @@ export function SessionSearch({
   const navigate = useNavigate();
   const { sessions: recentSessions } = useRecentSessions(25);
 
-  const grouped = useMemo(() => {
+  const sortedSessions = useMemo(() => {
     // Build slug → title map from projects
     const slugToTitle = new Map<string, string>();
     for (const p of projects) {
@@ -44,13 +46,13 @@ export function SessionSearch({
     }
 
     const seen = new Set<string>();
-    const items: GroupedSession[] = [];
+    const items: FlatSession[] = [];
 
     // Pull from recent sessions (always populated via dedicated query)
     for (const s of recentSessions) {
       if (seen.has(s.sessionId)) continue;
       seen.add(s.sessionId);
-      items.push({ projectTitle: s.projectTitle, session: s });
+      items.push({ projectSlug: s.projectSlug, projectTitle: s.projectTitle, session: s });
     }
 
     // Also pull from per-project session cache (populated on dashboard view)
@@ -66,25 +68,24 @@ export function SessionSearch({
       for (const session of data) {
         if (seen.has(session.sessionId)) continue;
         seen.add(session.sessionId);
-        items.push({ projectTitle: title, session });
+        items.push({ projectSlug: slug, projectTitle: title, session });
       }
     }
 
-    // Group by project title
-    const groups = new Map<string, SessionSummary[]>();
-    for (const item of items) {
-      const list = groups.get(item.projectTitle) ?? [];
-      list.push(item.session);
-      groups.set(item.projectTitle, list);
-    }
+    // Sort by recency (newest first)
+    items.sort((a, b) => {
+      const aTime = a.session.lastActiveAt ? new Date(a.session.lastActiveAt).getTime() : 0;
+      const bTime = b.session.lastActiveAt ? new Date(b.session.lastActiveAt).getTime() : 0;
+      return bTime - aTime;
+    });
 
-    return groups;
+    return items;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient is stable; open triggers re-read of cache
   }, [projects, recentSessions, open]);
 
-  const handleSelect = (sessionId: string) => {
+  const handleSelect = (projectSlug: string, sessionId: string) => {
     onOpenChange(false);
-    navigate(`/session/${encodeURIComponent(sessionId)}`);
+    navigate(`/projects/${encodeURIComponent(projectSlug)}/sessions/${encodeURIComponent(sessionId)}`);
   };
 
   return (
@@ -106,31 +107,31 @@ export function SessionSearch({
                 value={`project ${p.title} ${p.projectIds.join(" ")}`}
                 onSelect={() => {
                   onOpenChange(false);
+                  navigate(`/projects/${p.slug}`);
                 }}
+                className="!py-0.5"
               >
-                <Folder className="mr-2 size-4 shrink-0 text-muted-foreground" />
-                <span className="flex flex-col gap-0.5 overflow-hidden">
-                  <span className="truncate text-sm">{p.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {p.sessionCount} session{p.sessionCount !== 1 ? "s" : ""}
-                  </span>
+                <Folder className="mr-2 size-3 shrink-0 text-muted-foreground" />
+                <span className="truncate text-xs">{p.title}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {p.sessionCount}
                 </span>
               </CommandItem>
             ))}
           </CommandGroup>
         )}
-        {[...grouped.entries()].map(([title, sessions]) => (
-          <CommandGroup key={title} heading={title}>
-            {sessions.map((s) => (
+        {projects.length > 0 && sortedSessions.length > 0 && (
+          <CommandSeparator />
+        )}
+        {sortedSessions.length > 0 && (
+          <CommandGroup heading="Recent Sessions">
+            {sortedSessions.map(({ projectTitle, session: s }) => (
               <CommandItem
                 key={s.sessionId}
-                value={[
-                  s.firstPrompt ?? "",
-                  s.sessionId,
-                  s.model ?? "",
-                  s.gitBranch ?? "",
-                ].join(" ")}
-                onSelect={() => handleSelect(s.sessionId)}
+                value={[s.firstPrompt ?? "", s.sessionId, projectTitle].join(
+                  " ",
+                )}
+                onSelect={() => handleSelect(projectSlug, s.sessionId)}
               >
                 <span className="flex flex-col gap-0.5 overflow-hidden">
                   <span className="truncate text-sm">
@@ -138,6 +139,8 @@ export function SessionSearch({
                   </span>
                   <span className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="truncate font-mono">{s.sessionId}</span>
+                    <span>&middot;</span>
+                    <span className="shrink-0">{projectTitle}</span>
                     {s.lastActiveAt && (
                       <>
                         <span>&middot;</span>
@@ -151,7 +154,7 @@ export function SessionSearch({
               </CommandItem>
             ))}
           </CommandGroup>
-        ))}
+        )}
       </CommandList>
     </CommandDialog>
   );

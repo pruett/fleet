@@ -81,6 +81,16 @@ export async function extractSessionSummary(
               text = textBlock.text as string;
             }
           }
+          // Skip internal Claude Code records that lack isMeta:
+          // - slash commands (e.g. /clear) wrapped in <command-name> XML
+          // - interrupted tool-use placeholders
+          if (
+            text !== null &&
+            (text.startsWith("<command-name>") ||
+              text === "[Request interrupted by user for tool use]")
+          ) {
+            continue;
+          }
           if (text !== null) {
             firstPrompt = text.length > 200 ? text.slice(0, 200) : text;
             cwd = typeof record.cwd === "string" ? record.cwd : null;
