@@ -1,56 +1,84 @@
 /**
- * Port resolution for concurrent worktree dev servers.
+ * Port resolution for concurrent dev servers.
  *
- * Main repo keeps defaults (3000 / 5173). Git worktrees get a deterministic
- * offset (1–99) derived from the worktree name via Bun.hash (Wyhash-64).
- * Env vars FLEET_PORT / FLEET_CLIENT_PORT override everything.
+ * Starting at port 3000, pick the first free port for the Fleet server
+ * and the next free port after that for the Vite client.
  */
 
-const DEFAULT_SERVER_PORT = 3000;
-const DEFAULT_CLIENT_PORT = 5173;
+import { createServer } from "node:net";
 
-/** Return the worktree name if running inside a git worktree, else null. */
-export function getWorktreeName(): string | null {
-  const result = Bun.spawnSync(["git", "rev-parse", "--git-dir"], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-
-  const gitDir = result.stdout.toString().trim();
-
-  // Main repo returns ".git"; worktrees return something like
-  // "/path/to/repo/.git/worktrees/<name>"
-  if (gitDir === ".git" || !gitDir.includes("/worktrees/")) {
-    return null;
-  }
-
-  const parts = gitDir.split("/worktrees/");
-  return parts[parts.length - 1] ?? null;
-}
-
-/** Map a worktree name to a stable port offset in the range 1–99. */
-export function hashToOffset(name: string): number {
-  return Number(Bun.hash(name) % BigInt(99)) + 1;
-}
+const DEFAULT_START_PORT = 3000;
+const MAX_PORT = 65_535;
 
 export interface ResolvedPorts {
   server: number;
   client: number;
-  worktreeName: string | null;
 }
 
-/** Resolve server + client ports. Env vars take priority over computed values. */
-export function resolvePorts(): ResolvedPorts {
-  const worktreeName = getWorktreeName();
-  const offset = worktreeName ? hashToOffset(worktreeName) : 0;
+export type PortAvailabilityChecker = (port: number) => Promise<boolean>;
 
-  const server = process.env.FLEET_PORT
-    ? Number(process.env.FLEET_PORT)
-    : DEFAULT_SERVER_PORT + offset;
+function assertPort(port: number) {
+  if (!Number.isInteger(port) || port < 0 || port > MAX_PORT) {
+    throw new RangeError(
+      `Port must be an integer between 0 and ${MAX_PORT}: ${port}`,
+    );
+  }
+}
 
-  const client = process.env.FLEET_CLIENT_PORT
-    ? Number(process.env.FLEET_CLIENT_PORT)
-    : DEFAULT_CLIENT_PORT + offset;
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.unref();
 
-  return { server, client, worktreeName };
+    server.once("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EADDRINUSE" || error.code === "EACCES") {
+        resolve(false);
+        return;
+      }
+
+      reject(error);
+    });
+
+    server.once("listening", () => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(true);
+      });
+    });
+
+    try {
+      server.listen(port);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+export async function findAvailablePort(
+  startPort: number,
+  isAvailable: PortAvailabilityChecker = isPortAvailable,
+): Promise<number> {
+  assertPort(startPort);
+
+  for (let port = startPort; port <= MAX_PORT; port += 1) {
+    if (await isAvailable(port)) {
+      return port;
+    }
+  }
+
+  throw new Error(`No available ports found starting at ${startPort}`);
+}
+
+export async function resolvePorts(
+  startPort = DEFAULT_START_PORT,
+  isAvailable: PortAvailabilityChecker = isPortAvailable,
+): Promise<ResolvedPorts> {
+  const server = await findAvailablePort(startPort, isAvailable);
+  const client = await findAvailablePort(server + 1, isAvailable);
+
+  return { server, client };
 }

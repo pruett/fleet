@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Search } from "lucide-react";
 import { Header } from "@/components/header";
-import { SearchTrigger } from "@/components/search-trigger";
-import { SessionSearch } from "@/components/session-search";
 import { SessionList } from "@/components/session-item";
 import { AddProjectDialog } from "@/components/add-project-dialog";
 import { useProjects } from "@/hooks/use-projects";
@@ -11,6 +10,11 @@ import { useGlobalSSE } from "@/hooks/use-global-sse";
 import { fetchSessions } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
 function formatMatcherPath(pattern: string): string {
   const cleaned = pattern.replace(/\*+$/, "");
@@ -27,9 +31,10 @@ export function ProjectView() {
     loading: loadingProjects,
     loadingDirectories,
     addProject,
+    removeProject,
     refreshDirectories,
   } = useProjects();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleOpenDialog = useCallback(() => {
@@ -50,16 +55,29 @@ export function ProjectView() {
     enabled: !!projectId,
   });
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchOpen((prev) => !prev);
+  const filteredSessions = useMemo(() => {
+    if (!sessions || !searchQuery.trim()) return sessions;
+    const query = searchQuery.toLowerCase();
+
+    const fuzzyMatch = (field: string) => {
+      const lower = field.toLowerCase();
+      let qi = 0;
+      for (let i = 0; i < lower.length && qi < query.length; i++) {
+        if (lower[i] === query[qi]) qi++;
       }
+      return qi === query.length;
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+
+    return sessions.filter((s) => {
+      // Exact substring match on session ID (highest priority)
+      if (s.sessionId.toLowerCase().includes(query)) return true;
+      // Fuzzy match on other fields
+      const fuzzyFields = [s.firstPrompt, s.gitBranch, s.model, s.cwd].filter(
+        Boolean,
+      ) as string[];
+      return fuzzyFields.some(fuzzyMatch);
+    });
+  }, [sessions, searchQuery]);
 
   if (loadingProjects) {
     return (
@@ -80,13 +98,19 @@ export function ProjectView() {
   return (
     <>
       <div className="min-h-screen">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} onRemoveProject={removeProject} />
 
         <div className="mx-auto w-full max-w-3xl px-6 py-8">
-          <SearchTrigger
-            placeholder="Search Sessions (#K)"
-            onClick={() => setSearchOpen(true)}
-          />
+          <InputGroup>
+            <InputGroupAddon>
+              <Search className="size-4" />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Search sessions…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </InputGroup>
 
           {project?.projectIds[0] && (
             <p className="mt-2 text-xs text-muted-foreground">
@@ -114,16 +138,18 @@ export function ProjectView() {
             </section>
           )}
 
-          {sessions && sessions.length > 0 && (
+          {filteredSessions && filteredSessions.length > 0 && (
             <SessionList
-              sessions={sessions.map((s) => ({ ...s, projectSlug: projectId }))}
-              label="Sessions"
+              sessions={filteredSessions.map((s) => ({ ...s, projectSlug: projectId }))}
+              label={searchQuery.trim() ? "Results" : "Sessions"}
             />
           )}
 
-          {sessions && sessions.length === 0 && (
+          {filteredSessions && filteredSessions.length === 0 && (
             <p className="mt-10 text-sm text-muted-foreground">
-              No sessions yet for this project.
+              {searchQuery.trim()
+                ? "No sessions match your search."
+                : "No sessions yet for this project."}
             </p>
           )}
         </div>
@@ -136,12 +162,6 @@ export function ProjectView() {
         loading={loadingDirectories}
         existingSlugs={projectSlugs}
         onAddProject={addProject}
-      />
-
-      <SessionSearch
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        projects={projects}
       />
     </>
   );

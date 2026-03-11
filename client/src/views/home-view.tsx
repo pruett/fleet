@@ -46,6 +46,7 @@ export function HomeView() {
     loading,
     loadingDirectories,
     addProject,
+    removeProject,
     refreshDirectories,
   } = useProjects();
 
@@ -108,7 +109,7 @@ export function HomeView() {
 
   return (
     <>
-      <Header projects={projects} onAddProject={handleOpenDialog} />
+      <Header projects={projects} onAddProject={handleOpenDialog} onRemoveProject={removeProject} />
       <div className="mx-auto w-full max-w-3xl px-6 py-12">
         {/* Search trigger */}
         <SearchTrigger onClick={() => setSearchOpen(true)} onAddProject={handleOpenDialog} />

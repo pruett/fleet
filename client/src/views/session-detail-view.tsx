@@ -18,7 +18,9 @@ import {
   TurnGroup,
   groupMessagesByTurn,
 } from "@/components/conversation/turn-group";
-import { BotIcon, GitBranch } from "lucide-react";
+import { ArrowLeft, BotIcon, GitBranch, Search } from "lucide-react";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Link } from "react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function SessionDetailView() {
@@ -58,6 +60,21 @@ export function SessionDetailView() {
     [visibleMessages],
   );
 
+  const searchShortcut = (
+    <button
+      type="button"
+      onClick={() => setSearchOpen(true)}
+      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+    >
+      <Search className="size-3" />
+      <span>Search</span>
+      <KbdGroup>
+        <Kbd>⌘</Kbd>
+        <Kbd>K</Kbd>
+      </KbdGroup>
+    </button>
+  );
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -73,7 +90,7 @@ export function SessionDetailView() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
         <div className="flex h-[calc(100vh-65px)] items-center justify-center">
           <p className="text-muted-foreground">Loading session…</p>
         </div>
@@ -85,7 +102,7 @@ export function SessionDetailView() {
   if (error) {
     return (
       <div className="min-h-screen">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
         <div className="flex h-[calc(100vh-65px)] items-center justify-center">
           <Alert variant="destructive" className="max-w-md">
             <AlertTitle>Failed to load session</AlertTitle>
@@ -104,7 +121,7 @@ export function SessionDetailView() {
   if (!session) {
     return (
       <div className="min-h-screen">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
         <div className="flex h-[calc(100vh-65px)] items-center justify-center">
           <p className="text-muted-foreground">Session not found</p>
         </div>
@@ -115,12 +132,18 @@ export function SessionDetailView() {
   return (
     <>
       <div className="flex h-screen flex-col overflow-hidden">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
 
         <Tabs defaultValue="conversation" className="flex flex-1 flex-col min-h-0 gap-0">
           <div className="border-b">
             <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-3">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <Link
+                  to={`/projects/${projectId}`}
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="size-4" />
+                </Link>
                 {sessionMeta?.model && (
                   <span className="flex items-center gap-1.5">
                     <BotIcon className="size-3.5 text-muted-foreground/60" />

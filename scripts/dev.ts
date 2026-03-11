@@ -3,17 +3,12 @@
  * Both processes inherit stdout/stderr for unified terminal output.
  * Ctrl+C cleanly shuts down both via AbortController.
  *
- * In git worktrees, ports are automatically offset to avoid conflicts.
- * See scripts/resolve-ports.ts for details.
+ * Ports are assigned by scanning from 3000 for the next two free ports.
  */
 
 import { resolvePorts } from "./resolve-ports";
 
-const { server: serverPort, client: clientPort, worktreeName } = resolvePorts();
-
-if (worktreeName) {
-  console.log(`[worktree: ${worktreeName}]`);
-}
+const { server: serverPort, client: clientPort } = await resolvePorts();
 console.log(`Server → http://localhost:${serverPort}`);
 console.log(`Client → http://localhost:${clientPort}\n`);
 
