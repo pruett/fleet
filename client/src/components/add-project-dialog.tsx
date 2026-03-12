@@ -146,7 +146,7 @@ export function AddProjectDialog({
       color: PROJECT_COLORS[existingSlugs.size % PROJECT_COLORS.length],
     });
     handleClose();
-  }, [title, pattern, onAddProject, handleClose]);
+  }, [title, pattern, onAddProject, handleClose, existingSlugs.size]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
