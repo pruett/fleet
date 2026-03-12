@@ -18,8 +18,7 @@ import {
   TurnGroup,
   groupMessagesByTurn,
 } from "@/components/conversation/turn-group";
-import { ArrowLeft, BotIcon, GitBranch, Search } from "lucide-react";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { ArrowLeft, BotIcon, GitBranch } from "lucide-react";
 import { Link } from "react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -60,21 +59,6 @@ export function SessionDetailView() {
     [visibleMessages],
   );
 
-  const searchShortcut = (
-    <button
-      type="button"
-      onClick={() => setSearchOpen(true)}
-      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-    >
-      <Search className="size-3" />
-      <span>Search</span>
-      <KbdGroup>
-        <Kbd>⌘</Kbd>
-        <Kbd>K</Kbd>
-      </KbdGroup>
-    </button>
-  );
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -90,7 +74,7 @@ export function SessionDetailView() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} onSearch={() => setSearchOpen(true)} />
         <div className="flex h-[calc(100vh-65px)] items-center justify-center">
           <p className="text-muted-foreground">Loading session…</p>
         </div>
@@ -102,7 +86,7 @@ export function SessionDetailView() {
   if (error) {
     return (
       <div className="min-h-screen">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} onSearch={() => setSearchOpen(true)} />
         <div className="flex h-[calc(100vh-65px)] items-center justify-center">
           <Alert variant="destructive" className="max-w-md">
             <AlertTitle>Failed to load session</AlertTitle>
@@ -121,7 +105,7 @@ export function SessionDetailView() {
   if (!session) {
     return (
       <div className="min-h-screen">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} onSearch={() => setSearchOpen(true)} />
         <div className="flex h-[calc(100vh-65px)] items-center justify-center">
           <p className="text-muted-foreground">Session not found</p>
         </div>
@@ -132,7 +116,7 @@ export function SessionDetailView() {
   return (
     <>
       <div className="flex h-screen flex-col overflow-hidden">
-        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} rightContent={searchShortcut} />
+        <Header projects={projects} selectedSlug={projectId} onAddProject={handleOpenDialog} showClearButton={false} onSearch={() => setSearchOpen(true)} />
 
         <Tabs defaultValue="conversation" className="flex flex-1 flex-col min-h-0 gap-0">
           <div className="border-b">

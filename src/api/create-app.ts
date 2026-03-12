@@ -75,6 +75,7 @@ export function createApp(deps: AppDependencies): Hono {
         p &&
         typeof p === "object" &&
         typeof (p as ProjectConfig).title === "string" &&
+        typeof (p as ProjectConfig).color === "string" &&
         Array.isArray((p as ProjectConfig).projectIds) &&
         (p as ProjectConfig).projectIds.every(
           (d: unknown) => typeof d === "string",
@@ -84,7 +85,7 @@ export function createApp(deps: AppDependencies): Hono {
       return c.json(
         {
           error:
-            "Each project must have a string title and projectIds string array",
+            "Each project must have a string title, color, and projectIds string array",
         },
         400,
       );
@@ -119,6 +120,7 @@ export function createApp(deps: AppDependencies): Hono {
               ...s,
               projectSlug,
               projectTitle: project.title,
+              projectColor: project.color,
             }));
           }),
         ),

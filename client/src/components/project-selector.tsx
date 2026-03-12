@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Check, ChevronDown, Plus, X } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,18 +66,22 @@ export function ProjectSelector({
     <>
       <div className="flex items-center gap-1">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-1 text-sm text-foreground font-normal hover:text-foreground/80 transition-colors">
-            {label}
-            <ChevronDown className="size-3.5" />
+          <DropdownMenuTrigger className="group/trigger flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground font-normal border border-transparent hover:bg-muted hover:border-border hover:text-accent-foreground data-[state=open]:bg-muted data-[state=open]:border-border data-[state=open]:text-accent-foreground transition-colors">
+            <span className={selectedProject ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+            <ChevronsUpDown className="size-4" strokeWidth={2} />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
+          <DropdownMenuContent align="start" className="shadow-none">
             <DropdownMenuGroup>
               {projects.map((project) => (
                 <DropdownMenuItem
                   key={project.slug}
-                  className="group"
+                  className="group cursor-pointer"
                   onSelect={() => navigate(`/projects/${project.slug}`)}
                 >
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: project.color }}
+                  />
                   <span className="flex-1">{project.title}</span>
                   {project.slug === selectedSlug && (
                     <Check className="ml-2 size-3.5 shrink-0" />
@@ -99,9 +103,9 @@ export function ProjectSelector({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={onAddProject}
-                  className="text-muted-foreground"
+                  className="cursor-pointer text-muted-foreground"
                 >
-                  <Plus className="mr-2 size-3.5" />
+                  <Plus className="size-3.5" />
                   Add Project
                 </DropdownMenuItem>
               </>

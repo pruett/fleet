@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { ArrowLeft, Folder, Loader2 } from "lucide-react";
 import type { ProjectSummary, ProjectConfig } from "@fleet/shared";
-import { slugify } from "@fleet/shared";
+import { slugify, PROJECT_COLORS } from "@fleet/shared";
 import {
   Dialog,
   DialogContent,
@@ -140,7 +140,11 @@ export function AddProjectDialog({
 
   const handleSave = useCallback(() => {
     if (!title.trim() || !pattern.trim()) return;
-    onAddProject({ title: title.trim(), projectIds: [pattern.trim()] });
+    onAddProject({
+      title: title.trim(),
+      projectIds: [pattern.trim()],
+      color: PROJECT_COLORS[existingSlugs.size % PROJECT_COLORS.length],
+    });
     handleClose();
   }, [title, pattern, onAddProject, handleClose]);
 

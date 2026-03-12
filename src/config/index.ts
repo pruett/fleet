@@ -3,6 +3,7 @@ import { join, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 
 import type { ProjectConfig, FleetConfig } from "@fleet/shared";
+import { PROJECT_COLORS } from "@fleet/shared";
 
 const DEFAULT_CONFIG: FleetConfig = { projects: [] };
 
@@ -17,12 +18,12 @@ export function getConfigPath(): string {
  */
 function migrateLegacy(parsed: Record<string, unknown>): FleetConfig {
   const ids = parsed.pinnedProjects as string[];
-  const projects: ProjectConfig[] = ids.map((id) => {
+  const projects: ProjectConfig[] = ids.map((id, index) => {
     // Decode the dir name to a path, then take the last segment as title
     const decoded = id.replaceAll("-", "/");
     const title =
       decoded.split("/").filter(Boolean).pop() ?? id;
-    return { title, projectIds: [id] };
+    return { title, projectIds: [id], color: PROJECT_COLORS[index % PROJECT_COLORS.length] };
   });
   return { projects };
 }
@@ -35,9 +36,13 @@ export async function readConfig(): Promise<FleetConfig> {
     if (!parsed || typeof parsed !== "object") {
       return DEFAULT_CONFIG;
     }
-    // New format
+    // New format — backfill missing colors for configs saved before color support
     if (Array.isArray(parsed.projects)) {
-      return { projects: parsed.projects } as FleetConfig;
+      const projects = (parsed.projects as ProjectConfig[]).map((p, i) => ({
+        ...p,
+        color: p.color ?? PROJECT_COLORS[i % PROJECT_COLORS.length],
+      }));
+      return { projects };
     }
     // Legacy format — migrate
     if (Array.isArray(parsed.pinnedProjects)) {

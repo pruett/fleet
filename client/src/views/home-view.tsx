@@ -1,19 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { FolderOpen, Plus } from "lucide-react";
 import { useProjects } from "@/hooks/use-projects";
 import { useRecentSessions } from "@/hooks/use-recent-sessions";
 import { useGlobalSSE } from "@/hooks/use-global-sse";
 import { Header } from "@/components/header";
 import { AddProjectDialog } from "@/components/add-project-dialog";
 import { SessionSearch } from "@/components/session-search";
-import { SearchTrigger } from "@/components/search-trigger";
-import { SessionList } from "@/components/session-item";
+import {
+  SessionList,
+  SessionListHeader,
+  SessionItem,
+  SessionItemIcon,
+  SessionItemContent,
+  SessionItemHeader,
+  SessionItemTitle,
+  SessionItemId,
+  SessionItemPrompt,
+  SessionItemActions,
+  SessionItemTime,
+  SessionItemChevron,
+} from "@/components/session";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
-  EmptyHeader,
-  EmptyTitle,
   EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -81,14 +95,21 @@ export function HomeView() {
   if (projects.length === 0) {
     return (
       <>
-        <div className="flex min-h-screen items-center justify-center">
-          <Empty className="border-0">
+        <Header />
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <Empty className="max-w-sm border">
             <EmptyHeader>
-              <EmptyTitle>You haven't added any projects yet</EmptyTitle>
+              <EmptyMedia variant="icon">
+                <FolderOpen className="size-4" />
+              </EmptyMedia>
+              <EmptyTitle>No projects yet</EmptyTitle>
+              <EmptyDescription>
+                Add a project to start tracking your sessions.
+              </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button onClick={handleOpenDialog}>
-                <Plus className="mr-2 size-4" />
+              <Button size="sm" onClick={handleOpenDialog}>
+                <Plus data-icon="inline-start" />
                 Add Project
               </Button>
             </EmptyContent>
@@ -109,14 +130,33 @@ export function HomeView() {
 
   return (
     <>
-      <Header projects={projects} onAddProject={handleOpenDialog} onRemoveProject={removeProject} />
+      <Header projects={projects} onAddProject={handleOpenDialog} onRemoveProject={removeProject} onSearch={() => setSearchOpen(true)} />
       <div className="mx-auto w-full max-w-3xl px-6 py-12">
-        {/* Search trigger */}
-        <SearchTrigger onClick={() => setSearchOpen(true)} onAddProject={handleOpenDialog} />
-
         {/* Recent Sessions */}
         {recentSessions.length > 0 && (
-          <SessionList sessions={recentSessions} label="Recent Sessions" />
+          <SessionList>
+            <SessionListHeader>Recent Sessions</SessionListHeader>
+            {recentSessions.map((session, i) => (
+              <SessionItem
+                key={session.sessionId}
+                session={session}
+                isLast={i === recentSessions.length - 1}
+              >
+                <SessionItemIcon />
+                <SessionItemContent>
+                  <SessionItemHeader>
+                    <SessionItemTitle />
+                    <SessionItemId />
+                  </SessionItemHeader>
+                  <SessionItemPrompt />
+                </SessionItemContent>
+                <SessionItemActions>
+                  <SessionItemTime />
+                  <SessionItemChevron />
+                </SessionItemActions>
+              </SessionItem>
+            ))}
+          </SessionList>
         )}
 
         {loadingSessions && recentSessions.length === 0 && (
