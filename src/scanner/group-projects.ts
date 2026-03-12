@@ -29,6 +29,7 @@ export function groupProjects(
       slug: slugify(config.title),
       title: config.title,
       projectIds: config.projectIds,
+      color: config.color,
       matchedDirIds: matched.map((p) => p.id),
       sessionCount,
       lastActiveAt,

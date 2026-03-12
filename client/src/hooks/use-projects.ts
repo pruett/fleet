@@ -7,7 +7,7 @@ import {
   updateConfig,
 } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import { slugify } from "@fleet/shared";
+import { slugify, getNextProjectColor } from "@fleet/shared";
 import type {
   GroupedProject,
   ProjectSummary,
@@ -60,7 +60,10 @@ export function useProjects(): UseProjectsResult {
 
   const addProject = useCallback(
     (project: ProjectConfig) => {
-      mutation.mutate({ projects: [...configs, project] });
+      const withColor = project.color
+        ? project
+        : { ...project, color: getNextProjectColor(configs) };
+      mutation.mutate({ projects: [...configs, withColor] });
     },
     [configs, mutation],
   );

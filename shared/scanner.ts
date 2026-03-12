@@ -18,6 +18,8 @@ export interface GroupedProject {
   title: string;
   /** Glob patterns from config */
   projectIds: string[];
+  /** Hex color assigned to this project */
+  color: string;
   /** Raw directory names that matched the patterns */
   matchedDirIds: string[];
   /** Aggregated session count across all matched directories */
@@ -58,6 +60,8 @@ export interface RecentSessionSummary extends SessionSummary {
   projectSlug: string;
   /** Display title of the project this session belongs to */
   projectTitle: string;
+  /** Hex color assigned to the project */
+  projectColor: string;
 }
 
 export interface WorktreeSummary {

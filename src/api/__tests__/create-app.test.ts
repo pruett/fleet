@@ -18,6 +18,7 @@ describe("GET /api/projects", () => {
         slug: "bar",
         title: "bar",
         projectIds: ["-Users-foo-code-bar"],
+        color: "#E05252",
         matchedDirIds: ["-Users-foo-code-bar"],
         sessionCount: 3,
         lastActiveAt: null,
@@ -460,6 +461,7 @@ describe("GET /api/projects/:slug/sessions", () => {
             {
               title: "project-alpha",
               projectIds: ["-Users-project-alpha"],
+              color: "#E05252",
             },
           ],
         }),
@@ -516,6 +518,7 @@ describe("GET /api/projects/:slug/sessions", () => {
             {
               title: "project-alpha",
               projectIds: ["-Users-project-alpha"],
+              color: "#E05252",
             },
           ],
         }),
@@ -554,6 +557,7 @@ describe("GET /api/projects/:slug/sessions", () => {
             {
               title: "project-alpha",
               projectIds: ["-Users-project-alpha"],
+              color: "#E05252",
             },
           ],
         }),
@@ -599,7 +603,7 @@ describe("GET /api/projects/:slug/worktrees", () => {
       },
       config: {
         readConfig: async () => ({
-          projects: [{ title: "Project Alpha", projectIds: ["-Users-project-alpha"] }],
+          projects: [{ title: "Project Alpha", projectIds: ["-Users-project-alpha"], color: "#E05252" }],
         }),
         writeConfig: async () => {},
       },
@@ -644,7 +648,7 @@ describe("GET /api/projects/:slug/worktrees", () => {
       },
       config: {
         readConfig: async () => ({
-          projects: [{ title: "Project Alpha", projectIds: ["-Users-project-alpha"] }],
+          projects: [{ title: "Project Alpha", projectIds: ["-Users-project-alpha"], color: "#E05252" }],
         }),
         writeConfig: async () => {},
       },
@@ -722,6 +726,7 @@ describe("Static file serving", () => {
         slug: "test-project",
         title: "test-project",
         projectIds: ["test-project"],
+        color: "#E05252",
         matchedDirIds: ["test-project"],
         sessionCount: 0,
         lastActiveAt: null,
