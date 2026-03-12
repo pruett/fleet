@@ -64,6 +64,7 @@ function Item({
     render?: React.ReactElement
   }) {
   if (render) {
+    const renderProps = render.props as Record<string, unknown>;
     return React.cloneElement(render, {
       ...props,
       "data-slot": "item",
@@ -71,10 +72,10 @@ function Item({
       "data-size": size,
       className: cn(
         itemVariants({ variant, size }),
-        render.props.className,
+        renderProps.className as string | undefined,
         className
       ),
-    })
+    } as React.HTMLAttributes<HTMLElement> & Record<string, unknown>)
   }
   const Comp = asChild ? Slot.Root : "div"
   return (
